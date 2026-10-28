@@ -1,0 +1,163 @@
+<UserControl x:Class="SldFileViewer.Views.Panels.FeatureDetailView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
+             mc:Ignorable="d" 
+             d:DesignHeight="600" d:DesignWidth="800">
+
+    <Grid Background="{StaticResource Brush.Background.Primary}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Top Header Banner -->
+        <Border Grid.Row="0"
+                Background="{StaticResource Brush.Background.Secondary}"
+                BorderBrush="{StaticResource Brush.Border.Primary}"
+                BorderThickness="0,0,0,1"
+                Padding="12,8">
+            <DockPanel LastChildFill="False">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <iconPacks:PackIconMaterial Kind="CubeSend"
+                                                Foreground="{StaticResource Brush.Accent.Blue}"
+                                                Width="16" Height="16"
+                                                Margin="0,0,8,0"
+                                                VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding FeatureName}"
+                               FontWeight="Bold" FontSize="14"
+                               Foreground="{StaticResource Brush.Text.Primary}"
+                               VerticalAlignment="Center" />
+                    <Border Background="{StaticResource Brush.Background.Tertiary}"
+                            BorderBrush="{StaticResource Brush.Border.Primary}"
+                            BorderThickness="1"
+                            CornerRadius="3"
+                            Padding="6,2" Margin="10,0,0,0">
+                        <TextBlock Text="{Binding FeatureType}"
+                                   FontSize="11" Foreground="{StaticResource Brush.Accent.Blue}" />
+                    </Border>
+                    <Border Visibility="{Binding HasDimensions, Converter={StaticResource BoolToVisibilityConverter}}"
+                            Background="#22107C41" BorderBrush="{StaticResource Brush.Accent.Green}"
+                            BorderThickness="1" CornerRadius="3"
+                            Padding="6,2" Margin="6,0,0,0">
+                        <TextBlock Text="含参数尺寸" FontSize="11" Foreground="{StaticResource Brush.Accent.Green}" />
+                    </Border>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- Main Content Area -->
+        <ScrollViewer Grid.Row="1" Padding="20" VerticalScrollBarVisibility="Auto">
+            <StackPanel MaxWidth="900" HorizontalAlignment="Left">
+                
+                <!-- Overview Card -->
+                <TextBlock Text="基本属性 (Overview)" FontWeight="Bold" FontSize="13"
+                           Foreground="{StaticResource Brush.Text.Primary}" Margin="0,0,0,8" />
+                <Border Background="{StaticResource Brush.Background.Secondary}"
+                        BorderBrush="{StaticResource Brush.Border.Primary}"
+                        BorderThickness="1" CornerRadius="4"
+                        Padding="16" Margin="0,0,0,20">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Feature Name -->
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="特征名称:" Foreground="{StaticResource Brush.Text.Secondary}" Margin="0,4"/>
+                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding FeatureName}" FontWeight="Bold" Foreground="{StaticResource Brush.Text.Primary}" Margin="0,4"/>
+
+                        <!-- Feature Type -->
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="特征类别 / 类型:" Foreground="{StaticResource Brush.Text.Secondary}" Margin="0,4"/>
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding FeatureType}" Foreground="{StaticResource Brush.Accent.Blue}" Margin="0,4"/>
+
+                        <!-- ID -->
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="内部标识 (ID):" Foreground="{StaticResource Brush.Text.Secondary}" Margin="0,4"/>
+                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding FeatureId}" Foreground="{StaticResource Brush.Text.Primary}" Margin="0,4"/>
+
+                        <!-- Source Stream -->
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="存储来源 (Stream):" Foreground="{StaticResource Brush.Text.Secondary}" Margin="0,4"/>
+                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SourceStream}" Foreground="{StaticResource Brush.Text.Primary}" Margin="0,4"/>
+                    </Grid>
+                </Border>
+
+                <!-- Dimensions Table (when feature has dimensions) -->
+                <StackPanel Visibility="{Binding HasDimensions, Converter={StaticResource BoolToVisibilityConverter}}"
+                            Margin="0,0,0,20">
+                    <TextBlock Text="特征尺寸明细 (Dimensions)" FontWeight="Bold" FontSize="13"
+                               Foreground="{StaticResource Brush.Text.Primary}" Margin="0,0,0,8" />
+                    <Border Background="{StaticResource Brush.Background.Secondary}"
+                            BorderBrush="{StaticResource Brush.Border.Primary}"
+                            BorderThickness="1" CornerRadius="4"
+                            Padding="2">
+                        <DataGrid ItemsSource="{Binding Dimensions}"
+                                  AutoGenerateColumns="False"
+                                  CanUserAddRows="False"
+                                  HeadersVisibility="Column"
+                                  GridLinesVisibility="Horizontal">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="尺寸名称" Binding="{Binding Name}" Width="150" />
+                                <DataGridTextColumn Header="尺寸数值 (mm / °)" Binding="{Binding Value}" Width="200" />
+                                <DataGridTextColumn Header="来源" Binding="{Binding Source}" Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+                </StackPanel>
+
+                <!-- Detailed Parameters & Attributes Grid -->
+                <StackPanel Visibility="{Binding HasProperties, Converter={StaticResource BoolToVisibilityConverter}}"
+                            Margin="0,0,0,20">
+                    <TextBlock Text="参数与元数据 (Parameters &amp; Attributes)" FontWeight="Bold" FontSize="13"
+                               Foreground="{StaticResource Brush.Text.Primary}" Margin="0,0,0,8" />
+                    <Border Background="{StaticResource Brush.Background.Secondary}"
+                            BorderBrush="{StaticResource Brush.Border.Primary}"
+                            BorderThickness="1" CornerRadius="4"
+                            Padding="2">
+                        <DataGrid ItemsSource="{Binding Properties}"
+                                  AutoGenerateColumns="False"
+                                  CanUserAddRows="False"
+                                  HeadersVisibility="Column"
+                                  GridLinesVisibility="Horizontal">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="属性名称 (Key)" Binding="{Binding Key}" Width="220" />
+                                <DataGridTextColumn Header="属性值 (Value)" Binding="{Binding Value}" Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+                </StackPanel>
+
+                <!-- Child Features / Sub-items (when children exist) -->
+                <StackPanel Visibility="{Binding HasChildren, Converter={StaticResource BoolToVisibilityConverter}}"
+                            Margin="0,0,0,20">
+                    <TextBlock Text="子项与关联实体 (Child Elements &amp; Relations)" FontWeight="Bold" FontSize="13"
+                               Foreground="{StaticResource Brush.Text.Primary}" Margin="0,0,0,8" />
+                    <Border Background="{StaticResource Brush.Background.Secondary}"
+                            BorderBrush="{StaticResource Brush.Border.Primary}"
+                            BorderThickness="1" CornerRadius="4"
+                            Padding="2">
+                        <DataGrid ItemsSource="{Binding Children}"
+                                  AutoGenerateColumns="False"
+                                  CanUserAddRows="False"
+                                  HeadersVisibility="Column"
+                                  GridLinesVisibility="Horizontal">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="子项名称" Binding="{Binding Name}" Width="200" />
+                                <DataGridTextColumn Header="类别" Binding="{Binding Kind}" Width="150" />
+                                <DataGridTextColumn Header="说明 / 参数" Binding="{Binding Details}" Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+                </StackPanel>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

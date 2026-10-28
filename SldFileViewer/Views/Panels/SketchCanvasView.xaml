@@ -1,0 +1,220 @@
+<UserControl x:Class="SldFileViewer.Views.Panels.SketchCanvasView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:controls="clr-namespace:SldFileViewer.Controls"
+             xmlns:converters="clr-namespace:SldFileViewer.Converters"
+             mc:Ignorable="d" 
+             d:DesignHeight="600" d:DesignWidth="800">
+
+    <UserControl.Resources>
+        <converters:DimensionDisplayConverter x:Key="DimensionDisplayConverter" />
+        <converters:RelationKindToStringConverter x:Key="RelationKindToStringConverter" />
+    </UserControl.Resources>
+
+    <Grid Background="{StaticResource Brush.Background.Primary}">
+        <Grid.RowDefinitions>
+            <!-- Toolbar -->
+            <RowDefinition Height="Auto" />
+            <!-- Main Canvas Viewport -->
+            <RowDefinition Height="*" />
+            <!-- Splitter -->
+            <RowDefinition Height="5" />
+            <!-- Details Table Drawer -->
+            <RowDefinition Height="220" MinHeight="100" />
+        </Grid.RowDefinitions>
+
+        <!-- Top Sketch Toolbar -->
+        <Border Grid.Row="0"
+                Background="{StaticResource Brush.Background.Secondary}"
+                BorderBrush="{StaticResource Brush.Border.Primary}"
+                BorderThickness="0,0,0,1"
+                Padding="8,4">
+            <DockPanel LastChildFill="False">
+                <!-- Sketch Info -->
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Path Data="{StaticResource Geo.Sketch}"
+                          Fill="{StaticResource Brush.Accent.Blue}"
+                          Width="14" Height="14" Stretch="Uniform"
+                          Margin="0,0,6,0" />
+                    <TextBlock Text="{Binding SketchName}"
+                               FontWeight="Bold" FontSize="13"
+                               Foreground="{StaticResource Brush.Text.Primary}"
+                               VerticalAlignment="Center" />
+                    <Border Background="{StaticResource Brush.Background.Tertiary}"
+                            BorderBrush="{StaticResource Brush.Border.Primary}"
+                            BorderThickness="1"
+                            CornerRadius="3"
+                            Padding="4,1" Margin="8,0,0,0">
+                        <TextBlock Text="{Binding StatusInfo}"
+                                   FontSize="11" Foreground="{StaticResource Brush.Text.Secondary}" />
+                    </Border>
+                    <Border Visibility="{Binding IsPartial, Converter={StaticResource BoolToVisibilityConverter}}"
+                            Background="#44D19A66" BorderBrush="{StaticResource Brush.Accent.Orange}"
+                            BorderThickness="1" CornerRadius="3"
+                            Padding="4,1" Margin="6,0,0,0">
+                        <TextBlock Text="部分解码" FontSize="11" Foreground="{StaticResource Brush.Accent.Orange}" />
+                    </Border>
+                </StackPanel>
+
+                <!-- Layer Visibility Toggles -->
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <ToggleButton Style="{StaticResource Style.ToggleButton.Toolbar}"
+                                  IsChecked="{Binding ShowPoints}"
+                                  ToolTip="显示/隐藏草图点"
+                                  Margin="2,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="6" Height="6" Fill="{StaticResource Brush.Sketch.Point}" Margin="0,0,4,0"/>
+                            <TextBlock Text="点" FontSize="11"/>
+                        </StackPanel>
+                    </ToggleButton>
+
+                    <ToggleButton Style="{StaticResource Style.ToggleButton.Toolbar}"
+                                  IsChecked="{Binding ShowConstraints}"
+                                  ToolTip="显示/隐藏几何约束符号"
+                                  Margin="2,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Border Background="{StaticResource Brush.Sketch.ConstraintBadge}" CornerRadius="2" Width="10" Height="10" Margin="0,0,4,0">
+                                <TextBlock Text="=" FontSize="8" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock Text="约束" FontSize="11"/>
+                        </StackPanel>
+                    </ToggleButton>
+
+                    <ToggleButton Style="{StaticResource Style.ToggleButton.Toolbar}"
+                                  IsChecked="{Binding ShowDimensions}"
+                                  ToolTip="显示/隐藏草图尺寸"
+                                  Margin="2,0">
+                        <TextBlock Text="📐 尺寸" FontSize="11"/>
+                    </ToggleButton>
+
+                    <ToggleButton Style="{StaticResource Style.ToggleButton.Toolbar}"
+                                  IsChecked="{Binding ShowConstruction}"
+                                  ToolTip="显示/隐藏构造线 (辅助线)"
+                                  Margin="2,0">
+                        <TextBlock Text="┄ 辅助线" FontSize="11"/>
+                    </ToggleButton>
+
+                    <Rectangle Width="1" Height="16" Fill="{StaticResource Brush.Border.Primary}" Margin="6,0" />
+
+                    <!-- Fit View Button -->
+                    <Button Command="{Binding FitViewCommand}"
+                            ToolTip="适应窗口居中 (快捷键: 双击右键)"
+                            Style="{StaticResource Style.Button.Toolbar}">
+                        <Path Data="{StaticResource Geo.FitView}"
+                              Fill="{StaticResource Brush.Text.Primary}"
+                              Width="14" Height="14" Stretch="Uniform" />
+                    </Button>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- 2D Interactive Zoomable Canvas -->
+        <Grid Grid.Row="1">
+            <controls:ZoomableCanvas x:Name="SketchCanvas"
+                                     WorldBounds="{Binding Bounds}"
+                                     ClipToBounds="True" />
+
+            <!-- Floating Overlay Hint -->
+            <Border HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                    Margin="12"
+                    Background="#D0FFFFFF"
+                    BorderBrush="{StaticResource Brush.Border.Primary}"
+                    BorderThickness="1"
+                    CornerRadius="4"
+                    Padding="8,4">
+                <TextBlock Text="滚轮缩放 | 中键拖动平移 | 双击右键复位"
+                           FontSize="11" Foreground="{StaticResource Brush.Text.Secondary}" />
+            </Border>
+        </Grid>
+
+        <!-- Splitter -->
+        <GridSplitter Grid.Row="2" Height="5"
+                      HorizontalAlignment="Stretch"
+                      Background="{StaticResource Brush.Border.Primary}"
+                      ResizeDirection="Rows" />
+
+        <!-- Details DataGrid Drawer -->
+        <Border Grid.Row="3"
+                Background="{StaticResource Brush.Background.Secondary}">
+            <TabControl Style="{StaticResource Style.TabControl.CAD}">
+                <!-- Segments Table -->
+                <TabItem Header="图元明细 (Segments)">
+                    <DataGrid ItemsSource="{Binding Segments}"
+                              AutoGenerateColumns="False"
+                              CanUserAddRows="False"
+                              SelectedItem="{Binding SelectedSegment, Mode=TwoWay}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="图元 ID" Binding="{Binding Id}" Width="80" />
+                            <DataGridTextColumn Header="类别 (Kind)" Binding="{Binding Kind}" Width="120" />
+                            <DataGridCheckBoxColumn Header="辅助线 (Construction)" Binding="{Binding IsConstruction}" Width="140" />
+                            <DataGridTextColumn Header="起点" Binding="{Binding Start.Id, StringFormat='#{0}'}" Width="80" />
+                            <DataGridTextColumn Header="终点" Binding="{Binding End.Id, StringFormat='#{0}'}" Width="80" />
+                            <DataGridTextColumn Header="圆心" Binding="{Binding Center.Id, StringFormat='#{0}'}" Width="80" />
+                            <DataGridTextColumn Header="半径" Binding="{Binding Radius, Converter={StaticResource DimensionDisplayConverter}}" Width="120" />
+                            <DataGridTextColumn Header="说明 / 文本" Binding="{Binding Text}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </TabItem>
+
+                <!-- Points Table -->
+                <TabItem Header="点表 (Points)">
+                    <DataGrid ItemsSource="{Binding Points}"
+                              AutoGenerateColumns="False"
+                              CanUserAddRows="False"
+                              SelectedItem="{Binding SelectedPoint, Mode=TwoWay}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="点 ID" Binding="{Binding Id}" Width="80" />
+                            <DataGridTextColumn Header="表索引 (Index)" Binding="{Binding TableIndex}" Width="100" />
+                            <DataGridTextColumn Header="X (m)" Binding="{Binding WorldX, StringFormat='F6'}" Width="120" />
+                            <DataGridTextColumn Header="Y (m)" Binding="{Binding WorldY, StringFormat='F6'}" Width="120" />
+                            <DataGridTextColumn Header="Z (m)" Binding="{Binding WorldZ, StringFormat='F6'}" Width="120" />
+                            <DataGridTextColumn Header="X (mm)" Binding="{Binding WorldX, Converter={StaticResource DimensionDisplayConverter}}" Width="120" />
+                            <DataGridTextColumn Header="Y (mm)" Binding="{Binding WorldY, Converter={StaticResource DimensionDisplayConverter}}" Width="120" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </TabItem>
+
+                <!-- Constraints Table -->
+                <TabItem Header="约束关系 (Relations)">
+                    <DataGrid ItemsSource="{Binding Sketch.Relations}"
+                              AutoGenerateColumns="False"
+                              CanUserAddRows="False">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="约束类型" Binding="{Binding Kind, Converter={StaticResource RelationKindToStringConverter}}" Width="180" />
+                            <DataGridTextColumn Header="代码 (TypeCode)" Binding="{Binding TypeCode}" Width="110" />
+                            <DataGridTextColumn Header="布局 (Layout)" Binding="{Binding Layout}" Width="150" />
+                            <DataGridTextColumn Header="关联实体数" Binding="{Binding References.Count}" Width="100" />
+                            <DataGridTextColumn Header="流偏移 (Offset)" Binding="{Binding SourceOffset, StringFormat='0x{0:X}'}" Width="120" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </TabItem>
+
+                <!-- Dimensions Table -->
+                <TabItem Header="尺寸 (Dimensions)">
+                    <DataGrid ItemsSource="{Binding Sketch.Dimensions}"
+                              AutoGenerateColumns="False"
+                              CanUserAddRows="False">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="尺寸名称" Binding="{Binding Name}" Width="150" />
+                            <DataGridTextColumn Header="系统值 (mm)" Binding="{Binding SystemValue, Converter={StaticResource DimensionDisplayConverter}}" Width="140" />
+                            <DataGridTextColumn Header="显示值" Binding="{Binding DisplayValue}" Width="140" />
+                            <DataGridTextColumn Header="数值来源" Binding="{Binding ValueSource}" Width="180" />
+                            <DataGridTextColumn Header="流偏移" Binding="{Binding SourceOffset, StringFormat='0x{0:X}'}" Width="120" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </TabItem>
+
+                <!-- Diagnostics -->
+                <TabItem Header="解码诊断 (Diagnostics)">
+                    <ListBox ItemsSource="{Binding Diagnostics}"
+                             Background="{StaticResource Brush.Background.Secondary}"
+                             Foreground="{StaticResource Brush.Text.Secondary}"
+                             BorderThickness="0"
+                             Padding="6" />
+                </TabItem>
+            </TabControl>
+        </Border>
+    </Grid>
+</UserControl>

@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0-windows</TargetFramework>
+        <PlatformTarget>x64</PlatformTarget>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsPackable>false</IsPackable>
+        <IsTestProject>true</IsTestProject>
+        <SolidWorksInstallDir Condition="'$(SolidWorksInstallDir)' == ''">C:\Program Files\SOLIDWORKS Corp\SOLIDWORKS</SolidWorksInstallDir>
+        <FallbackInteropDir>$(MSBuildThisFileDirectory)..\reverse_workspace\tools\SketchLab\bin\Debug\net8.0-windows</FallbackInteropDir>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Reference Include="SolidWorks.Interop.sldworks">
+            <HintPath Condition="Exists('$(SolidWorksInstallDir)\api\redist\SolidWorks.Interop.sldworks.dll')">$(SolidWorksInstallDir)\api\redist\SolidWorks.Interop.sldworks.dll</HintPath>
+            <HintPath Condition="!Exists('$(SolidWorksInstallDir)\api\redist\SolidWorks.Interop.sldworks.dll')">$(FallbackInteropDir)\SolidWorks.Interop.sldworks.dll</HintPath>
+            <EmbedInteropTypes>false</EmbedInteropTypes>
+        </Reference>
+        <Reference Include="SolidWorks.Interop.swconst">
+            <HintPath Condition="Exists('$(SolidWorksInstallDir)\api\redist\SolidWorks.Interop.swconst.dll')">$(SolidWorksInstallDir)\api\redist\SolidWorks.Interop.swconst.dll</HintPath>
+            <HintPath Condition="!Exists('$(SolidWorksInstallDir)\api\redist\SolidWorks.Interop.swconst.dll')">$(FallbackInteropDir)\SolidWorks.Interop.swconst.dll</HintPath>
+            <EmbedInteropTypes>false</EmbedInteropTypes>
+        </Reference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0"/>
+        <PackageReference Include="xunit" Version="2.5.3"/>
+        <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Using Include="Xunit"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\SldFile\SldFile.csproj" />
+    </ItemGroup>
+
+</Project>

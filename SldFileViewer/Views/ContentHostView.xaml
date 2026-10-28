@@ -1,0 +1,76 @@
+<UserControl x:Class="SldFileViewer.Views.ContentHostView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:vm="clr-namespace:SldFileViewer.ViewModels"
+             xmlns:panels="clr-namespace:SldFileViewer.Views.Panels"
+             mc:Ignorable="d" 
+             d:DesignHeight="600" d:DesignWidth="800">
+
+    <UserControl.Resources>
+        <!-- DataTemplate Mappings for ViewModels -->
+        <DataTemplate DataType="{x:Type vm:SketchCanvasViewModel}">
+            <panels:SketchCanvasView />
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type vm:MeshViewerViewModel}">
+            <panels:Mesh3DView />
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type vm:CustomPropsViewModel}">
+            <panels:CustomPropertiesView />
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type vm:EquationsViewModel}">
+            <panels:EquationsView />
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type vm:BomViewModel}">
+            <panels:BomTableView />
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type vm:ImagePreviewViewModel}">
+            <panels:ImagePreviewView />
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type vm:FeatureDetailViewModel}">
+            <panels:FeatureDetailView />
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid Background="{StaticResource Brush.Background.Primary}">
+        <!-- Dynamic Content Area -->
+        <ContentControl Content="{Binding CurrentView}">
+            <ContentControl.Style>
+                <Style TargetType="ContentControl">
+                    <Style.Triggers>
+                        <Trigger Property="Content" Value="{x:Null}">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate>
+                                        <Grid Background="{StaticResource Brush.Viewport.Gradient}">
+                                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <Path Data="{StaticResource Geo.Part}"
+                                                      Fill="{StaticResource Brush.Text.Muted}"
+                                                      Width="64" Height="64" Stretch="Uniform"
+                                                      HorizontalAlignment="Center" Margin="0,0,0,16" />
+                                                <TextBlock Text="未加载模型或未选择视图"
+                                                           FontSize="15" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource Brush.Text.Secondary}"
+                                                           HorizontalAlignment="Center" />
+                                                <TextBlock Text="请点击左上方【打开文件】载入 SolidWorks 零件、装配体或工程图"
+                                                           FontSize="12" Foreground="{StaticResource Brush.Text.Muted}"
+                                                           HorizontalAlignment="Center" Margin="0,8,0,0" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
+            </ContentControl.Style>
+        </ContentControl>
+    </Grid>
+</UserControl>

@@ -1,0 +1,48 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- CAD Documents -->
+    <Geometry x:Key="Geo.Part">M3,3 L13,3 L17,7 L17,17 L3,17 Z M12,3 L12,8 L17,8 M7,11 L13,11 M7,14 L11,14</Geometry>
+    <Geometry x:Key="Geo.Assembly">M12,2 L19,6 L19,14 L12,18 L5,14 L5,6 Z M12,2 L12,10 L19,14 M12,10 L5,14 M8.5,8 L15.5,12</Geometry>
+    <Geometry x:Key="Geo.Drawing">M4,3 L16,3 C16.5,3 17,3.5 17,4 L17,16 C17,16.5 16.5,17 16,17 L4,17 C3.5,17 3,16.5 3,16 L3,4 C3,3.5 3.5,3 4,3 Z M5,5 L15,5 L15,15 L5,15 Z M6,12 L10,8 L14,13</Geometry>
+
+    <!-- CAD Features -->
+    <Geometry x:Key="Geo.Sketch">M3,17 L6,17 L16,7 L13,4 L3,14 Z M12,5 L15,8 M17,3 L16,2 C15.5,1.5 14.5,1.5 14,2 L13,3 L16,6 Z</Geometry>
+    <Geometry x:Key="Geo.Extrude">M4,6 L12,2 L16,4 L8,8 Z M4,6 L8,8 L8,17 L4,15 Z M8,8 L16,4 L16,13 L8,17 Z</Geometry>
+    <Geometry x:Key="Geo.Plane">M2,6 L14,3 L18,14 L6,17 Z M5,7 L14,5 L16,13 L7,15 Z</Geometry>
+    <Geometry x:Key="Geo.Origin">M10,2 L10,18 M2,10 L18,10 M6,6 L14,14 M14,6 L6,14</Geometry>
+    <Geometry x:Key="Geo.Folder">M2,4 L7,4 L9,6 L18,6 C18.5,6 19,6.5 19,7 L19,16 C19,16.5 18.5,17 18,17 L2,17 C1.5,17 1,16.5 1,16 L1,5 C1,4.5 1.5,4 2,4 Z</Geometry>
+    <Geometry x:Key="Geo.Component">M6,4 L14,4 L14,12 L6,12 Z M9,12 L9,16 L17,16 L17,8 L14,8</Geometry>
+    <Geometry x:Key="Geo.Mate">M7,5 C6,5 5,6 5,7 L5,11 C5,12 6,13 7,13 L10,13 L10,15 L14,12 L10,9 L10,11 L7,11 L7,7 L12,7 L12,5 Z</Geometry>
+    <Geometry x:Key="Geo.Sheet">M4,2 L14,2 L18,6 L18,18 L4,18 Z M13,2 L13,7 L18,7 M6,10 L16,10 M6,14 L13,14</Geometry>
+
+    <!-- Dedicated Nodes -->
+    <Geometry x:Key="Geo.CustomProperties">M4,3 L12,3 L16,7 L16,17 L4,17 Z M11,3 L11,7 L16,7 M7,10 L13,10 M7,12 L11,12 M7,14 L13,14</Geometry>
+    <Geometry x:Key="Geo.Equations">M5,5 L15,5 M5,15 L15,15 M15,5 L5,15 M13,9 L17,9 M13,11 L17,11</Geometry>
+    <Geometry x:Key="Geo.Preview3D">M10,2 L18,6.5 L18,15.5 L10,20 L2,15.5 L2,6.5 Z M10,2 L10,11 L18,6.5 M10,11 L2,6.5 M10,11 L10,20</Geometry>
+    <Geometry x:Key="Geo.BOM">M3,3 L17,3 L17,17 L3,17 Z M3,7 L17,7 M3,12 L17,12 M8,3 L8,17 M13,3 L13,17</Geometry>
+
+    <!-- Toolbar & Action Icons -->
+    <Geometry x:Key="Geo.Open">M2,4 L7,4 L9,6 L18,6 C18.5,6 19,6.5 19,7 L19,9 L3,9 L3,7 C3,6.5 2.5,6 2,6 Z M1,10 L18.5,10 C19,10 19.5,10.5 19.3,11.2 L17.5,17.2 C17.3,17.7 16.8,18 16.3,18 L2,18 C1.2,18 0.7,17.2 0.9,16.5 Z</Geometry>
+    <Geometry x:Key="Geo.Save">M3,3 L15,3 L18,6 L18,17 C18,17.5 17.5,18 17,18 L3,18 C2.5,18 2,17.5 2,17 L2,4 C2,3.5 2.5,3 3,3 Z M5,3 L5,8 L13,8 L13,3 Z M6,12 L14,12 M6,14 L14,14</Geometry>
+    <Geometry x:Key="Geo.Export">M10,2 L10,12 M6,8 L10,12 L14,8 M3,14 L3,17 C3,17.5 3.5,18 4,18 L16,18 C16.5,18 17,17.5 17,17 L17,14</Geometry>
+    <Geometry x:Key="Geo.FitView">M3,8 L3,3 L8,3 M17,8 L17,3 L12,3 M3,12 L3,17 L8,17 M17,12 L17,17 L12,17</Geometry>
+    <Geometry x:Key="Geo.ZoomIn">M9,3 C5.7,3 3,5.7 3,9 C3,12.3 5.7,15 9,15 C10.4,15 11.6,14.5 12.6,13.7 L16.3,17.4 C16.7,17.8 17.3,17.8 17.7,17.4 C18.1,17 18.1,16.4 17.7,16 L14,12.3 C14.6,11.3 15,10.2 15,9 C15,5.7 12.3,3 9,3 Z M9,6 L9,12 M6,9 L12,9</Geometry>
+    <Geometry x:Key="Geo.ZoomOut">M9,3 C5.7,3 3,5.7 3,9 C3,12.3 5.7,15 9,15 C10.4,15 11.6,14.5 12.6,13.7 L16.3,17.4 C16.7,17.8 17.3,17.8 17.7,17.4 C18.1,17 18.1,16.4 17.7,16 L14,12.3 C14.6,11.3 15,10.2 15,9 C15,5.7 12.3,3 9,3 Z M6,9 L12,9</Geometry>
+    <Geometry x:Key="Geo.ResetCamera">M10,2 C14.4,2 18,5.6 18,10 C18,14.4 14.4,18 10,18 C6.5,18 3.5,15.7 2.4,12.5 L4.5,12.5 C5.5,14.6 7.6,16 10,16 C13.3,16 16,13.3 16,10 C16,6.7 13.3,4 10,4 C8.1,4 6.4,4.9 5.3,6.3 L8,9 L2,9 L2,3 L4,5 C5.5,3.2 7.6,2 10,2 Z</Geometry>
+    <Geometry x:Key="Geo.Search">M8.5,2 C4.9,2 2,4.9 2,8.5 C2,12.1 4.9,15 8.5,15 C10,15 11.3,14.5 12.3,13.7 L16.3,17.7 C16.7,18.1 17.3,18.1 17.7,17.7 C18.1,17.3 18.1,16.7 17.7,16.3 L13.7,12.3 C14.5,11.3 15,10 15,8.5 C15,4.9 12.1,2 8.5,2 Z M8.5,4 C11,4 13,6 13,8.5 C13,11 11,13 8.5,13 C6,13 4,11 4,8.5 C4,6 6,4 8.5,4 Z</Geometry>
+    <Geometry x:Key="Geo.Filter">M2,3 L18,3 L12,10 L12,16 L8,18 L8,10 Z</Geometry>
+
+    <!-- Sketch Constraint Glyph Badges (16x16) -->
+    <Geometry x:Key="Geo.Constraint.Horizontal">M2,8 L14,8</Geometry>
+    <Geometry x:Key="Geo.Constraint.Vertical">M8,2 L8,14</Geometry>
+    <Geometry x:Key="Geo.Constraint.Coincident">M4,4 L12,4 L12,12 L4,12 Z M8,2 L8,14 M2,8 L14,8</Geometry>
+    <Geometry x:Key="Geo.Constraint.Concentric">M8,3 A5,5 0 1 0 8,13 A5,5 0 1 0 8,3 Z M8,6 A2,2 0 1 0 8,10 A2,2 0 1 0 8,6 Z</Geometry>
+    <Geometry x:Key="Geo.Constraint.Tangent">M3,13 L13,3 M5,9 A3,3 0 1 0 11,9 A3,3 0 1 0 5,9 Z</Geometry>
+    <Geometry x:Key="Geo.Constraint.Parallel">M4,2 L10,14 M7,2 L13,14</Geometry>
+    <Geometry x:Key="Geo.Constraint.Perpendicular">M4,14 L12,14 M8,6 L8,14 M8,11 L11,11 L11,14</Geometry>
+    <Geometry x:Key="Geo.Constraint.Symmetric">M8,2 L8,14 M3,8 L6,5 L6,7 L10,7 L10,5 L13,8 L10,11 L10,9 L6,9 L6,11 Z</Geometry>
+    <Geometry x:Key="Geo.Constraint.EqualLength">M4,6 L12,6 M4,10 L12,10</Geometry>
+    <Geometry x:Key="Geo.Constraint.Fixed">M8,2 C6.9,2 6,2.9 6,4 C6,4.7 6.4,5.4 7,5.7 L7,13 C4.8,13 3,11.2 3,9 L1,9 C1,12.3 3.7,15 7,15 L7,16 L9,16 L9,15 C12.3,15 15,12.3 15,9 L13,9 C13,11.2 11.2,13 9,13 L9,5.7 C9.6,5.4 10,4.7 10,4 C10,2.9 9.1,2 8,2 Z</Geometry>
+
+</ResourceDictionary>

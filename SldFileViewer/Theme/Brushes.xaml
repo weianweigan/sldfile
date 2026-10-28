@@ -1,0 +1,56 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="Colors.xaml" />
+    </ResourceDictionary.MergedDictionaries>
+
+    <!-- Background Brushes -->
+    <SolidColorBrush x:Key="Brush.Background.Primary" Color="{StaticResource Color.Background.Primary}" />
+    <SolidColorBrush x:Key="Brush.Background.Secondary" Color="{StaticResource Color.Background.Secondary}" />
+    <SolidColorBrush x:Key="Brush.Background.Tertiary" Color="{StaticResource Color.Background.Tertiary}" />
+    <SolidColorBrush x:Key="Brush.Background.Hover" Color="{StaticResource Color.Background.Hover}" />
+    <SolidColorBrush x:Key="Brush.Background.Selected" Color="{StaticResource Color.Background.Selected}" />
+
+    <!-- CAD Viewport Background Gradient -->
+    <LinearGradientBrush x:Key="Brush.Viewport.Gradient" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="{StaticResource Color.Viewport.Top}" Offset="0.0" />
+        <GradientStop Color="{StaticResource Color.Viewport.Bottom}" Offset="1.0" />
+    </LinearGradientBrush>
+    <SolidColorBrush x:Key="Brush.Viewport.Grid" Color="{StaticResource Color.Viewport.Grid}" />
+    <SolidColorBrush x:Key="Brush.Viewport.Origin" Color="{StaticResource Color.Viewport.Origin}" />
+
+    <!-- Borders -->
+    <SolidColorBrush x:Key="Brush.Border.Primary" Color="{StaticResource Color.Border.Primary}" />
+    <SolidColorBrush x:Key="Brush.Border.Light" Color="{StaticResource Color.Border.Light}" />
+    <SolidColorBrush x:Key="Brush.Border.Focus" Color="{StaticResource Color.Border.Focus}" />
+
+    <!-- Text -->
+    <SolidColorBrush x:Key="Brush.Text.Primary" Color="{StaticResource Color.Text.Primary}" />
+    <SolidColorBrush x:Key="Brush.Text.Secondary" Color="{StaticResource Color.Text.Secondary}" />
+    <SolidColorBrush x:Key="Brush.Text.Muted" Color="{StaticResource Color.Text.Muted}" />
+    <SolidColorBrush x:Key="Brush.Text.Accent" Color="{StaticResource Color.Text.Accent}" />
+
+    <!-- Accents -->
+    <SolidColorBrush x:Key="Brush.Accent.Blue" Color="{StaticResource Color.Accent.Blue}" />
+    <SolidColorBrush x:Key="Brush.Accent.BlueHover" Color="{StaticResource Color.Accent.BlueHover}" />
+    <SolidColorBrush x:Key="Brush.Accent.Green" Color="{StaticResource Color.Accent.Green}" />
+    <SolidColorBrush x:Key="Brush.Accent.Yellow" Color="{StaticResource Color.Accent.Yellow}" />
+    <SolidColorBrush x:Key="Brush.Accent.Red" Color="{StaticResource Color.Accent.Red}" />
+    <SolidColorBrush x:Key="Brush.Accent.Orange" Color="{StaticResource Color.Accent.Orange}" />
+
+    <!-- Sketch Primitives Brushes -->
+    <SolidColorBrush x:Key="Brush.Sketch.NormalSegment" Color="{StaticResource Color.Sketch.NormalSegment}" />
+    <SolidColorBrush x:Key="Brush.Sketch.ConstructionSegment" Color="{StaticResource Color.Sketch.ConstructionSegment}" />
+    <SolidColorBrush x:Key="Brush.Sketch.Point" Color="{StaticResource Color.Sketch.Point}" />
+    <SolidColorBrush x:Key="Brush.Sketch.PointHover" Color="{StaticResource Color.Sketch.PointHover}" />
+    <SolidColorBrush x:Key="Brush.Sketch.Selected" Color="{StaticResource Color.Sketch.Selected}" />
+    <SolidColorBrush x:Key="Brush.Sketch.Dimension" Color="{StaticResource Color.Sketch.Dimension}" />
+    <SolidColorBrush x:Key="Brush.Sketch.ConstraintBadge" Color="{StaticResource Color.Sketch.ConstraintBadge}" />
+    <SolidColorBrush x:Key="Brush.Sketch.ConstraintText" Color="{StaticResource Color.Sketch.ConstraintText}" />
+
+    <!-- 3D Mesh Brushes -->
+    <SolidColorBrush x:Key="Brush.Mesh.DefaultFace" Color="{StaticResource Color.Mesh.DefaultFace}" />
+    <SolidColorBrush x:Key="Brush.Mesh.OutlineEdge" Color="{StaticResource Color.Mesh.OutlineEdge}" />
+
+</ResourceDictionary>

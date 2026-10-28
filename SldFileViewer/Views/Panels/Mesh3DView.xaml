@@ -1,0 +1,171 @@
+<UserControl x:Class="SldFileViewer.Views.Panels.Mesh3DView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
+             mc:Ignorable="d" 
+             d:DesignHeight="500" d:DesignWidth="700">
+
+    <Grid Background="{StaticResource Brush.Background.Primary}">
+        <Grid.RowDefinitions>
+            <!-- 3D Toolbar -->
+            <RowDefinition Height="Auto" />
+            <!-- 3D Viewport -->
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Top Toolbar -->
+        <Border Grid.Row="0"
+                Background="{StaticResource Brush.Background.Secondary}"
+                BorderBrush="{StaticResource Brush.Border.Primary}"
+                BorderThickness="0,0,0,1"
+                Padding="8,4">
+            <DockPanel LastChildFill="False">
+                <!-- Title & Stats -->
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <iconPacks:PackIconMaterial Kind="CubeOutline"
+                                                Foreground="{StaticResource Brush.Accent.Blue}"
+                                                Width="16" Height="16"
+                                                Margin="0,0,6,0"
+                                                VerticalAlignment="Center" />
+                    <TextBlock Text="3D 模型网格预览 (DisplayMesh)"
+                               FontWeight="Bold" FontSize="13"
+                               Foreground="{StaticResource Brush.Text.Primary}"
+                               VerticalAlignment="Center" />
+
+                    <!-- Metrics Badges -->
+                    <Border Background="{StaticResource Brush.Background.Tertiary}"
+                            BorderBrush="{StaticResource Brush.Border.Primary}"
+                            BorderThickness="1" CornerRadius="3"
+                            Padding="6,2" Margin="10,0,0,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="顶点: " FontSize="11" Foreground="{StaticResource Brush.Text.Muted}" />
+                            <TextBlock Text="{Binding VertexCount}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Brush.Text.Primary}" />
+                            <TextBlock Text=" | 三角面: " FontSize="11" Foreground="{StaticResource Brush.Text.Muted}" Margin="4,0,0,0" />
+                            <TextBlock Text="{Binding TriangleCount}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Brush.Text.Primary}" />
+                            <TextBlock Text=" | 轮廓线: " FontSize="11" Foreground="{StaticResource Brush.Text.Muted}" Margin="4,0,0,0" />
+                            <TextBlock Text="{Binding EdgeCount}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Brush.Text.Primary}" />
+                            <TextBlock Text=" | 包围盒: " FontSize="11" Foreground="{StaticResource Brush.Text.Muted}" Margin="4,0,0,0" />
+                            <TextBlock Text="{Binding DimensionsText}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Brush.Accent.Green}" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Export & View Actions -->
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <Button Click="OnResetViewClick"
+                            Style="{StaticResource Style.Button.Toolbar}"
+                            ToolTip="复位视角 (等轴测视图)">
+                        <StackPanel Orientation="Horizontal">
+                            <iconPacks:PackIconMaterial Kind="Restore" Foreground="{StaticResource Brush.Text.Primary}" Width="12" Height="12" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="复位视角" FontSize="11"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Rectangle Width="1" Height="16" Fill="{StaticResource Brush.Border.Primary}" Margin="6,0" />
+
+                    <Button Command="{Binding ExportObjCommand}"
+                            Style="{StaticResource Style.Button.Toolbar}"
+                            ToolTip="导出为 Wavefront OBJ 网格模型">
+                        <StackPanel Orientation="Horizontal">
+                            <iconPacks:PackIconMaterial Kind="ExportVariant" Foreground="{StaticResource Brush.Accent.Green}" Width="12" Height="12" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="导出 OBJ" FontSize="11"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button Command="{Binding ExportStlCommand}"
+                            Style="{StaticResource Style.Button.Toolbar}"
+                            ToolTip="导出为 STL 3D 打印模型">
+                        <StackPanel Orientation="Horizontal">
+                            <iconPacks:PackIconMaterial Kind="ExportVariant" Foreground="{StaticResource Brush.Accent.Yellow}" Width="12" Height="12" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="导出 STL" FontSize="11"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button Command="{Binding ExportParasolidCommand}"
+                            Visibility="{Binding HasParasolid, Converter={StaticResource BoolToVisibilityConverter}}"
+                            Style="{StaticResource Style.Button.Toolbar}"
+                            ToolTip="提取原始 Parasolid Transmit 几何内核数据 (.x_b)">
+                        <StackPanel Orientation="Horizontal">
+                            <iconPacks:PackIconMaterial Kind="ExportVariant" Foreground="{StaticResource Brush.Accent.Orange}" Width="12" Height="12" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="导出 Parasolid (.x_b)" FontSize="11"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- Viewport3D Area -->
+        <Border Grid.Row="1" Background="{StaticResource Brush.Viewport.Gradient}">
+            <Grid x:Name="ViewportContainer"
+                  ClipToBounds="True"
+                  Focusable="True"
+                  MouseDown="OnViewportMouseDown"
+                  MouseMove="OnViewportMouseMove"
+                  MouseUp="OnViewportMouseUp"
+                  MouseWheel="OnViewportMouseWheel">
+
+                <!-- 3D Viewport with CAD Standard Orthographic Camera -->
+                <Viewport3D x:Name="MainViewport">
+                    <Viewport3D.Camera>
+                        <OrthographicCamera x:Name="Camera"
+                                            Position="150,150,200"
+                                            LookDirection="-150,-150,-200"
+                                            UpDirection="0,1,0"
+                                            Width="200" />
+                    </Viewport3D.Camera>
+
+                    <!-- Lighting -->
+                    <ModelVisual3D>
+                        <ModelVisual3D.Content>
+                            <Model3DGroup>
+                                <AmbientLight Color="#707070" />
+                                <DirectionalLight Color="#FFFFFF" Direction="-1,-2,-3" />
+                                <DirectionalLight Color="#808090" Direction="1,2,3" />
+                                <DirectionalLight Color="#404050" Direction="0,-1,0" />
+                            </Model3DGroup>
+                        </ModelVisual3D.Content>
+                    </ModelVisual3D>
+
+                    <!-- Model Geometry Visual -->
+                    <ModelVisual3D x:Name="ModelVisual" />
+                </Viewport3D>
+
+                <!-- Floating Help Overlay (Non-obstructive Light Translucent) -->
+                <Border HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                        Margin="12"
+                        Background="#D0FFFFFF"
+                        BorderBrush="{StaticResource Brush.Border.Primary}"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="8,4">
+                    <TextBlock Text="左键拖拽旋转 | 滚轮缩放 | 右键拖拽平移"
+                               FontSize="11" Foreground="{StaticResource Brush.Text.Secondary}" />
+                </Border>
+
+                <!-- Empty State Notice Banner (Pinned to Top) -->
+                <Border Visibility="{Binding HasMesh, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}"
+                        VerticalAlignment="Top" HorizontalAlignment="Center"
+                        Margin="0,16,0,0"
+                        Background="#E8FFFFFF"
+                        BorderBrush="{StaticResource Brush.Accent.Orange}"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="12,6">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <iconPacks:PackIconMaterial Kind="AlertCircleOutline"
+                                                    Foreground="{StaticResource Brush.Accent.Orange}"
+                                                    Width="16" Height="16"
+                                                    Margin="0,0,8,0"
+                                                    VerticalAlignment="Center" />
+                        <TextBlock Text="当前模型流中未检测到 3D 网格数据 (DisplayLists)"
+                                   FontSize="12"
+                                   Foreground="{StaticResource Brush.Text.Primary}"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

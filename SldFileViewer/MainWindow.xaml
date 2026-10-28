@@ -1,0 +1,134 @@
+<Window x:Class="SldFileViewer.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:views="clr-namespace:SldFileViewer.Views"
+        mc:Ignorable="d"
+        Title="{Binding WindowTitle}"
+        Height="750" Width="1200"
+        MinHeight="600" MinWidth="900"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource Brush.Background.Primary}"
+        Foreground="{StaticResource Brush.Text.Primary}">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <!-- Top Command & Tool Bar -->
+            <RowDefinition Height="Auto" />
+            <!-- Loading Indicator Bar -->
+            <RowDefinition Height="Auto" />
+            <!-- Main Content Area (Left Tree + Right Views) -->
+            <RowDefinition Height="*" />
+            <!-- Bottom Status Bar -->
+            <RowDefinition Height="24" />
+        </Grid.RowDefinitions>
+
+        <!-- Top Tool Bar -->
+        <Border Grid.Row="0"
+                Background="{StaticResource Brush.Background.Secondary}"
+                BorderBrush="{StaticResource Brush.Border.Primary}"
+                BorderThickness="0,0,0,1"
+                Padding="10,6">
+            <DockPanel LastChildFill="False">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- App Logo / Title -->
+                    <Path Data="{StaticResource Geo.Part}"
+                          Fill="{StaticResource Brush.Accent.Blue}"
+                          Width="18" Height="18" Stretch="Uniform"
+                          Margin="0,0,8,0" />
+                    <TextBlock Text="SolidWorks 文件解析器"
+                               FontWeight="Bold" FontSize="14"
+                               Foreground="{StaticResource Brush.Text.Primary}"
+                               VerticalAlignment="Center" />
+
+                    <Rectangle Width="1" Height="20" Fill="{StaticResource Brush.Border.Primary}" Margin="12,0" />
+
+                    <!-- Open File -->
+                    <Button Command="{Binding OpenFileCommand}"
+                            Style="{StaticResource Style.Button.Primary}">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource Geo.Open}" Fill="White" Width="14" Height="14" Stretch="Uniform" Margin="0,0,6,0"/>
+                            <TextBlock Text="打开文件..." />
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Close File -->
+                    <Button Command="{Binding CloseFileCommand}"
+                            Visibility="{Binding IsFileLoaded, Converter={StaticResource BoolToVisibilityConverter}}"
+                            Style="{StaticResource Style.Button.Toolbar}"
+                            Margin="8,0,0,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="✕ 关闭文档" FontSize="11" Foreground="{StaticResource Brush.Text.Secondary}"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+
+                <!-- Document Info on the right -->
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Visibility="{Binding IsFileLoaded, Converter={StaticResource BoolToVisibilityConverter}}"
+                            Background="{StaticResource Brush.Background.Tertiary}"
+                            BorderBrush="{StaticResource Brush.Border.Primary}"
+                            BorderThickness="1" CornerRadius="3"
+                            Padding="8,3">
+                        <TextBlock Text="{Binding DocumentInfo}"
+                                   FontSize="11" Foreground="{StaticResource Brush.Text.Secondary}" />
+                    </Border>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- Loading Progress Bar -->
+        <ProgressBar Grid.Row="1"
+                     IsIndeterminate="True"
+                     Height="2"
+                     BorderThickness="0"
+                     Foreground="{StaticResource Brush.Accent.Blue}"
+                     Background="Transparent"
+                     Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}" />
+
+        <!-- Main Dock Area (Left Tree + Right Details) -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <!-- Left Explorer Tree -->
+                <ColumnDefinition Width="280" MinWidth="200" MaxWidth="500" />
+                <!-- Grid Splitter -->
+                <ColumnDefinition Width="5" />
+                <!-- Right Dynamic Details Panel -->
+                <ColumnDefinition Width="*" MinWidth="400" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Left Navigation Tree -->
+            <views:DocumentTreeView Grid.Column="0"
+                                    DataContext="{Binding DocumentTree}" />
+
+            <!-- Vertical Splitter -->
+            <GridSplitter Grid.Column="1" Width="5"
+                          HorizontalAlignment="Stretch"
+                          Background="{StaticResource Brush.Border.Primary}"
+                          ResizeDirection="Columns" />
+
+            <!-- Right Content Host View -->
+            <views:ContentHostView Grid.Column="2" />
+        </Grid>
+
+        <!-- Bottom Status Bar -->
+        <Border Grid.Row="3"
+                Background="{StaticResource Brush.Background.Secondary}"
+                BorderBrush="{StaticResource Brush.Border.Primary}"
+                BorderThickness="0,1,0,0"
+                Padding="8,2">
+            <DockPanel LastChildFill="True">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="8,0,0,0">
+                    <TextBlock Text="SldFile 解析引擎 | 离线免安装"
+                               FontSize="10" Foreground="{StaticResource Brush.Text.Muted}" />
+                </StackPanel>
+
+                <TextBlock Text="{Binding StatusMessage}"
+                           FontSize="11" Foreground="{StaticResource Brush.Text.Secondary}"
+                           TextTrimming="CharacterEllipsis"
+                           VerticalAlignment="Center" />
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>

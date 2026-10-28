@@ -1,0 +1,114 @@
+[
+  {
+    "Path": "ske/aCborblnd0.ske",
+    "Sha256": "835d3feca8a4e495b0bc5648004c5fe5661cfe6574222dd1168607b3fc6f654e"
+  },
+  {
+    "Path": "ske/aCborblnd1.ske",
+    "Sha256": "681779bdc4b318cec8e71773f1381316122fe7536e6dac3f154a3b20e74aafc2"
+  },
+  {
+    "Path": "ske/aCbore0.ske",
+    "Sha256": "cb4218041392b8d084d08e760af61814487c35a08e8a6f82eb775d194ef95b02"
+  },
+  {
+    "Path": "ske/aCbore1.ske",
+    "Sha256": "1d1ae3fb378b05bbca84e0b4efab75edabf0f7e9247477f0205c5c26049719c1"
+  },
+  {
+    "Path": "ske/aCsinblnd0.ske",
+    "Sha256": "7e857f8f95b797dc764e2f35b0fe8ac21405db0a42237e3a00d9324d91b819a9"
+  },
+  {
+    "Path": "ske/aCsink0.ske",
+    "Sha256": "8d774bed2ba3e3e33b881a3728e5f5d9d05abf1a10d16f8f045861a24b2592c6"
+  },
+  {
+    "Path": "ske/aCsink1.ske",
+    "Sha256": "a182585d6292be0a68c446406daae6aa57cf4a11a884a14ac2d3b002d6a503fa"
+  },
+  {
+    "Path": "ske/aHole0.ske",
+    "Sha256": "13bb269c0b71a70160ac40be6c6c06b902fb8836c7235035da74b3a16fd22189"
+  },
+  {
+    "Path": "ske/aHole1.ske",
+    "Sha256": "9609bde8017f91e2df3441bed15803de0fee473a163144e11fedf0d86b92357a"
+  },
+  {
+    "Path": "ske/aHoleblnd0.ske",
+    "Sha256": "2624c188fc8f8bbaf50dbfdbdafa07a80fb6a78d07c89b551ae0ea2cc244eda7"
+  },
+  {
+    "Path": "ske/aHoleblnd1.ske",
+    "Sha256": "ddecb12a880e7064ba58e94fa17b66109605fee0a17b6703d3ed7ad66bd8cdc7"
+  },
+  {
+    "Path": "ske/aptapblnd0.ske",
+    "Sha256": "10b12dceaba79e4abd65b20b4bebc9c05167bab3218c29a9510b5e2fbaff9061"
+  },
+  {
+    "Path": "ske/aptapblnd1.ske",
+    "Sha256": "2519cc373b5bb2dc792d254b2e4323f22822622bb661bd20d74179dbbf420950"
+  },
+  {
+    "Path": "ske/studAdd1.ske",
+    "Sha256": "7f43ea9cadb958a4dd3becd5df11eba82cbd352c2efebff116b903f349bc2924"
+  },
+  {
+    "Path": "ske/studAdd2.ske",
+    "Sha256": "a5182f483137275a9339ea5e46b6b78530af1e5f1d3ca86e0270f3f3290b2e37"
+  },
+  {
+    "Path": "ske/studRemove1.ske",
+    "Sha256": "f106bee69c0ebd46aa1f45524ef43ec8932abf1d3c4eecc3e2b932807ff57835"
+  },
+  {
+    "Path": "ske/studRemove2.ske",
+    "Sha256": "910b195c6281521198efac8abc0db478fabff243eddf082d02be5ea0b1a741f4"
+  },
+  {
+    "Path": "ske/Wzscbord.ske",
+    "Sha256": "bd195f595a02fa3da777f1fbe84a87e5ff905b58cad3a30773dae0bb5b865bd7"
+  },
+  {
+    "Path": "ske/Wzscbore.ske",
+    "Sha256": "9a7b8dc697b0d8c115254c79dc6a0d7361baba29eb1b5382eef097f87f98c352"
+  },
+  {
+    "Path": "Solidworks2012/assembly.SLDASM",
+    "Sha256": "6595416dc3449240fbaa9d9bea4c062b67bcd511d3012fdec0e22e4dd6bb2086"
+  },
+  {
+    "Path": "Solidworks2012/cube.SLDDRW",
+    "Sha256": "429441890e35deb605a24eda6c221ad16d5af9b07a05673e5a1586ddf9d7a858"
+  },
+  {
+    "Path": "Solidworks2012/cube.SLDPRT",
+    "Sha256": "6aefb704ea98c33f85f5a46f907af24ac779df3ac85606aaeaaf60e1585cebaf"
+  },
+  {
+    "Path": "Solidworks2012/cylinder.SLDPRT",
+    "Sha256": "202851a911fb25ed177d8bb52b8f32c6ce1e76d1f1394fbf5311b3f7dd765a0c"
+  },
+  {
+    "Path": "Solidworks2026/assembly.SLDASM",
+    "Sha256": "79a96517e8ffdbe4189f8323bb832b1e4771f84a0fefae6762fbde9327faa4d8"
+  },
+  {
+    "Path": "Solidworks2026/cube.SLDDRW",
+    "Sha256": "757382ae8ad7017c3dc6d8f132f20b66fb53757e5bebf640b3389c478a61bdee"
+  },
+  {
+    "Path": "Solidworks2026/cube.SLDPRT",
+    "Sha256": "043d14a8cc0cfc1a08eaf9886859edf629481d4c9fc267f7544674f78745fb46"
+  },
+  {
+    "Path": "Solidworks2026/cylinder.SLDPRT",
+    "Sha256": "31b34b063781790738220d83cd398616197b25a310a54ecd2dfe8cff19fced2a"
+  },
+  {
+    "Path": "Solidworks2026/properties-native.SLDPRT",
+    "Sha256": "6f32178a81fbf8f8859bc59a1c05105ce71195dd1b746140ae4d1e14fc71cc58"
+  }
+]

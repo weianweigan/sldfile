@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>netstandard2.0</TargetFramework>
+        <LangVersion>latest</LangVersion>
+        <Nullable>enable</Nullable>
+        <PackageIcon>sldfile-128x.png</PackageIcon>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <RepositoryUrl>https://github.com/weianweigan/sldfile</RepositoryUrl>
+        <PackageTags>Solidworks;sldprt;cad;reader</PackageTags>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="SldFileTests" />
+        <InternalsVisibleTo Include="SldFileViewer" />
+        <InternalsVisibleTo Include="SldFile.Tests.Integration" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Include="..\Assets\sldfile-128x.png">
+        <Pack>True</Pack>
+        <PackagePath>\</PackagePath>
+      </None>
+      <None Include="..\README.md">
+        <Pack>True</Pack>
+        <PackagePath>\</PackagePath>
+      </None>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="OpenMcdf" Version="3.1.4" />
+        <PackageReference Include="System.Memory" Version="4.6.3" />
+    </ItemGroup>
+
+</Project>
