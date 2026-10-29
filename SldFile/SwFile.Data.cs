@@ -231,7 +231,7 @@ public abstract partial class SwFile
                 ["TagOffset"] = $"0x{folder.TagOffset:X}"
             };
 
-            return new Feature(folder.DisplayName, kind, folder.ClassName, (int)folder.Header.TypeId, attrs, dims.AsReadOnly(), children.AsReadOnly());
+            return new Feature(folder.DisplayName, kind, folder.ClassName, (int)folder.Header.TypeId, attrs, dims.AsReadOnly(), children.AsReadOnly(), isSuppressed: false, isVisible: true, definition: folder.FeatureData);
         }
 
         void Visit(IEnumerable<FeatureFolder> folders)

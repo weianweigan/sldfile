@@ -12,20 +12,29 @@ public class ExtrudeAndSheetMetalFeatureTests
 {
     private static string GetSamplePath(string fileName)
     {
+        // 1. Standard build output path (copied by SldFileTests.csproj, used in CI/GitHub Actions)
+        var testFilesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TestFiles", "Features2026", fileName);
+        if (File.Exists(testFilesPath))
+            return testFilesPath;
+
+        // 2. Search upwards for SldFileTests/TestFiles/Features2026 or reverse_workspace
         var dir = AppDomain.CurrentDomain.BaseDirectory;
-        while (!string.IsNullOrEmpty(dir) && !Directory.Exists(Path.Combine(dir, "reverse_workspace")))
+        while (!string.IsNullOrEmpty(dir))
         {
+            var candidate = Path.Combine(dir, "SldFileTests", "TestFiles", "Features2026", fileName);
+            if (File.Exists(candidate))
+                return candidate;
+
+            var revCandidate = Path.Combine(dir, "reverse_workspace", "experiments", "feature-matrix-20261028", "samples", fileName);
+            if (File.Exists(revCandidate))
+                return revCandidate;
+
             var parent = Path.GetDirectoryName(dir);
-            if (parent == dir) break;
+            if (parent == null || parent == dir) break;
             dir = parent;
         }
 
-        var fullPath = Path.Combine(dir!, "reverse_workspace", "experiments", "feature-matrix-20261028", "samples", fileName);
-        if (!File.Exists(fullPath))
-        {
-            throw new FileNotFoundException($"Controlled sample file not found: {fullPath}");
-        }
-        return fullPath;
+        throw new FileNotFoundException($"Controlled sample file '{fileName}' not found in TestFiles/Features2026 or reverse_workspace.");
     }
 
     private static List<FeatureFolder> FlattenFolders(IReadOnlyList<FeatureFolder> folders)
