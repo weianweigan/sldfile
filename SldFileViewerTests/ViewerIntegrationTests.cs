@@ -13,30 +13,38 @@ public class ViewerIntegrationTests
 {
     private static string ResolveModelPath(string relativePath)
     {
-        var dir = AppContext.BaseDirectory;
-        for (int i = 0; i < 6; i++)
+        var rawName = Path.GetFileName(relativePath);
+        string[] candidates =
         {
-            var candidate = Path.Combine(dir, relativePath);
-            if (File.Exists(candidate)) return Path.GetFullPath(candidate);
-            var parent = Path.GetDirectoryName(dir);
-            if (parent == null) break;
-            dir = parent;
-        }
-        dir = Directory.GetCurrentDirectory();
-        for (int i = 0; i < 6; i++)
+            Path.Combine("TestFiles", "Solidworks2012", rawName),
+            Path.Combine("..", "SldFileTests", "TestFiles", "Solidworks2012", rawName),
+            Path.Combine("SldFileTests", "TestFiles", "Solidworks2012", rawName),
+            Path.Combine("models", rawName),
+            relativePath
+        };
+
+        var searchDirs = new[] { AppContext.BaseDirectory, Directory.GetCurrentDirectory() };
+        foreach (var startDir in searchDirs)
         {
-            var candidate = Path.Combine(dir, relativePath);
-            if (File.Exists(candidate)) return Path.GetFullPath(candidate);
-            var parent = Path.GetDirectoryName(dir);
-            if (parent == null) break;
-            dir = parent;
+            var dir = startDir;
+            for (int i = 0; i < 6; i++)
+            {
+                foreach (var rel in candidates)
+                {
+                    var candidate = Path.Combine(dir, rel);
+                    if (File.Exists(candidate)) return Path.GetFullPath(candidate);
+                }
+                var parent = Path.GetDirectoryName(dir);
+                if (parent == null) break;
+                dir = parent;
+            }
         }
         return Path.GetFullPath(relativePath);
     }
 
-    private readonly string _cubePart = ResolveModelPath(@"models\cube.SLDPRT");
-    private readonly string _assembly = ResolveModelPath(@"models\assembly.SLDASM");
-    private readonly string _cubeDrawing = ResolveModelPath(@"models\cube.SLDDRW");
+    private readonly string _cubePart = ResolveModelPath("cube.SLDPRT");
+    private readonly string _assembly = ResolveModelPath("assembly.SLDASM");
+    private readonly string _cubeDrawing = ResolveModelPath("cube.SLDDRW");
 
     private class MockDialogService : IDialogService
     {
