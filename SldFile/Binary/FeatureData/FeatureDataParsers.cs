@@ -370,7 +370,13 @@ internal static class FeatureDataParsers
 
     internal static ParallelPlaneDistanceDimData? ParseParallelPlaneDistanceDim(MfcElement element)
     {
-        return new ParallelPlaneDistanceDimData { RawData = element.RawData };
+        var data = new ParallelPlaneDistanceDimData { RawData = element.RawData };
+        byte[] raw = element.RawData;
+        if (raw.Length >= 0x45)
+        {
+            data.DimValue = BitConverter.ToDouble(raw, 0x3D);
+        }
+        return data;
     }
 
     internal static FavoriteHandleData? ParseFavoriteHandle(MfcElement element)
@@ -458,20 +464,23 @@ internal static class FeatureDataParsers
         var data = new EndSpecData();
         byte[] raw = element.RawData;
         data.RawData = raw;
-        int len = raw.Length;
-        int offset = 0;
 
-        if (offset + 4 <= len)
-            data.EndType = BitConverter.ToUInt32(raw, offset);
-        offset = Math.Min(offset + 4, len);
+        if (raw.Length >= 4)
+        {
+            data.EndType = BitConverter.ToUInt32(raw, 0);
+        }
 
-        if (offset + 8 <= len)
-            data.EndDepth = BitConverter.ToDouble(raw, offset);
-        offset = Math.Min(offset + 8, len);
+        if (raw.Length >= 0x14)
+        {
+            data.EndCondition = BitConverter.ToUInt32(raw, 0x10);
+        }
 
-        if (offset < len)
-            data.UnparsedTail = MfcPrimitives.CopyRange(raw, offset, len);
+        if (raw.Length >= 12)
+        {
+            data.EndDepth = BitConverter.ToDouble(raw, 4);
+        }
 
+        data.UnparsedTail = raw;
         return data;
     }
 

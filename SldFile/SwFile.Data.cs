@@ -188,7 +188,8 @@ public abstract partial class SwFile
             var name = folder.ClassName;
             var kind = name.StartsWith("moRefPlane", StringComparison.Ordinal) ? FeatureKind.ReferencePlane
                 : name.StartsWith("moProfileFeature", StringComparison.Ordinal) ? FeatureKind.Sketch
-                : name.StartsWith("moExtrusion", StringComparison.Ordinal) ? FeatureKind.Extrusion
+                : (name.StartsWith("moExtrusion", StringComparison.Ordinal) || name == "moICE_c") ? (folder.DisplayName.Contains("切除") || name == "moICE_c" ? FeatureKind.Cut : FeatureKind.Extrusion)
+                : name.StartsWith("moSMBaseFlange", StringComparison.Ordinal) ? FeatureKind.Extrusion
                 : name.StartsWith("moLengthParameter", StringComparison.Ordinal) ? FeatureKind.Dimension
                 : name.Contains("Folder") ? FeatureKind.Folder : FeatureKind.Other;
 
@@ -196,6 +197,15 @@ public abstract partial class SwFile
             if (folder.FeatureData is LengthParameterData lpd)
             {
                 dims.Add(new FeatureDimension(folder.DisplayName, lpd.ParamValue.ToString("F3")));
+            }
+            else if (folder.FeatureData is ExtrudeFeatureDefinitionData extDef)
+            {
+                dims.Add(new FeatureDimension("Depth", (extDef.Depth * 1000).ToString("F2") + "mm"));
+            }
+            else if (folder.FeatureData is SheetMetalBaseFlangeDefinitionData smDef)
+            {
+                dims.Add(new FeatureDimension("Thickness", (smDef.Thickness * 1000).ToString("F2") + "mm"));
+                dims.Add(new FeatureDimension("BendRadius", (smDef.BendRadius * 1000).ToString("F2") + "mm"));
             }
             if (folder.ChildFeatureData != null)
             {

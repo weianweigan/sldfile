@@ -262,6 +262,36 @@ internal sealed class ParallelPlaneDistanceDimData : IFeatureData
     public string ClassName => "ParallelPlaneDistanceDim_c";
     public uint TypeId => 0;
 
+    public double DimValue { get; set; }
+
+    internal byte[] RawData = Array.Empty<byte>();
+}
+
+/// <summary>Extrusion feature definition data (Extrude Boss/Base, Extrude Cut).</summary>
+internal sealed class ExtrudeFeatureDefinitionData : IFeatureData
+{
+    public string ClassName => "moExtrusion_c";
+    public uint TypeId => 0x4B;
+
+    public double Depth { get; set; }
+    public uint EndCondition { get; set; }
+    public bool IsCut { get; set; }
+    public bool BothDirections { get; set; }
+
+    internal byte[] RawData = Array.Empty<byte>();
+}
+
+/// <summary>Sheet metal base flange feature definition data.</summary>
+internal sealed class SheetMetalBaseFlangeDefinitionData : IFeatureData
+{
+    public string ClassName => "moSMBaseFlange_c";
+    public uint TypeId => 0x5E;
+
+    public double Depth { get; set; }
+    public double Thickness { get; set; }
+    public double BendRadius { get; set; }
+    public double KFactor { get; set; } = 0.5;
+
     internal byte[] RawData = Array.Empty<byte>();
 }
 
@@ -355,6 +385,7 @@ internal sealed class EndSpecData : IFeatureData
     public uint TypeId => 0;
 
     public uint EndType { get; set; }
+    public uint EndCondition { get; set; }
     public double EndDepth { get; set; }
 
     internal byte[] RawData = Array.Empty<byte>();
