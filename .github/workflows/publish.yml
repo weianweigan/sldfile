@@ -63,11 +63,19 @@ jobs:
 
       # 推送 NuGet 包至 NuGet.org
       - name: Push to NuGet.org
-        run: >
-          dotnet nuget push ./release_assets/*.nupkg
-          --api-key ${{ secrets.NUGET_API_KEY }}
-          --source https://api.nuget.org/v3/index.json
-          --skip-duplicate
+        shell: pwsh
+        run: |
+          $packages = Get-ChildItem -Path ./release_assets -Filter *.nupkg
+          if ($packages.Count -eq 0) {
+            throw "No .nupkg packages found in ./release_assets to push."
+          }
+          foreach ($pkg in $packages) {
+            Write-Host "Pushing $($pkg.FullName) to NuGet.org..."
+            dotnet nuget push $pkg.FullName `
+              --api-key ${{ secrets.NUGET_API_KEY }} `
+              --source https://api.nuget.org/v3/index.json `
+              --skip-duplicate
+          }
 
       # 发布 SldFileViewer 单文件独立桌面程序并压缩为 Zip
       - name: Publish SldFileViewer Desktop App
