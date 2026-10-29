@@ -5,14 +5,18 @@
         <ResourceDictionary Source="../Brushes.xaml" />
     </ResourceDictionary.MergedDictionaries>
 
-    <!-- TabItem Style -->
+    <!-- ========================================================================= -->
+    <!-- Figma Pill TabItem (Design.md: pricing-tab-default / selected)             -->
+    <!-- ========================================================================= -->
     <Style TargetType="{x:Type TabItem}">
         <Setter Property="Background" Value="Transparent" />
-        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Secondary}" />
-        <Setter Property="BorderThickness" Value="0,0,0,2" />
-        <Setter Property="BorderBrush" Value="Transparent" />
-        <Setter Property="Padding" Value="12,6" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Figma.Ink}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.Figma.Hairline}" />
+        <Setter Property="Padding" Value="14,6" />
+        <Setter Property="Margin" Value="0,0,6,0" />
         <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="Medium" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Template">
             <Setter.Value>
@@ -21,6 +25,7 @@
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="10"
                             Padding="{TemplateBinding Padding}">
                         <ContentPresenter ContentSource="Header"
                                           HorizontalAlignment="Center"
@@ -28,12 +33,13 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="border" Property="Background" Value="{StaticResource Brush.Background.Hover}" />
-                            <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}" />
+                            <Setter TargetName="border" Property="Background" Value="{StaticResource Brush.Figma.HairlineSoft}" />
                         </Trigger>
+                        <!-- Figma Selected Tab: Pure Black Pill with White Text -->
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource Brush.Accent.Blue}" />
-                            <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}" />
+                            <Setter TargetName="border" Property="Background" Value="{StaticResource Brush.Figma.Primary}" />
+                            <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource Brush.Figma.Primary}" />
+                            <Setter Property="Foreground" Value="{StaticResource Brush.Figma.OnPrimary}" />
                             <Setter Property="FontWeight" Value="SemiBold" />
                         </Trigger>
                     </ControlTemplate.Triggers>
@@ -43,11 +49,12 @@
     </Style>
 
     <!-- TabControl Style -->
-    <Style x:Key="Style.TabControl.CAD" TargetType="{x:Type TabControl}">
+    <Style x:Key="Style.TabControl.Figma" TargetType="{x:Type TabControl}">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0,8,0,0" />
     </Style>
 
-    <Style TargetType="{x:Type TabControl}" BasedOn="{StaticResource Style.TabControl.CAD}" />
+    <Style TargetType="{x:Type TabControl}" BasedOn="{StaticResource Style.TabControl.Figma}" />
 
 </ResourceDictionary>

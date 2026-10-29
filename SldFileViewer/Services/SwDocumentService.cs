@@ -32,7 +32,16 @@ public sealed class SwDocumentService : ISwDocumentService
 
         return await Task.Run(() =>
         {
-            var sw = SwFile.Open(filePath, readOnly: false);
+            SwFile sw;
+            try
+            {
+                sw = SwFile.Open(filePath, readOnly: true);
+            }
+            catch (Exception)
+            {
+                sw = SwFile.Open(filePath, readOnly: false);
+            }
+
             _currentFile = sw;
             _currentFilePath = filePath;
             return sw;
@@ -248,7 +257,15 @@ public sealed class SwDocumentService : ISwDocumentService
 
     public void SaveCustomProperties(IEnumerable<CustomPropertyItem> properties, string? configName = null)
     {
-        if (_currentFile == null) return;
+        if (_currentFile == null || _currentFilePath == null) return;
+
+        // If file was opened read-only, reopen with read-write access to persist changes
+        if (_currentFile.IsReadOnly)
+        {
+            var path = _currentFilePath;
+            _currentFile.Dispose();
+            _currentFile = SwFile.Open(path, readOnly: false);
+        }
 
         foreach (var item in properties)
         {

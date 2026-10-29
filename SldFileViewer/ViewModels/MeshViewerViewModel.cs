@@ -38,6 +38,12 @@ public partial class MeshViewerViewModel : ObservableObject
     [ObservableProperty]
     private MeshGeometry3D? _wpfMesh;
 
+    [ObservableProperty]
+    private MeshGeometry3D? _wpfEdgeMesh;
+
+    [ObservableProperty]
+    private bool _showEdges = true;
+
     public MeshViewerViewModel(ISwDocumentService docService, IExportService exportService, IDialogService dialogService)
     {
         _docService = docService;
@@ -72,6 +78,7 @@ public partial class MeshViewerViewModel : ObservableObject
             EdgeCount = 0;
             DimensionsText = "-";
             WpfMesh = null;
+            WpfEdgeMesh = null;
         }
     }
 
@@ -88,19 +95,117 @@ public partial class MeshViewerViewModel : ObservableObject
             geo.Positions.Add(new Point3D(p.X, p.Y, p.Z));
         }
 
-        for (int i = 0; i < mesh.Normals.Count; i++)
+        // Only supply normals if exact count matches vertex count (WPF requirement)
+        if (mesh.Normals.Count == mesh.Positions.Count)
         {
-            var n = mesh.Normals[i];
-            geo.Normals.Add(new Vector3D(n.X, n.Y, n.Z));
+            for (int i = 0; i < mesh.Normals.Count; i++)
+            {
+                var n = mesh.Normals[i];
+                geo.Normals.Add(new Vector3D(n.X, n.Y, n.Z));
+            }
         }
 
-        for (int i = 0; i < mesh.TriangleIndices.Count; i++)
+        int posCount = mesh.Positions.Count;
+        for (int i = 0; i + 2 < mesh.TriangleIndices.Count; i += 3)
         {
-            geo.TriangleIndices.Add(mesh.TriangleIndices[i]);
+            int i0 = mesh.TriangleIndices[i];
+            int i1 = mesh.TriangleIndices[i + 1];
+            int i2 = mesh.TriangleIndices[i + 2];
+            if (i0 >= 0 && i0 < posCount &&
+                i1 >= 0 && i1 < posCount &&
+                i2 >= 0 && i2 < posCount)
+            {
+                geo.TriangleIndices.Add(i0);
+                geo.TriangleIndices.Add(i1);
+                geo.TriangleIndices.Add(i2);
+            }
         }
 
         geo.Freeze();
         WpfMesh = geo;
+
+        BuildEdgeMesh(mesh, center);
+    }
+
+    private void BuildEdgeMesh(DisplayMesh mesh, System.Numerics.Vector3 center)
+    {
+        if (mesh.OutlineEdges == null || mesh.OutlineEdges.Count == 0 || mesh.Positions.Count == 0)
+        {
+            WpfEdgeMesh = null;
+            return;
+        }
+
+        var edgeGeo = new MeshGeometry3D();
+        var size = mesh.Max - mesh.Min;
+        double maxDim = Math.Max(size.X, Math.Max(size.Y, size.Z));
+        float thickness = (float)Math.Clamp(maxDim * 0.0012, 0.05, 5.0);
+
+        int posCount = mesh.Positions.Count;
+        int vertexBase = 0;
+
+        foreach (var (start, end) in mesh.OutlineEdges)
+        {
+            if (start < 0 || start >= posCount || end < 0 || end >= posCount || start == end)
+                continue;
+
+            var p0 = mesh.Positions[start] - center;
+            var p1 = mesh.Positions[end] - center;
+
+            var dir = p1 - p0;
+            float len = dir.Length();
+            if (len < 1e-4f) continue;
+
+            // Compute perpendicular vectors
+            var v = Math.Abs(dir.X) > 0.9f * len ? new System.Numerics.Vector3(0, 1, 0) : new System.Numerics.Vector3(1, 0, 0);
+            var u = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(dir, v)) * thickness;
+            var w = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(dir, u)) * thickness;
+
+            // 8 vertices for 2 crossed quads
+            edgeGeo.Positions.Add(new Point3D(p0.X - u.X, p0.Y - u.Y, p0.Z - u.Z));
+            edgeGeo.Positions.Add(new Point3D(p0.X + u.X, p0.Y + u.Y, p0.Z + u.Z));
+            edgeGeo.Positions.Add(new Point3D(p1.X + u.X, p1.Y + u.Y, p1.Z + u.Z));
+            edgeGeo.Positions.Add(new Point3D(p1.X - u.X, p1.Y - u.Y, p1.Z - u.Z));
+
+            edgeGeo.Positions.Add(new Point3D(p0.X - w.X, p0.Y - w.Y, p0.Z - w.Z));
+            edgeGeo.Positions.Add(new Point3D(p0.X + w.X, p0.Y + w.Y, p0.Z + w.Z));
+            edgeGeo.Positions.Add(new Point3D(p1.X + w.X, p1.Y + w.Y, p1.Z + w.Z));
+            edgeGeo.Positions.Add(new Point3D(p1.X - w.X, p1.Y - w.Y, p1.Z - w.Z));
+
+            // Quad 1 (front + back)
+            edgeGeo.TriangleIndices.Add(vertexBase);
+            edgeGeo.TriangleIndices.Add(vertexBase + 1);
+            edgeGeo.TriangleIndices.Add(vertexBase + 2);
+            edgeGeo.TriangleIndices.Add(vertexBase);
+            edgeGeo.TriangleIndices.Add(vertexBase + 2);
+            edgeGeo.TriangleIndices.Add(vertexBase + 3);
+
+            edgeGeo.TriangleIndices.Add(vertexBase);
+            edgeGeo.TriangleIndices.Add(vertexBase + 2);
+            edgeGeo.TriangleIndices.Add(vertexBase + 1);
+            edgeGeo.TriangleIndices.Add(vertexBase);
+            edgeGeo.TriangleIndices.Add(vertexBase + 3);
+            edgeGeo.TriangleIndices.Add(vertexBase + 2);
+
+            // Quad 2 (front + back)
+            edgeGeo.TriangleIndices.Add(vertexBase + 4);
+            edgeGeo.TriangleIndices.Add(vertexBase + 5);
+            edgeGeo.TriangleIndices.Add(vertexBase + 6);
+            edgeGeo.TriangleIndices.Add(vertexBase + 4);
+            edgeGeo.TriangleIndices.Add(vertexBase + 6);
+            edgeGeo.TriangleIndices.Add(vertexBase + 7);
+
+            edgeGeo.TriangleIndices.Add(vertexBase + 4);
+            edgeGeo.TriangleIndices.Add(vertexBase + 6);
+            edgeGeo.TriangleIndices.Add(vertexBase + 5);
+            edgeGeo.TriangleIndices.Add(vertexBase + 4);
+            edgeGeo.TriangleIndices.Add(vertexBase + 7);
+            edgeGeo.TriangleIndices.Add(vertexBase + 6);
+
+            vertexBase += 8;
+        }
+
+        edgeGeo.Freeze();
+        WpfEdgeMesh = edgeGeo;
     }
 
     [RelayCommand]

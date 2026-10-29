@@ -12,13 +12,15 @@ public sealed class BoolToVisibilityConverter : IValueConverter
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         bool b = value is bool flag && flag;
-        if (Invert) b = !b;
+        bool invert = Invert || (parameter is string paramStr && string.Equals(paramStr, "Invert", StringComparison.OrdinalIgnoreCase));
+        if (invert) b = !b;
         return b ? Visibility.Visible : Visibility.Collapsed;
     }
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         bool isVisible = value is Visibility v && v == Visibility.Visible;
-        return Invert ? !isVisible : isVisible;
+        bool invert = Invert || (parameter is string paramStr && string.Equals(paramStr, "Invert", StringComparison.OrdinalIgnoreCase));
+        return invert ? !isVisible : isVisible;
     }
 }

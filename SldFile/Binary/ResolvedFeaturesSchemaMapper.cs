@@ -122,12 +122,9 @@ internal static class ResolvedFeaturesSchemaMapper
     /// </summary>
     private static int GetExpectedDepth(string className)
     {
-        // Depth 0: root
-        if (className == "moSensorFolder_ct" || className == "moSensorFolder_cM" || className == "moFavoriteFolder_c")
-            return 0;
-
-        // Depth 1: direct children of root
-        if (className.StartsWith("moHistoryFolder_") ||
+        // Depth 0: Top-level folders and features in FeatureManager design tree
+        if (className.StartsWith("moFavoriteFolder_") ||
+            className.StartsWith("moHistoryFolder_") ||
             className.StartsWith("moSelectionSetFolder_") ||
             className.StartsWith("moSensorFolder_") ||
             className.StartsWith("moDocsFolder_") ||
@@ -144,6 +141,10 @@ internal static class ResolvedFeaturesSchemaMapper
             className.StartsWith("moICE_") ||
             className.StartsWith("moRevolution_") ||
             className.StartsWith("Fillet_") ||
+            className.StartsWith("moChamfer_") ||
+            className.StartsWith("moSweep_") ||
+            className.StartsWith("moLoft_") ||
+            className.StartsWith("moThicken_") ||
             className.StartsWith("moTemplateSheetMetal_") ||
             className.StartsWith("moSMBaseFlange_") ||
             className.StartsWith("moSheetMetal_") ||
@@ -152,11 +153,13 @@ internal static class ResolvedFeaturesSchemaMapper
             className.StartsWith("moNotesAreaFtrFolder_") ||
             className.StartsWith("moInkMarkupFolder_") ||
             className.StartsWith("moConfigTableFolder_") ||
-            className.StartsWith("moMateGroup_"))
-            return 1;
+            className.StartsWith("moNativeConfigurationTableFeature_") ||
+            className.StartsWith("moMateGroup_") ||
+            className.StartsWith("moFtrFolder_"))
+            return 0;
 
-        // Depth 2+: nested features (parameters, sub-features, etc.)
-        return 2;
+        // Depth 1+: nested features (parameters, sub-features, etc.)
+        return 1;
     }
 
     private static void FreezeFolders(List<FeatureFolder> folders)

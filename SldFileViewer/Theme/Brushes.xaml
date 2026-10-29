@@ -5,7 +5,44 @@
         <ResourceDictionary Source="Colors.xaml" />
     </ResourceDictionary.MergedDictionaries>
 
-    <!-- Background Brushes -->
+    <!-- ========================================================================= -->
+    <!-- Figma Design System Brushes (Design.md)                                  -->
+    <!-- ========================================================================= -->
+
+    <!-- Monochrome System Core -->
+    <SolidColorBrush x:Key="Brush.Figma.Primary" Color="{StaticResource Color.Figma.Primary}" />
+    <SolidColorBrush x:Key="Brush.Figma.OnPrimary" Color="{StaticResource Color.Figma.OnPrimary}" />
+    <SolidColorBrush x:Key="Brush.Figma.Ink" Color="{StaticResource Color.Figma.Ink}" />
+    <SolidColorBrush x:Key="Brush.Figma.Canvas" Color="{StaticResource Color.Figma.Canvas}" />
+    <SolidColorBrush x:Key="Brush.Figma.InverseCanvas" Color="{StaticResource Color.Figma.InverseCanvas}" />
+    <SolidColorBrush x:Key="Brush.Figma.InverseInk" Color="{StaticResource Color.Figma.InverseInk}" />
+    <SolidColorBrush x:Key="Brush.Figma.OnInverseSoft" Color="{StaticResource Color.Figma.OnInverseSoft}" />
+
+    <!-- Hairline and Surface Neutrals -->
+    <SolidColorBrush x:Key="Brush.Figma.Hairline" Color="{StaticResource Color.Figma.Hairline}" />
+    <SolidColorBrush x:Key="Brush.Figma.HairlineSoft" Color="{StaticResource Color.Figma.HairlineSoft}" />
+    <SolidColorBrush x:Key="Brush.Figma.SurfaceSoft" Color="{StaticResource Color.Figma.SurfaceSoft}" />
+    <SolidColorBrush x:Key="Brush.Figma.SurfaceCanvas" Color="{StaticResource Color.Figma.SurfaceCanvas}" />
+
+    <!-- Signature Pastel Color Blocks -->
+    <SolidColorBrush x:Key="Brush.Figma.BlockLime" Color="{StaticResource Color.Figma.BlockLime}" />
+    <SolidColorBrush x:Key="Brush.Figma.BlockLilac" Color="{StaticResource Color.Figma.BlockLilac}" />
+    <SolidColorBrush x:Key="Brush.Figma.BlockCream" Color="{StaticResource Color.Figma.BlockCream}" />
+    <SolidColorBrush x:Key="Brush.Figma.BlockPink" Color="{StaticResource Color.Figma.BlockPink}" />
+    <SolidColorBrush x:Key="Brush.Figma.BlockMint" Color="{StaticResource Color.Figma.BlockMint}" />
+    <SolidColorBrush x:Key="Brush.Figma.BlockCoral" Color="{StaticResource Color.Figma.BlockCoral}" />
+    <SolidColorBrush x:Key="Brush.Figma.BlockNavy" Color="{StaticResource Color.Figma.BlockNavy}" />
+
+    <!-- Accent and Semantic -->
+    <SolidColorBrush x:Key="Brush.Figma.AccentMagenta" Color="{StaticResource Color.Figma.AccentMagenta}" />
+    <SolidColorBrush x:Key="Brush.Figma.SemanticSuccess" Color="{StaticResource Color.Figma.SemanticSuccess}" />
+    <SolidColorBrush x:Key="Brush.Figma.OverlayScrim" Color="{StaticResource Color.Figma.OverlayScrim}" />
+
+    <!-- ========================================================================= -->
+    <!-- Mapped Application Brushes                                               -->
+    <!-- ========================================================================= -->
+
+    <!-- Background Surfaces -->
     <SolidColorBrush x:Key="Brush.Background.Primary" Color="{StaticResource Color.Background.Primary}" />
     <SolidColorBrush x:Key="Brush.Background.Secondary" Color="{StaticResource Color.Background.Secondary}" />
     <SolidColorBrush x:Key="Brush.Background.Tertiary" Color="{StaticResource Color.Background.Tertiary}" />
@@ -52,5 +89,12 @@
     <!-- 3D Mesh Brushes -->
     <SolidColorBrush x:Key="Brush.Mesh.DefaultFace" Color="{StaticResource Color.Mesh.DefaultFace}" />
     <SolidColorBrush x:Key="Brush.Mesh.OutlineEdge" Color="{StaticResource Color.Mesh.OutlineEdge}" />
+
+    <!-- CornerRadius Constants (Design.md) -->
+    <CornerRadius x:Key="Radius.Pill">50</CornerRadius>
+    <CornerRadius x:Key="Radius.Lg">24</CornerRadius>
+    <CornerRadius x:Key="Radius.Md">8</CornerRadius>
+    <CornerRadius x:Key="Radius.Sm">6</CornerRadius>
+    <CornerRadius x:Key="Radius.Xs">2</CornerRadius>
 
 </ResourceDictionary>

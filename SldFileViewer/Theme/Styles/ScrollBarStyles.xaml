@@ -11,7 +11,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type Thumb}">
-                    <Border Background="{StaticResource Brush.Border.Primary}"
+                    <Border Background="{StaticResource Brush.Figma.Hairline}"
                             CornerRadius="3"
                             Margin="1" />
                 </ControlTemplate>
@@ -21,9 +21,9 @@
 
     <Style TargetType="{x:Type ScrollBar}">
         <Setter Property="Background" Value="Transparent" />
-        <Setter Property="Foreground" Value="{StaticResource Brush.Border.Primary}" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Figma.Hairline}" />
         <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="Width" Value="8" />
+        <Setter Property="Width" Value="6" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type ScrollBar}">
@@ -38,7 +38,7 @@
         <Style.Triggers>
             <Trigger Property="Orientation" Value="Horizontal">
                 <Setter Property="Width" Value="Auto" />
-                <Setter Property="Height" Value="8" />
+                <Setter Property="Height" Value="6" />
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="{x:Type ScrollBar}">

@@ -39,30 +39,78 @@
         </DataTemplate>
     </UserControl.Resources>
 
-    <Grid Background="{StaticResource Brush.Background.Primary}">
+    <Grid Background="{StaticResource Brush.Figma.Canvas}">
         <!-- Dynamic Content Area -->
         <ContentControl Content="{Binding CurrentView}">
             <ContentControl.Style>
                 <Style TargetType="ContentControl">
                     <Style.Triggers>
+                        <!-- Figma Signature Oversized Color-Block Section (Design.md: color-block-section) -->
                         <Trigger Property="Content" Value="{x:Null}">
                             <Setter Property="Template">
                                 <Setter.Value>
                                     <ControlTemplate>
-                                        <Grid Background="{StaticResource Brush.Viewport.Gradient}">
-                                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                <Path Data="{StaticResource Geo.Part}"
-                                                      Fill="{StaticResource Brush.Text.Muted}"
-                                                      Width="64" Height="64" Stretch="Uniform"
-                                                      HorizontalAlignment="Center" Margin="0,0,0,16" />
-                                                <TextBlock Text="未加载模型或未选择视图"
-                                                           FontSize="15" FontWeight="SemiBold"
-                                                           Foreground="{StaticResource Brush.Text.Secondary}"
-                                                           HorizontalAlignment="Center" />
-                                                <TextBlock Text="请点击左上方【打开文件】载入 SolidWorks 零件、装配体或工程图"
-                                                           FontSize="12" Foreground="{StaticResource Brush.Text.Muted}"
-                                                           HorizontalAlignment="Center" Margin="0,8,0,0" />
-                                            </StackPanel>
+                                        <Grid Background="{StaticResource Brush.Figma.Canvas}" Margin="32">
+                                            <Border Background="{StaticResource Brush.Figma.BlockCream}"
+                                                    BorderBrush="{StaticResource Brush.Figma.BlockCream}"
+                                                    CornerRadius="24"
+                                                    Padding="48"
+                                                    MaxWidth="750" MaxHeight="450"
+                                                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <!-- Eyebrow (Design.md: figmaMono uppercase) -->
+                                                    <TextBlock Text="SOLIDWORKS CFB DECODER &amp; INSPECTOR"
+                                                               FontFamily="Consolas, Cascadia Code, Segoe UI Mono"
+                                                               FontSize="12" FontWeight="Bold"
+                                                               Foreground="{StaticResource Brush.Figma.Ink}"
+                                                               HorizontalAlignment="Center"
+                                                               Margin="0,0,0,12" />
+
+                                                    <!-- Display Headline (Design.md: display-lg editorial) -->
+                                                    <TextBlock Text="离线原生解析模型信息"
+                                                               FontSize="28" FontWeight="Bold"
+                                                               Foreground="{StaticResource Brush.Figma.Ink}"
+                                                               HorizontalAlignment="Center"
+                                                               Margin="0,0,0,12" />
+
+                                                    <!-- Subhead -->
+                                                    <TextBlock Text="直接读取 OLE 复合文档结构，快速查看特征树、草图几何与约束、方程式、BOM 结构以及三维网格模型。"
+                                                               FontSize="14" FontWeight="Normal"
+                                                               LineHeight="22" TextWrapping="Wrap"
+                                                               TextAlignment="Center"
+                                                               Foreground="{StaticResource Brush.Figma.Ink}"
+                                                               HorizontalAlignment="Center"
+                                                               MaxWidth="520"
+                                                               Margin="0,0,0,28" />
+
+                                                    <!-- Pastel Feature Badges Row (sticky-note cards) -->
+                                                    <WrapPanel HorizontalAlignment="Center" Margin="0,0,0,24">
+                                                        <Border Background="{StaticResource Brush.Figma.BlockLime}" CornerRadius="10" Padding="12,5" Margin="4">
+                                                            <TextBlock Text="3D 模型网格与轮廓边线" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Brush.Figma.Ink}" />
+                                                        </Border>
+                                                        <Border Background="{StaticResource Brush.Figma.BlockLilac}" CornerRadius="10" Padding="12,5" Margin="4">
+                                                            <TextBlock Text="草图图元与约束拓扑" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Brush.Figma.Ink}" />
+                                                        </Border>
+                                                        <Border Background="{StaticResource Brush.Figma.BlockMint}" CornerRadius="10" Padding="12,5" Margin="4">
+                                                            <TextBlock Text="自定义属性与全局方程式" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Brush.Figma.Ink}" />
+                                                        </Border>
+                                                        <Border Background="{StaticResource Brush.Figma.BlockCoral}" CornerRadius="10" Padding="12,5" Margin="4">
+                                                            <TextBlock Text="装配体结构与 BOM 明细" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Brush.Figma.Ink}" />
+                                                        </Border>
+                                                    </WrapPanel>
+
+                                                    <!-- Primary CTA Button (Design.md: button-primary) -->
+                                                    <Button Command="{Binding OpenFileCommand}"
+                                                            Style="{StaticResource Style.Button.Primary}"
+                                                            HorizontalAlignment="Center"
+                                                            Padding="24,10">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <Path Data="{StaticResource Geo.Open}" Fill="White" Width="14" Height="14" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                                            <TextBlock Text="打开 SolidWorks 模型文件" FontSize="13" />
+                                                        </StackPanel>
+                                                    </Button>
+                                                </StackPanel>
+                                            </Border>
                                         </Grid>
                                     </ControlTemplate>
                                 </Setter.Value>

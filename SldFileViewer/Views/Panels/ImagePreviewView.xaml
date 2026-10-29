@@ -6,34 +6,33 @@
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="600">
 
-    <Grid Background="{StaticResource Brush.Background.Primary}">
+    <Grid Background="{StaticResource Brush.Figma.Canvas}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Top Header -->
+        <!-- Top Header (Figma Canvas + Hairline) -->
         <Border Grid.Row="0"
-                Background="{StaticResource Brush.Background.Secondary}"
-                BorderBrush="{StaticResource Brush.Border.Primary}"
+                Background="{StaticResource Brush.Figma.Canvas}"
+                BorderBrush="{StaticResource Brush.Figma.Hairline}"
                 BorderThickness="0,0,0,1"
-                Padding="10,6">
+                Padding="16,8">
             <DockPanel LastChildFill="False">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <Path Data="{StaticResource Geo.Drawing}"
-                          Fill="{StaticResource Brush.Accent.Blue}"
+                          Fill="{StaticResource Brush.Figma.Ink}"
                           Width="14" Height="14" Stretch="Uniform"
-                          Margin="0,0,6,0" />
+                          Margin="0,0,8,0" />
                     <TextBlock Text="2D 图像与图纸预览 (2D Preview)"
                                FontWeight="Bold" FontSize="13"
-                               Foreground="{StaticResource Brush.Text.Primary}"
+                               Foreground="{StaticResource Brush.Figma.Ink}"
                                VerticalAlignment="Center" />
 
-                    <Border Background="{StaticResource Brush.Background.Tertiary}"
-                            BorderBrush="{StaticResource Brush.Border.Primary}"
-                            BorderThickness="1" CornerRadius="3"
-                            Padding="6,2" Margin="12,0,0,0">
-                        <TextBlock Text="{Binding ImageInfo}" FontSize="11" Foreground="{StaticResource Brush.Text.Secondary}" />
+                    <Border Background="{StaticResource Brush.Figma.BlockLilac}"
+                            CornerRadius="10"
+                            Padding="12,3" Margin="12,0,0,0">
+                        <TextBlock Text="{Binding ImageInfo}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Brush.Figma.Ink}" />
                     </Border>
                 </StackPanel>
             </DockPanel>
@@ -43,22 +42,35 @@
         <ScrollViewer Grid.Row="1"
                       HorizontalScrollBarVisibility="Auto"
                       VerticalScrollBarVisibility="Auto"
-                      Background="{StaticResource Brush.Viewport.Gradient}">
-            <Grid HorizontalAlignment="Center" VerticalAlignment="Center" Margin="20">
-                <Image Source="{Binding ImageSource}"
-                       RenderOptions.BitmapScalingMode="HighQuality"
-                       Stretch="Uniform"
-                       MaxWidth="1600" MaxHeight="1200" />
+                      Background="{StaticResource Brush.Figma.SurfaceCanvas}">
+            <Grid HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24">
+                <Border Background="{StaticResource Brush.Figma.Canvas}"
+                        BorderBrush="{StaticResource Brush.Figma.Hairline}"
+                        BorderThickness="1" CornerRadius="8"
+                        Padding="8">
+                    <Image Source="{Binding ImageSource}"
+                           RenderOptions.BitmapScalingMode="HighQuality"
+                           Stretch="Uniform"
+                           MaxWidth="1600" MaxHeight="1200" />
+                </Border>
 
-                <!-- Empty State -->
-                <StackPanel Visibility="{Binding HasImage, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}"
-                            HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <Path Data="{StaticResource Geo.Drawing}"
-                          Fill="{StaticResource Brush.Text.Muted}"
-                          Width="48" Height="48" Stretch="Uniform"
-                          HorizontalAlignment="Center" Margin="0,0,0,12" />
-                    <TextBlock Text="无可用图像数据" FontSize="13" Foreground="{StaticResource Brush.Text.Secondary}" HorizontalAlignment="Center" />
-                </StackPanel>
+                <!-- Empty State (Figma Pastel Card) -->
+                <Border Visibility="{Binding HasImage, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}"
+                        Background="{StaticResource Brush.Figma.BlockCream}"
+                        BorderBrush="{StaticResource Brush.Figma.BlockCream}"
+                        CornerRadius="16"
+                        Padding="36"
+                        HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <StackPanel HorizontalAlignment="Center">
+                        <Path Data="{StaticResource Geo.Drawing}"
+                              Fill="{StaticResource Brush.Figma.Ink}"
+                              Opacity="0.4"
+                              Width="48" Height="48" Stretch="Uniform"
+                              HorizontalAlignment="Center" Margin="0,0,0,12" />
+                        <TextBlock Text="无可用图像数据" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Brush.Figma.Ink}" HorizontalAlignment="Center" />
+                        <TextBlock Text="当前文件未内嵌 2D 缩略图或工程图预览流" FontSize="11" Foreground="{StaticResource Brush.Figma.Ink}" Opacity="0.6" HorizontalAlignment="Center" Margin="0,4,0,0" />
+                    </StackPanel>
+                </Border>
             </Grid>
         </ScrollViewer>
     </Grid>

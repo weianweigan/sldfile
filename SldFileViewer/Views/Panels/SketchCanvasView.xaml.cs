@@ -23,6 +23,19 @@ public partial class SketchCanvasView : UserControl
 
     private SketchCanvasViewModel? VM => DataContext as SketchCanvasViewModel;
 
+    private bool _renderPending;
+
+    private void RequestRender()
+    {
+        if (_renderPending) return;
+        _renderPending = true;
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            _renderPending = false;
+            RenderSketch();
+        }), System.Windows.Threading.DispatcherPriority.Render);
+    }
+
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         if (VM != null)
@@ -31,10 +44,10 @@ public partial class SketchCanvasView : UserControl
             VM.RequestFitView += OnRequestFitView;
         }
 
-        SketchCanvas.ViewportChanged += (s, ev) => RenderSketch();
-        SketchCanvas.SizeChanged += (s, ev) => RenderSketch();
+        SketchCanvas.ViewportChanged += (s, ev) => RequestRender();
+        SketchCanvas.SizeChanged += (s, ev) => RequestRender();
 
-        RenderSketch();
+        RequestRender();
     }
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
@@ -56,17 +69,26 @@ public partial class SketchCanvasView : UserControl
             e.PropertyName == nameof(SketchCanvasViewModel.SelectedSegment) ||
             e.PropertyName == nameof(SketchCanvasViewModel.SelectedPoint))
         {
-            RenderSketch();
+            RequestRender();
         }
     }
 
     private void OnRequestFitView()
     {
         SketchCanvas.ResetView();
-        RenderSketch();
+        RequestRender();
     }
 
     private void RenderSketch()
+    {
+        try
+        {
+            RenderSketchCore();
+        }
+        catch { }
+    }
+
+    private void RenderSketchCore()
     {
         SketchCanvas.Children.Clear();
         var vm = VM;
@@ -109,7 +131,7 @@ public partial class SketchCanvasView : UserControl
 
                 line.MouseEnter += (s, e) => line.StrokeThickness = pen.Thickness + 1.5;
                 line.MouseLeave += (s, e) => line.StrokeThickness = pen.Thickness;
-                line.MouseDown += (s, e) => vm.SelectedSegment = seg;
+                line.MouseDown += (s, e) => { vm.SelectedSegment = seg; e.Handled = true; };
 
                 SketchCanvas.Children.Add(line);
             }
@@ -120,6 +142,7 @@ public partial class SketchCanvasView : UserControl
                     Point centerScreen = SketchCanvas.WorldToScreen(seg.Center.WorldX, seg.Center.WorldY);
                     double scale = SketchCanvas.CalculateBaseScale() * SketchCanvas.Zoom;
                     double rScreen = seg.Radius.Value * scale;
+                    if (rScreen < 0.1 || double.IsNaN(rScreen) || double.IsInfinity(rScreen)) continue;
 
                     if (seg.Start != null && seg.End != null)
                     {
@@ -145,7 +168,7 @@ public partial class SketchCanvasView : UserControl
                             StrokeDashArray = seg.IsConstruction ? new DoubleCollection { 4, 2 } : null,
                             ToolTip = $"圆弧 #{seg.Id} (半径: {seg.Radius.Value * 1000:0.##} mm)"
                         };
-                        arcPath.MouseDown += (s, e) => vm.SelectedSegment = seg;
+                        arcPath.MouseDown += (s, e) => { vm.SelectedSegment = seg; e.Handled = true; };
                         SketchCanvas.Children.Add(arcPath);
                     }
                     else
@@ -162,7 +185,7 @@ public partial class SketchCanvasView : UserControl
                         };
                         Canvas.SetLeft(ellipse, centerScreen.X - rScreen);
                         Canvas.SetTop(ellipse, centerScreen.Y - rScreen);
-                        ellipse.MouseDown += (s, e) => vm.SelectedSegment = seg;
+                        ellipse.MouseDown += (s, e) => { vm.SelectedSegment = seg; e.Handled = true; };
                         SketchCanvas.Children.Add(ellipse);
                     }
                 }
@@ -190,7 +213,7 @@ public partial class SketchCanvasView : UserControl
                 Canvas.SetLeft(pointShape, screenPt.X - size / 2.0);
                 Canvas.SetTop(pointShape, screenPt.Y - size / 2.0);
 
-                pointShape.MouseDown += (s, e) => vm.SelectedPoint = pt;
+                pointShape.MouseDown += (s, e) => { vm.SelectedPoint = pt; e.Handled = true; };
                 SketchCanvas.Children.Add(pointShape);
             }
         }
@@ -199,25 +222,83 @@ public partial class SketchCanvasView : UserControl
         if (vm.ShowConstraints)
         {
             int relationIndex = 0;
+            var placedPositions = new List<Point>();
+
             foreach (var rel in vm.Sketch.Relations)
             {
-                // Position constraint badge near related segment or scattered along bounds
-                var seg = vm.Segments.ElementAtOrDefault(relationIndex % Math.Max(vm.Segments.Count, 1));
                 Point badgePos;
-                if (seg?.Start != null && seg.End != null)
+                var segments = rel.GetSegments();
+                var points = rel.GetPoints();
+
+                if (segments.Count > 0 && segments[0].StartPoint != null && segments[0].EndPoint != null)
                 {
-                    Point p1 = SketchCanvas.WorldToScreen(seg.Start.WorldX, seg.Start.WorldY);
-                    Point p2 = SketchCanvas.WorldToScreen(seg.End.WorldX, seg.End.WorldY);
-                    badgePos = new Point((p1.X + p2.X) / 2.0 + (relationIndex % 3) * 14 - 14,
-                                         (p1.Y + p2.Y) / 2.0 - 16);
+                    var seg = segments[0];
+                    Point p1 = SketchCanvas.WorldToScreen(seg.StartPoint!.X, seg.StartPoint.Y);
+                    Point p2 = SketchCanvas.WorldToScreen(seg.EndPoint!.X, seg.EndPoint.Y);
+                    Point mid = new Point((p1.X + p2.X) / 2.0, (p1.Y + p2.Y) / 2.0);
+
+                    double dx = p2.X - p1.X;
+                    double dy = p2.Y - p1.Y;
+                    double len = Math.Sqrt(dx * dx + dy * dy);
+                    if (len > 1e-4)
+                    {
+                        double nx = -dy / len;
+                        double ny = dx / len;
+                        badgePos = new Point(mid.X + nx * 14 - 8, mid.Y + ny * 14 - 8);
+                    }
+                    else
+                    {
+                        badgePos = new Point(mid.X - 8, mid.Y - 16);
+                    }
+                }
+                else if (points.Count > 0)
+                {
+                    var pt = points[0];
+                    Point p = SketchCanvas.WorldToScreen(pt.X, pt.Y);
+                    badgePos = new Point(p.X + 8, p.Y - 16);
                 }
                 else
                 {
-                    badgePos = new Point(40 + (relationIndex * 24) % 300, 40 + (relationIndex / 12) * 24);
+                    // Fallback to segment by index or canvas margin
+                    var seg = vm.Segments.ElementAtOrDefault(relationIndex % Math.Max(vm.Segments.Count, 1));
+                    if (seg?.Start != null && seg.End != null)
+                    {
+                        Point p1 = SketchCanvas.WorldToScreen(seg.Start.WorldX, seg.Start.WorldY);
+                        Point p2 = SketchCanvas.WorldToScreen(seg.End.WorldX, seg.End.WorldY);
+                        badgePos = new Point((p1.X + p2.X) / 2.0 - 8, (p1.Y + p2.Y) / 2.0 - 16);
+                    }
+                    else
+                    {
+                        badgePos = new Point(40 + (relationIndex * 24) % 300, 40 + (relationIndex / 12) * 24);
+                    }
                 }
 
+                // Avoid badge collisions by shifting overlapping badges
+                bool collision;
+                int shiftAttempts = 0;
+                do
+                {
+                    collision = false;
+                    foreach (var placed in placedPositions)
+                    {
+                        if (Math.Abs(placed.X - badgePos.X) < 18 && Math.Abs(placed.Y - badgePos.Y) < 18)
+                        {
+                            collision = true;
+                            badgePos = new Point(badgePos.X + 18, badgePos.Y);
+                            break;
+                        }
+                    }
+                    shiftAttempts++;
+                } while (collision && shiftAttempts < 10);
+
+                placedPositions.Add(badgePos);
+
                 var badge = CreateConstraintBadge(rel.Kind, constraintBg);
-                badge.ToolTip = $"约束: {rel.Kind} (代码: {rel.TypeCode})";
+                string entityNames = string.Join(", ", rel.GetEntities().Select(e => e is SketchSegment s ? $"线段 #{s.Id}" : e is SketchPoint p ? $"点 #{p.Id}" : e.ToString()));
+                badge.ToolTip = string.IsNullOrEmpty(entityNames)
+                    ? $"约束: {rel.Kind} (代码: {rel.TypeCode})"
+                    : $"约束: {rel.Kind} [{entityNames}]";
+
                 Canvas.SetLeft(badge, badgePos.X);
                 Canvas.SetTop(badge, badgePos.Y);
                 SketchCanvas.Children.Add(badge);

@@ -5,35 +5,40 @@
         <ResourceDictionary Source="../Brushes.xaml" />
     </ResourceDictionary.MergedDictionaries>
 
-    <!-- Primary Accent Button -->
+    <!-- ========================================================================= -->
+    <!-- Figma Primary Pill Button (Design.md: components.button-primary)          -->
+    <!-- ========================================================================= -->
     <Style x:Key="Style.Button.Primary" TargetType="Button">
-        <Setter Property="Background" Value="{StaticResource Brush.Accent.Blue}" />
-        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}" />
+        <Setter Property="Background" Value="{StaticResource Brush.Figma.Primary}" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Figma.OnPrimary}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="BorderBrush" Value="{StaticResource Brush.Accent.BlueHover}" />
-        <Setter Property="Padding" Value="12,6" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.Figma.Primary}" />
+        <Setter Property="Padding" Value="18,8" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="FontSize" Value="12" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="border" Background="{TemplateBinding Background}"
+                    <Border x:Name="border"
+                            Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="3"
+                            CornerRadius="10"
                             Padding="{TemplateBinding Padding}">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="border" Property="Background" Value="{StaticResource Brush.Accent.BlueHover}" />
+                            <Setter TargetName="border" Property="Background" Value="#262626" />
+                            <Setter TargetName="border" Property="BorderBrush" Value="#262626" />
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="border" Property="Background" Value="{StaticResource Brush.Background.Selected}" />
+                            <Setter TargetName="border" Property="Background" Value="#111111" />
+                            <Setter TargetName="border" Property="BorderBrush" Value="#111111" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
-                            <Setter TargetName="border" Property="Opacity" Value="0.5" />
+                            <Setter TargetName="border" Property="Opacity" Value="0.4" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -41,32 +46,36 @@
         </Setter>
     </Style>
 
-    <!-- Toolbar Icon / Flat Button -->
-    <Style x:Key="Style.Button.Toolbar" TargetType="Button">
-        <Setter Property="Background" Value="Transparent" />
-        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}" />
+    <!-- ========================================================================= -->
+    <!-- Figma Secondary Pill Button (Design.md: components.button-secondary)      -->
+    <!-- ========================================================================= -->
+    <Style x:Key="Style.Button.Secondary" TargetType="Button">
+        <Setter Property="Background" Value="{StaticResource Brush.Figma.Canvas}" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Figma.Ink}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="BorderBrush" Value="Transparent" />
-        <Setter Property="Padding" Value="6" />
-        <Setter Property="Height" Value="28" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.Figma.Hairline}" />
+        <Setter Property="Padding" Value="16,7" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="FontSize" Value="12" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="border" Background="{TemplateBinding Background}"
+                    <Border x:Name="border"
+                            Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="3"
+                            CornerRadius="10"
                             Padding="{TemplateBinding Padding}">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="border" Property="Background" Value="{StaticResource Brush.Background.Hover}" />
-                            <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource Brush.Border.Primary}" />
+                            <Setter TargetName="border" Property="Background" Value="{StaticResource Brush.Figma.HairlineSoft}" />
+                            <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource Brush.Figma.Ink}" />
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="border" Property="Background" Value="{StaticResource Brush.Background.Selected}" />
+                            <Setter TargetName="border" Property="Background" Value="{StaticResource Brush.Figma.SurfaceSoft}" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="border" Property="Opacity" Value="0.4" />
@@ -77,37 +86,83 @@
         </Setter>
     </Style>
 
-    <!-- Toggle Button for View Layers (Points, Constraints, Dimensions) -->
-    <Style x:Key="Style.ToggleButton.Toolbar" TargetType="ToggleButton">
+    <!-- ========================================================================= -->
+    <!-- Figma Toolbar Pill / Circular Button                                      -->
+    <!-- ========================================================================= -->
+    <Style x:Key="Style.Button.Toolbar" TargetType="Button">
         <Setter Property="Background" Value="Transparent" />
-        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Secondary}" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Figma.Ink}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="BorderBrush" Value="Transparent" />
-        <Setter Property="Padding" Value="6,4" />
+        <Setter Property="Padding" Value="10,4" />
         <Setter Property="Height" Value="28" />
+        <Setter Property="FontSize" Value="11" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Template">
             <Setter.Value>
-                <ControlTemplate TargetType="ToggleButton">
-                    <Border x:Name="border" Background="{TemplateBinding Background}"
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="border"
+                            Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="3"
+                            CornerRadius="10"
                             Padding="{TemplateBinding Padding}">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="border" Property="Background" Value="{StaticResource Brush.Background.Hover}" />
-                            <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource Brush.Border.Primary}" />
+                            <Setter TargetName="border" Property="Background" Value="{StaticResource Brush.Figma.HairlineSoft}" />
+                            <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource Brush.Figma.Hairline}" />
                         </Trigger>
-                        <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="border" Property="Background" Value="{StaticResource Brush.Background.Selected}" />
-                            <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource Brush.Accent.Blue}" />
-                            <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}" />
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="{StaticResource Brush.Figma.SurfaceSoft}" />
+                            <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource Brush.Figma.Primary}" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
-                            <Setter TargetName="border" Property="Opacity" Value="0.4" />
+                            <Setter TargetName="border" Property="Opacity" Value="0.35" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ========================================================================= -->
+    <!-- Figma Pill Toggle Button (Design.md: pricing-tab-selected pattern)        -->
+    <!-- ========================================================================= -->
+    <Style x:Key="Style.ToggleButton.Toolbar" TargetType="ToggleButton">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Figma.Ink}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.Figma.Hairline}" />
+        <Setter Property="Padding" Value="12,4" />
+        <Setter Property="Height" Value="28" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border x:Name="border"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="10"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="{StaticResource Brush.Figma.HairlineSoft}" />
+                        </Trigger>
+                        <!-- When Checked: switches to Pure Black with White Text (Figma selected state) -->
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="{StaticResource Brush.Figma.Primary}" />
+                            <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource Brush.Figma.Primary}" />
+                            <Setter Property="Foreground" Value="{StaticResource Brush.Figma.OnPrimary}" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="border" Property="Opacity" Value="0.35" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

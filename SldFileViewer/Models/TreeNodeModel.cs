@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace SldFileViewer.Models;
@@ -14,6 +15,19 @@ public enum TreeNodeKind
     FeatureOrigin,
     FeatureSketch,
     FeatureExtrude,
+    FeatureCut,
+    FeatureRevolve,
+    FeatureSweep,
+    FeatureLoft,
+    FeatureFillet,
+    FeatureChamfer,
+    FeatureHole,
+    FeaturePattern,
+    FeatureMirror,
+    FeatureRib,
+    FeatureShell,
+    FeatureDraft,
+    FeatureThread,
     FeatureFolder,
     FeatureGeneric,
     AssemblyComponent,
@@ -33,6 +47,9 @@ public partial class TreeNodeModel : ObservableObject
     private TreeNodeKind _kind;
 
     [ObservableProperty]
+    private ImageSource? _icon;
+
+    [ObservableProperty]
     private bool _isSelected;
 
     [ObservableProperty]
@@ -50,11 +67,12 @@ public partial class TreeNodeModel : ObservableObject
 
     public TreeNodeModel() { }
 
-    public TreeNodeModel(string title, TreeNodeKind kind, object? tag = null, string subTitle = "")
+    public TreeNodeModel(string title, TreeNodeKind kind, object? tag = null, string subTitle = "", ImageSource? icon = null)
     {
         _title = title;
         _kind = kind;
         Tag = tag;
         _subTitle = subTitle;
+        _icon = icon;
     }
 }

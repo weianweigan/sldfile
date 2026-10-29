@@ -29,23 +29,25 @@ public partial class DocumentTreeViewModel : ObservableObject
         _docService = docService;
     }
 
+    private static TreeNodeModel CreateNode(string title, TreeNodeKind kind, object? tag = null, string subTitle = "")
+    {
+        var icon = SolidWorksIconService.GetNodeIcon(kind, title, tag);
+        return new TreeNodeModel(title, kind, tag, subTitle, icon);
+    }
+
     public void BuildTree(SwFile swFile, string filePath)
     {
         RootNodes.Clear();
 
         string fileName = Path.GetFileName(filePath);
-        var rootNode = new TreeNodeModel(fileName, TreeNodeKind.DocumentRoot, swFile, swFile.Kind.ToString())
-        {
-            IsExpanded = true
-        };
+        var rootNode = CreateNode(fileName, TreeNodeKind.DocumentRoot, swFile, swFile.Kind.ToString());
+        rootNode.IsExpanded = true;
 
         // 1. Dedicated System Nodes
-        var propsNode = new TreeNodeModel("自定义属性 (Custom Properties)", TreeNodeKind.CustomProperties, "PROPS");
-        var eqNode = new TreeNodeModel("方程式与全局变量 (Equations)", TreeNodeKind.Equations, "EQUATIONS");
-        var geoNode = new TreeNodeModel("几何与模型预览 (Geometry Preview)", TreeNodeKind.GeometryPreview, "PREVIEW")
-        {
-            IsExpanded = true
-        };
+        var propsNode = CreateNode("自定义属性 (Custom Properties)", TreeNodeKind.CustomProperties, "PROPS");
+        var eqNode = CreateNode("方程式与全局变量 (Equations)", TreeNodeKind.Equations, "EQUATIONS");
+        var geoNode = CreateNode("几何与模型预览 (Geometry Preview)", TreeNodeKind.GeometryPreview, "PREVIEW");
+        geoNode.IsExpanded = true;
 
         rootNode.Children.Add(propsNode);
         rootNode.Children.Add(eqNode);
@@ -54,7 +56,7 @@ public partial class DocumentTreeViewModel : ObservableObject
         // BOM node for Assembly
         if (swFile.Kind == DocumentKind.Assembly)
         {
-            var bomNode = new TreeNodeModel("BOM 物料清单 (Bill of Materials)", TreeNodeKind.Bom, "BOM");
+            var bomNode = CreateNode("BOM 物料清单 (Bill of Materials)", TreeNodeKind.Bom, "BOM");
             rootNode.Children.Add(bomNode);
         }
 
@@ -86,10 +88,8 @@ public partial class DocumentTreeViewModel : ObservableObject
         var sketchDict = sketches.ToDictionary(s => s.Name, StringComparer.OrdinalIgnoreCase);
 
         // FeatureManager Tree Branch
-        var featTree = new TreeNodeModel("特征管理器 (FeatureManager)", TreeNodeKind.FeatureFolder, null, $"{features.Count} 个特征")
-        {
-            IsExpanded = true
-        };
+        var featTree = CreateNode("特征管理器 (FeatureManager)", TreeNodeKind.FeatureFolder, null, $"{features.Count} 个特征");
+        featTree.IsExpanded = true;
 
         // Match base planes & origin from features if present, so clicking them shows their details!
         var frontPlane = features.FirstOrDefault(f => f.Name.Contains("前视") || f.Name.Equals("Front Plane", StringComparison.OrdinalIgnoreCase));
@@ -97,10 +97,10 @@ public partial class DocumentTreeViewModel : ObservableObject
         var rightPlane = features.FirstOrDefault(f => f.Name.Contains("右视") || f.Name.Equals("Right Plane", StringComparison.OrdinalIgnoreCase));
         var origin = features.FirstOrDefault(f => f.Name.Contains("原点") || f.Name.Equals("Origin", StringComparison.OrdinalIgnoreCase));
 
-        featTree.Children.Add(new TreeNodeModel("前视基准面 (Front Plane)", TreeNodeKind.FeaturePlane, frontPlane, "基准面"));
-        featTree.Children.Add(new TreeNodeModel("上视基准面 (Top Plane)", TreeNodeKind.FeaturePlane, topPlane, "基准面"));
-        featTree.Children.Add(new TreeNodeModel("右视基准面 (Right Plane)", TreeNodeKind.FeaturePlane, rightPlane, "基准面"));
-        featTree.Children.Add(new TreeNodeModel("原点 (Origin)", TreeNodeKind.FeatureOrigin, origin, "原点坐标"));
+        featTree.Children.Add(CreateNode("前视基准面 (Front Plane)", TreeNodeKind.FeaturePlane, frontPlane, "基准面"));
+        featTree.Children.Add(CreateNode("上视基准面 (Top Plane)", TreeNodeKind.FeaturePlane, topPlane, "基准面"));
+        featTree.Children.Add(CreateNode("右视基准面 (Right Plane)", TreeNodeKind.FeaturePlane, rightPlane, "基准面"));
+        featTree.Children.Add(CreateNode("原点 (Origin)", TreeNodeKind.FeatureOrigin, origin, "原点坐标"));
 
         var addedFeatures = new System.Collections.Generic.HashSet<Feature>();
         if (frontPlane != null) addedFeatures.Add(frontPlane);
@@ -108,12 +108,39 @@ public partial class DocumentTreeViewModel : ObservableObject
         if (rightPlane != null) addedFeatures.Add(rightPlane);
         if (origin != null) addedFeatures.Add(origin);
 
+        // Mark all children recursively so they are not duplicated as root items
+        void MarkDescendants(Feature parent)
+        {
+            foreach (var ch in parent.Children)
+            {
+                addedFeatures.Add(ch);
+                MarkDescendants(ch);
+            }
+        }
+        foreach (var f in features)
+        {
+            MarkDescendants(f);
+        }
+
         TreeNodeModel CreateFeatureNode(Feature f)
         {
             TreeNodeKind kind = f.Kind switch
             {
                 FeatureKind.Sketch => TreeNodeKind.FeatureSketch,
                 FeatureKind.Extrusion => TreeNodeKind.FeatureExtrude,
+                FeatureKind.Cut => TreeNodeKind.FeatureCut,
+                FeatureKind.Revolve => TreeNodeKind.FeatureRevolve,
+                FeatureKind.Sweep => TreeNodeKind.FeatureSweep,
+                FeatureKind.Loft => TreeNodeKind.FeatureLoft,
+                FeatureKind.Fillet => TreeNodeKind.FeatureFillet,
+                FeatureKind.Chamfer => TreeNodeKind.FeatureChamfer,
+                FeatureKind.HoleWizard => TreeNodeKind.FeatureHole,
+                FeatureKind.Pattern => TreeNodeKind.FeaturePattern,
+                FeatureKind.Mirror => TreeNodeKind.FeatureMirror,
+                FeatureKind.Rib => TreeNodeKind.FeatureRib,
+                FeatureKind.Shell => TreeNodeKind.FeatureShell,
+                FeatureKind.Draft => TreeNodeKind.FeatureDraft,
+                FeatureKind.Thread => TreeNodeKind.FeatureThread,
                 FeatureKind.ReferencePlane => TreeNodeKind.FeaturePlane,
                 FeatureKind.Folder => TreeNodeKind.FeatureFolder,
                 _ => TreeNodeKind.FeatureGeneric
@@ -128,12 +155,12 @@ public partial class DocumentTreeViewModel : ObservableObject
                     tag = skObj;
                 sub = f.Dimensions.Count > 0 ? $"草图 ({f.Dimensions.Count} 尺寸)" : "草图";
             }
-            else if (f.Kind == FeatureKind.Extrusion)
+            else if (f.Kind == FeatureKind.Extrusion || f.Kind == FeatureKind.Cut)
             {
-                sub = f.Dimensions.Count > 0 ? $"拉伸 ({f.Dimensions[0].Name}={f.Dimensions[0].Value})" : "拉伸特征";
+                sub = f.Dimensions.Count > 0 ? $"{f.Name} ({f.Dimensions[0].Name}={f.Dimensions[0].Value})" : f.Name;
             }
 
-            var node = new TreeNodeModel(f.Name, kind, tag, sub);
+            var node = CreateNode(f.Name, kind, tag, sub);
 
             // Add children hierarchically (Requirement 7)!
             foreach (var child in f.Children)
@@ -157,7 +184,7 @@ public partial class DocumentTreeViewModel : ObservableObject
         {
             if (!featTree.Children.Any(c => string.Equals(c.Title, sk.Name, StringComparison.OrdinalIgnoreCase)))
             {
-                featTree.Children.Add(new TreeNodeModel(sk.Name, TreeNodeKind.FeatureSketch, sk, "草图 (二进制反序列化)"));
+                featTree.Children.Add(CreateNode(sk.Name, TreeNodeKind.FeatureSketch, sk, "草图 (二进制反序列化)"));
             }
         }
 
@@ -167,16 +194,14 @@ public partial class DocumentTreeViewModel : ObservableObject
     private void BuildAssemblyBranches(TreeNodeModel rootNode, SwFile swFile)
     {
         var components = _docService.GetAssemblyTree();
-        var compFolder = new TreeNodeModel("装配零部件 (Components)", TreeNodeKind.FeatureFolder, null, $"{components.Count} 个顶层组件")
-        {
-            IsExpanded = true
-        };
+        var compFolder = CreateNode("装配零部件 (Components)", TreeNodeKind.FeatureFolder, null, $"{components.Count} 个顶层组件");
+        compFolder.IsExpanded = true;
 
         void AddNodes(TreeNodeModel parent, System.Collections.Generic.IReadOnlyList<AssemblyComponentNode> nodes)
         {
             foreach (var node in nodes)
             {
-                var item = new TreeNodeModel(node.Name, TreeNodeKind.AssemblyComponent, node,
+                var item = CreateNode(node.Name, TreeNodeKind.AssemblyComponent, node,
                     node.IsVirtual ? "[虚拟件]" : node.ConfigurationName);
                 AddNodes(item, node.Children);
                 parent.Children.Add(item);
@@ -186,25 +211,23 @@ public partial class DocumentTreeViewModel : ObservableObject
         rootNode.Children.Add(compFolder);
 
         // Mates
-        var matesFolder = new TreeNodeModel("配合约束 (Mates)", TreeNodeKind.AssemblyMate, null);
+        var matesFolder = CreateNode("配合约束 (Mates)", TreeNodeKind.AssemblyMate, null);
         rootNode.Children.Add(matesFolder);
     }
 
     private void BuildDrawingBranches(TreeNodeModel rootNode, SwFile swFile)
     {
         var sheets = _docService.GetDrawingSheets();
-        var sheetsFolder = new TreeNodeModel("图纸页 (Drawing Sheets)", TreeNodeKind.FeatureFolder, null, $"{sheets.Count} 张图纸")
-        {
-            IsExpanded = true
-        };
+        var sheetsFolder = CreateNode("图纸页 (Drawing Sheets)", TreeNodeKind.FeatureFolder, null, $"{sheets.Count} 张图纸");
+        sheetsFolder.IsExpanded = true;
 
         for (int i = 0; i < sheets.Count; i++)
         {
             var s = sheets[i];
-            var sheetNode = new TreeNodeModel(s.Name, TreeNodeKind.DrawingSheet, s, $"索引: {i}");
+            var sheetNode = CreateNode(s.Name, TreeNodeKind.DrawingSheet, s, $"索引: {i}");
             foreach (var view in s.Views)
             {
-                sheetNode.Children.Add(new TreeNodeModel(view.Name, TreeNodeKind.FeatureGeneric, view, view.ReferencedConfiguration));
+                sheetNode.Children.Add(CreateNode(view.Name, TreeNodeKind.FeatureGeneric, view, view.ReferencedConfiguration));
             }
             sheetsFolder.Children.Add(sheetNode);
         }

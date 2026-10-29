@@ -16,11 +16,12 @@
                 <ControlTemplate TargetType="{x:Type ToggleButton}">
                     <Border Background="Transparent" Width="16" Height="16">
                         <Path x:Name="ExpandPath"
-                              HorizontalAlignment="Center"
-                              VerticalAlignment="Center"
-                              Data="M 4 2 L 8 6 L 4 10 Z"
-                              Fill="{StaticResource Brush.Text.Muted}"
-                              RenderTransformOrigin="0.5,0.5">
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Data="M 4 3 L 8 7 L 4 11 Z"
+                               Fill="{StaticResource Brush.Figma.Ink}"
+                               Opacity="0.4"
+                               RenderTransformOrigin="0.5,0.5">
                             <Path.RenderTransform>
                                 <RotateTransform Angle="0"/>
                             </Path.RenderTransform>
@@ -33,10 +34,10 @@
                                     <RotateTransform Angle="90"/>
                                 </Setter.Value>
                             </Setter>
-                            <Setter TargetName="ExpandPath" Property="Fill" Value="{StaticResource Brush.Text.Secondary}"/>
+                            <Setter TargetName="ExpandPath" Property="Opacity" Value="0.9"/>
                         </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="ExpandPath" Property="Fill" Value="{StaticResource Brush.Accent.BlueHover}"/>
+                            <Setter TargetName="ExpandPath" Property="Opacity" Value="1.0"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -44,13 +45,13 @@
         </Setter>
     </Style>
 
-    <!-- TreeViewItem CAD Style -->
+    <!-- TreeViewItem Figma Style -->
     <Style TargetType="{x:Type TreeViewItem}">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderBrush" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}"/>
-        <Setter Property="Padding" Value="2,3"/>
+        <Setter Property="Foreground" Value="{StaticResource Brush.Figma.Ink}"/>
+        <Setter Property="Padding" Value="4,4"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
         <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}" />
@@ -68,7 +69,7 @@
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="1"
-                                CornerRadius="3"
+                                CornerRadius="6"
                                 Padding="{TemplateBinding Padding}"
                                 Margin="0,1">
                             <Grid>
@@ -100,21 +101,23 @@
                             <Setter TargetName="Expander" Property="Visibility" Value="Hidden"/>
                         </Trigger>
                         <Trigger Property="IsMouseOver" SourceName="Bd" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Background.Hover}"/>
-                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Brush.Border.Light}"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Figma.HairlineSoft}"/>
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Brush.Figma.Hairline}"/>
                         </Trigger>
+                        <!-- Figma Selected Tree Item: Signature Lime Sticky Note Accent -->
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Background.Selected}"/>
-                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Brush.Accent.Blue}"/>
-                            <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Figma.BlockLime}"/>
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Brush.Figma.BlockLime}"/>
+                            <Setter Property="Foreground" Value="{StaticResource Brush.Figma.Ink}"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
                         </Trigger>
                         <MultiTrigger>
                             <MultiTrigger.Conditions>
                                 <Condition Property="IsSelected" Value="True"/>
                                 <Condition Property="Selector.IsSelectionActive" Value="False"/>
                             </MultiTrigger.Conditions>
-                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Background.Tertiary}"/>
-                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Brush.Border.Primary}"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Figma.SurfaceSoft}"/>
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Brush.Figma.Hairline}"/>
                         </MultiTrigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -127,7 +130,7 @@
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderBrush" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="0"/>
-        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}"/>
+        <Setter Property="Foreground" Value="{StaticResource Brush.Figma.Ink}"/>
         <Setter Property="Padding" Value="4"/>
         <Setter Property="Template">
             <Setter.Value>

@@ -5,40 +5,42 @@
         <ResourceDictionary Source="../Brushes.xaml" />
     </ResourceDictionary.MergedDictionaries>
 
-    <!-- DataGrid Column Header -->
+    <!-- DataGrid Column Header (Editorial Clean) -->
     <Style TargetType="{x:Type DataGridColumnHeader}">
-        <Setter Property="Background" Value="{StaticResource Brush.Background.Tertiary}" />
-        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Secondary}" />
-        <Setter Property="BorderThickness" Value="0,0,1,1" />
-        <Setter Property="BorderBrush" Value="{StaticResource Brush.Border.Primary}" />
-        <Setter Property="Padding" Value="8,5" />
+        <Setter Property="Background" Value="{StaticResource Brush.Figma.SurfaceCanvas}" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Figma.Ink}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.Figma.Hairline}" />
+        <Setter Property="Padding" Value="10,8" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="FontSize" Value="11" />
         <Setter Property="HorizontalContentAlignment" Value="Left" />
     </Style>
 
-    <!-- DataGrid Row -->
+    <!-- DataGrid Row (Figma row with hairline-soft separator) -->
     <Style TargetType="{x:Type DataGridRow}">
         <Setter Property="Background" Value="Transparent" />
-        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Figma.Ink}" />
         <Setter Property="FontSize" Value="12" />
-        <Setter Property="MinHeight" Value="24" />
+        <Setter Property="MinHeight" Value="28" />
         <Setter Property="BorderThickness" Value="0,0,0,1" />
-        <Setter Property="BorderBrush" Value="{StaticResource Brush.Border.Primary}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.Figma.HairlineSoft}" />
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
-                <Setter Property="Background" Value="{StaticResource Brush.Background.Hover}" />
+                <Setter Property="Background" Value="{StaticResource Brush.Figma.HairlineSoft}" />
             </Trigger>
+            <!-- Selected Row: Signature Lime Accent -->
             <Trigger Property="IsSelected" Value="True">
-                <Setter Property="Background" Value="{StaticResource Brush.Background.Selected}" />
-                <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}" />
+                <Setter Property="Background" Value="{StaticResource Brush.Figma.BlockLime}" />
+                <Setter Property="Foreground" Value="{StaticResource Brush.Figma.Ink}" />
+                <Setter Property="FontWeight" Value="Medium" />
             </Trigger>
         </Style.Triggers>
     </Style>
 
     <!-- DataGrid Cell -->
     <Style TargetType="{x:Type DataGridCell}">
-        <Setter Property="Padding" Value="6,3" />
+        <Setter Property="Padding" Value="8,4" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type DataGridCell}">
@@ -53,21 +55,21 @@
         </Setter>
         <Style.Triggers>
             <Trigger Property="IsSelected" Value="True">
-                <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}" />
+                <Setter Property="Foreground" Value="{StaticResource Brush.Figma.Ink}" />
             </Trigger>
         </Style.Triggers>
     </Style>
 
     <!-- Overall DataGrid -->
     <Style TargetType="{x:Type DataGrid}">
-        <Setter Property="Background" Value="{StaticResource Brush.Background.Secondary}" />
-        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}" />
-        <Setter Property="BorderBrush" Value="{StaticResource Brush.Border.Primary}" />
+        <Setter Property="Background" Value="{StaticResource Brush.Figma.Canvas}" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Figma.Ink}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.Figma.Hairline}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="RowBackground" Value="{StaticResource Brush.Background.Secondary}" />
-        <Setter Property="AlternatingRowBackground" Value="{StaticResource Brush.Background.Primary}" />
-        <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource Brush.Border.Primary}" />
-        <Setter Property="VerticalGridLinesBrush" Value="{StaticResource Brush.Border.Primary}" />
+        <Setter Property="RowBackground" Value="{StaticResource Brush.Figma.Canvas}" />
+        <Setter Property="AlternatingRowBackground" Value="{StaticResource Brush.Figma.SurfaceCanvas}" />
+        <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource Brush.Figma.HairlineSoft}" />
+        <Setter Property="VerticalGridLinesBrush" Value="Transparent" />
         <Setter Property="AutoGenerateColumns" Value="False" />
         <Setter Property="CanUserAddRows" Value="False" />
         <Setter Property="CanUserDeleteRows" Value="False" />

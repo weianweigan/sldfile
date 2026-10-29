@@ -58,15 +58,75 @@ internal static class XmlFeatureParser
             string type = element.Attribute("Type")?.Value ?? string.Empty;
 
             FeatureKind kind = FeatureKind.Other;
-            if (tag.Equals("Extrusion", StringComparison.OrdinalIgnoreCase) ||
-                type.IndexOf("拉伸", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                type.IndexOf("Extru", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                type.IndexOf("切除", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                type.IndexOf("Cut", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                type.IndexOf("旋转", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            if (type.IndexOf("旋转", StringComparison.OrdinalIgnoreCase) >= 0 ||
                 type.IndexOf("Revolv", StringComparison.OrdinalIgnoreCase) >= 0)
             {
-                kind = FeatureKind.Extrusion;
+                kind = FeatureKind.Revolve;
+            }
+            else if (type.IndexOf("扫描", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     type.IndexOf("Sweep", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                kind = FeatureKind.Sweep;
+            }
+            else if (type.IndexOf("放样", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     type.IndexOf("Loft", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                kind = FeatureKind.Loft;
+            }
+            else if (type.IndexOf("圆角", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     type.IndexOf("Fillet", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                kind = FeatureKind.Fillet;
+            }
+            else if (type.IndexOf("倒角", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     type.IndexOf("Chamfer", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                kind = FeatureKind.Chamfer;
+            }
+            else if (type.IndexOf("孔", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     type.IndexOf("Hole", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                kind = FeatureKind.HoleWizard;
+            }
+            else if (type.IndexOf("阵列", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     type.IndexOf("Pattern", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                kind = FeatureKind.Pattern;
+            }
+            else if (type.IndexOf("镜像", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     type.IndexOf("Mirror", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                kind = FeatureKind.Mirror;
+            }
+            else if (type.IndexOf("筋", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     type.IndexOf("Rib", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                kind = FeatureKind.Rib;
+            }
+            else if (type.IndexOf("抽壳", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     type.IndexOf("Shell", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                kind = FeatureKind.Shell;
+            }
+            else if (type.IndexOf("拔模", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     type.IndexOf("Draft", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                kind = FeatureKind.Draft;
+            }
+            else if (type.IndexOf("螺纹", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     type.IndexOf("Thread", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                kind = FeatureKind.Thread;
+            }
+            else if (tag.Equals("Extrusion", StringComparison.OrdinalIgnoreCase) ||
+                     type.IndexOf("拉伸", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     type.IndexOf("Extru", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     type.IndexOf("切除", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     type.IndexOf("Cut", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                kind = (type.IndexOf("切除", StringComparison.OrdinalIgnoreCase) >= 0 || type.IndexOf("Cut", StringComparison.OrdinalIgnoreCase) >= 0)
+                    ? FeatureKind.Cut
+                    : FeatureKind.Extrusion;
             }
             else if (tag.Equals("Sketch", StringComparison.OrdinalIgnoreCase) ||
                      type.IndexOf("草图", StringComparison.OrdinalIgnoreCase) >= 0 ||

@@ -12,9 +12,10 @@
     <UserControl.Resources>
         <converters:NodeTypeToMaterialIconConverter x:Key="NodeTypeToMaterialIconConverter" />
         <converters:NodeTypeToBrushConverter x:Key="NodeTypeToBrushConverter" />
+        <converters:NullToVisibilityConverter x:Key="InverseNullToVisibilityConverter" Invert="True" />
     </UserControl.Resources>
 
-    <Grid Background="{StaticResource Brush.Background.Secondary}">
+    <Grid Background="{StaticResource Brush.Figma.Canvas}">
         <Grid.RowDefinitions>
             <!-- Search Filter Bar -->
             <RowDefinition Height="Auto" />
@@ -22,34 +23,36 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Search Bar -->
+        <!-- Search Bar (Figma Pill Input) -->
         <Border Grid.Row="0"
-                Background="{StaticResource Brush.Background.Secondary}"
-                BorderBrush="{StaticResource Brush.Border.Primary}"
+                Background="{StaticResource Brush.Figma.Canvas}"
+                BorderBrush="{StaticResource Brush.Figma.Hairline}"
                 BorderThickness="0,0,0,1"
-                Padding="8,6">
-            <Border Background="{StaticResource Brush.Background.Tertiary}"
-                    BorderBrush="{StaticResource Brush.Border.Primary}"
+                Padding="12,8">
+            <Border Background="{StaticResource Brush.Figma.SurfaceCanvas}"
+                    BorderBrush="{StaticResource Brush.Figma.Hairline}"
                     BorderThickness="1"
-                    CornerRadius="3"
-                    Height="26">
+                    CornerRadius="10"
+                    Height="30">
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="26" />
+                        <ColumnDefinition Width="30" />
                         <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="24" />
+                        <ColumnDefinition Width="26" />
                     </Grid.ColumnDefinitions>
 
                     <iconPacks:PackIconMaterial Kind="Magnify"
-                                                Foreground="{StaticResource Brush.Text.Muted}"
-                                                Width="14" Height="14"
+                                                Foreground="{StaticResource Brush.Figma.Ink}"
+                                                Opacity="0.45"
+                                                Width="13" Height="13"
                                                 HorizontalAlignment="Center" VerticalAlignment="Center" />
 
                     <TextBox Grid.Column="1"
                              Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
                              BorderThickness="0" Background="Transparent"
-                             Foreground="{StaticResource Brush.Text.Primary}"
-                             VerticalAlignment="Center" Padding="2,0" />
+                             Foreground="{StaticResource Brush.Figma.Ink}"
+                             VerticalAlignment="Center" Padding="2,0"
+                             FontSize="12" />
 
                     <Button Grid.Column="2"
                             Click="OnClearSearchClick"
@@ -57,7 +60,7 @@
                             Visibility="{Binding FilterText, Converter={StaticResource NullToVisibilityConverter}}"
                             Padding="2" Height="20" Width="20"
                             HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <iconPacks:PackIconMaterial Kind="Close" Foreground="{StaticResource Brush.Text.Muted}" Width="10" Height="10" />
+                        <iconPacks:PackIconMaterial Kind="Close" Foreground="{StaticResource Brush.Figma.Ink}" Opacity="0.6" Width="10" Height="10" />
                     </Button>
                 </Grid>
             </Border>
@@ -71,11 +74,17 @@
                 <HierarchicalDataTemplate DataType="{x:Type models:TreeNodeModel}" ItemsSource="{Binding Children}">
                     <StackPanel Orientation="Horizontal" Margin="2,2" VerticalAlignment="Center">
                         <!-- Node Icon -->
-                        <iconPacks:PackIconMaterial Kind="{Binding Kind, Converter={StaticResource NodeTypeToMaterialIconConverter}}"
-                                                    Foreground="{Binding Kind, Converter={StaticResource NodeTypeToBrushConverter}}"
-                                                    Width="14" Height="14"
-                                                    Margin="0,0,6,0"
-                                                    VerticalAlignment="Center" />
+                        <Grid Width="16" Height="16" Margin="0,0,6,0" VerticalAlignment="Center">
+                            <Image Source="{Binding Icon}"
+                                   Width="16" Height="16"
+                                   RenderOptions.BitmapScalingMode="HighQuality"
+                                   Visibility="{Binding Icon, Converter={StaticResource NullToVisibilityConverter}}" />
+                            <iconPacks:PackIconMaterial Kind="{Binding Kind, Converter={StaticResource NodeTypeToMaterialIconConverter}}"
+                                                        Foreground="{Binding Kind, Converter={StaticResource NodeTypeToBrushConverter}}"
+                                                        Width="14" Height="14"
+                                                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                        Visibility="{Binding Icon, Converter={StaticResource InverseNullToVisibilityConverter}}" />
+                        </Grid>
 
                         <!-- Title -->
                         <TextBlock Text="{Binding Title}"

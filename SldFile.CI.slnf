@@ -1,0 +1,11 @@
+{
+  "solution": {
+    "path": "SldFile.sln",
+    "projects": [
+      "SldFile\\SldFile.csproj",
+      "SldFileTests\\SldFileTests.csproj",
+      "SldFileViewer\\SldFileViewer.csproj",
+      "SldFileViewerTests\\SldFileViewerTests.csproj"
+    ]
+  }
+}

@@ -4,32 +4,52 @@
         <TargetFramework>netstandard2.0</TargetFramework>
         <LangVersion>latest</LangVersion>
         <Nullable>enable</Nullable>
+        <PackageId>SldFile</PackageId>
+        <Title>SldFile</Title>
+        <Authors>weianweigan</Authors>
+        <Company>weianweigan</Company>
+        <Description>A pure C# standalone reader and parser for SolidWorks files (SLDPRT, SLDASM, SLDDRW) without requiring SolidWorks installed.</Description>
         <PackageIcon>sldfile-128x.png</PackageIcon>
         <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageLicenseFile>LICENSE</PackageLicenseFile>
         <RepositoryUrl>https://github.com/weianweigan/sldfile</RepositoryUrl>
-        <PackageTags>Solidworks;sldprt;cad;reader</PackageTags>
+        <PackageProjectUrl>https://github.com/weianweigan/sldfile</PackageProjectUrl>
+        <PackageTags>SolidWorks;SLDPRT;SLDASM;SLDDRW;CAD;CFB;ReverseEngineering</PackageTags>
+
+        <!-- SourceLink and Symbol Packages -->
+        <IncludeSymbols>true</IncludeSymbols>
+        <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+        <PublishRepositoryUrl>true</PublishRepositoryUrl>
+        <EmbedUntrackedSources>true</EmbedUntrackedSources>
+        <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
     </PropertyGroup>
 
     <ItemGroup>
         <InternalsVisibleTo Include="SldFileTests" />
         <InternalsVisibleTo Include="SldFileViewer" />
+        <InternalsVisibleTo Include="SldFileViewerTests" />
         <InternalsVisibleTo Include="SldFile.Tests.Integration" />
     </ItemGroup>
 
     <ItemGroup>
-      <None Include="..\Assets\sldfile-128x.png">
-        <Pack>True</Pack>
-        <PackagePath>\</PackagePath>
-      </None>
-      <None Include="..\README.md">
-        <Pack>True</Pack>
-        <PackagePath>\</PackagePath>
-      </None>
+        <None Include="..\Assets\sldfile-128x.png">
+            <Pack>True</Pack>
+            <PackagePath>\</PackagePath>
+        </None>
+        <None Include="..\README.md">
+            <Pack>True</Pack>
+            <PackagePath>\</PackagePath>
+        </None>
+        <None Include="..\LICENSE">
+            <Pack>True</Pack>
+            <PackagePath>\</PackagePath>
+        </None>
     </ItemGroup>
 
     <ItemGroup>
         <PackageReference Include="OpenMcdf" Version="3.1.4" />
         <PackageReference Include="System.Memory" Version="4.6.3" />
+        <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
     </ItemGroup>
 
 </Project>

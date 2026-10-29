@@ -58,7 +58,18 @@ public partial class FeatureDetailViewModel : ObservableObject
     public void LoadFeature(Feature feature)
     {
         FeatureName = feature.Name;
-        FeatureType = !string.IsNullOrEmpty(feature.TypeName) ? feature.TypeName : feature.Kind.ToString();
+        if (!string.IsNullOrEmpty(feature.TypeName) && feature.TypeName.Contains("moRefPlane"))
+            FeatureType = "基准面 (moRefPlane)";
+        else if (!string.IsNullOrEmpty(feature.TypeName) && feature.TypeName.Contains("moExtrusion"))
+            FeatureType = "凸台-拉伸 (moExtrusion)";
+        else if (!string.IsNullOrEmpty(feature.TypeName) && feature.TypeName.Contains("moProfileFeature"))
+            FeatureType = "草图 (moProfileFeature)";
+        else if (!string.IsNullOrEmpty(feature.TypeName))
+            FeatureType = feature.TypeName;
+        else if (feature.Kind == FeatureKind.ReferencePlane)
+            FeatureType = "基准面";
+        else
+            FeatureType = feature.Kind.ToString();
         FeatureId = feature.Id.HasValue ? feature.Id.Value.ToString() : "-";
         SourceStream = feature.Attributes.TryGetValue("ClassName", out var cls) ? $"ResolvedFeatures ({cls})" : "swXmlContents/KeyWords";
         Status = "已解析 (Resolved)";

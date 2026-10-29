@@ -15,80 +15,109 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Top Toolbar -->
+        <!-- Top Toolbar (Figma Canvas + Hairline) -->
         <Border Grid.Row="0"
-                Background="{StaticResource Brush.Background.Secondary}"
-                BorderBrush="{StaticResource Brush.Border.Primary}"
+                Background="{StaticResource Brush.Figma.Canvas}"
+                BorderBrush="{StaticResource Brush.Figma.Hairline}"
                 BorderThickness="0,0,0,1"
-                Padding="8,4">
+                Padding="12,8">
             <DockPanel LastChildFill="False">
                 <!-- Title & Stats -->
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <iconPacks:PackIconMaterial Kind="CubeOutline"
-                                                Foreground="{StaticResource Brush.Accent.Blue}"
+                                                Foreground="{StaticResource Brush.Figma.Ink}"
                                                 Width="16" Height="16"
-                                                Margin="0,0,6,0"
+                                                Margin="0,0,8,0"
                                                 VerticalAlignment="Center" />
                     <TextBlock Text="3D 模型网格预览 (DisplayMesh)"
                                FontWeight="Bold" FontSize="13"
-                               Foreground="{StaticResource Brush.Text.Primary}"
+                               Foreground="{StaticResource Brush.Figma.Ink}"
                                VerticalAlignment="Center" />
 
-                    <!-- Metrics Badges -->
-                    <Border Background="{StaticResource Brush.Background.Tertiary}"
-                            BorderBrush="{StaticResource Brush.Border.Primary}"
-                            BorderThickness="1" CornerRadius="3"
-                            Padding="6,2" Margin="10,0,0,0">
+                    <!-- Metrics Badges: Figma Pastel Pills -->
+                    <Border Background="{StaticResource Brush.Figma.BlockMint}"
+                            CornerRadius="2"
+                            Padding="10,3" Margin="12,0,0,0">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="顶点: " FontSize="11" Foreground="{StaticResource Brush.Text.Muted}" />
-                            <TextBlock Text="{Binding VertexCount}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Brush.Text.Primary}" />
-                            <TextBlock Text=" | 三角面: " FontSize="11" Foreground="{StaticResource Brush.Text.Muted}" Margin="4,0,0,0" />
-                            <TextBlock Text="{Binding TriangleCount}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Brush.Text.Primary}" />
-                            <TextBlock Text=" | 轮廓线: " FontSize="11" Foreground="{StaticResource Brush.Text.Muted}" Margin="4,0,0,0" />
-                            <TextBlock Text="{Binding EdgeCount}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Brush.Text.Primary}" />
-                            <TextBlock Text=" | 包围盒: " FontSize="11" Foreground="{StaticResource Brush.Text.Muted}" Margin="4,0,0,0" />
-                            <TextBlock Text="{Binding DimensionsText}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Brush.Accent.Green}" />
+                            <TextBlock Text="顶点: " FontSize="11" Foreground="{StaticResource Brush.Figma.Ink}" Opacity="0.7" />
+                            <TextBlock Text="{Binding VertexCount}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Brush.Figma.Ink}" />
+                            <TextBlock Text="  面: " FontSize="11" Foreground="{StaticResource Brush.Figma.Ink}" Opacity="0.7" Margin="4,0,0,0" />
+                            <TextBlock Text="{Binding TriangleCount}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Brush.Figma.Ink}" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="{StaticResource Brush.Figma.BlockLilac}"
+                            CornerRadius="2"
+                            Padding="10,3" Margin="6,0,0,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="边线: " FontSize="11" Foreground="{StaticResource Brush.Figma.Ink}" Opacity="0.7" />
+                            <TextBlock Text="{Binding EdgeCount}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Brush.Figma.Ink}" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="{StaticResource Brush.Figma.BlockCream}"
+                            CornerRadius="2"
+                            Padding="10,3" Margin="6,0,0,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="包围盒: " FontSize="11" Foreground="{StaticResource Brush.Figma.Ink}" Opacity="0.7" />
+                            <TextBlock Text="{Binding DimensionsText}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Brush.Figma.Ink}" />
                         </StackPanel>
                     </Border>
                 </StackPanel>
 
-                <!-- Export & View Actions -->
+                <!-- Export & View Actions (Figma Pills) -->
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <ToggleButton IsChecked="{Binding ShowEdges}"
+                                  Style="{StaticResource Style.ToggleButton.Toolbar}"
+                                  ToolTip="显示/隐藏模型边线 (Wireframe/Edges)"
+                                  Margin="0,0,6,0">
+                        <StackPanel Orientation="Horizontal">
+                            <iconPacks:PackIconMaterial Kind="VectorPolyline" Width="12" Height="12" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="边线" FontSize="11"/>
+                        </StackPanel>
+                    </ToggleButton>
+
                     <Button Click="OnResetViewClick"
-                            Style="{StaticResource Style.Button.Toolbar}"
+                            Style="{StaticResource Style.Button.Secondary}"
+                            Padding="12,4"
                             ToolTip="复位视角 (等轴测视图)">
                         <StackPanel Orientation="Horizontal">
-                            <iconPacks:PackIconMaterial Kind="Restore" Foreground="{StaticResource Brush.Text.Primary}" Width="12" Height="12" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                            <iconPacks:PackIconMaterial Kind="Restore" Foreground="{StaticResource Brush.Figma.Ink}" Width="12" Height="12" Margin="0,0,4,0" VerticalAlignment="Center"/>
                             <TextBlock Text="复位视角" FontSize="11"/>
                         </StackPanel>
                     </Button>
 
-                    <Rectangle Width="1" Height="16" Fill="{StaticResource Brush.Border.Primary}" Margin="6,0" />
+                    <Rectangle Width="1" Height="16" Fill="{StaticResource Brush.Figma.Hairline}" Margin="8,0" />
 
                     <Button Command="{Binding ExportObjCommand}"
-                            Style="{StaticResource Style.Button.Toolbar}"
+                            Style="{StaticResource Style.Button.Secondary}"
+                            Padding="12,4"
                             ToolTip="导出为 Wavefront OBJ 网格模型">
                         <StackPanel Orientation="Horizontal">
-                            <iconPacks:PackIconMaterial Kind="ExportVariant" Foreground="{StaticResource Brush.Accent.Green}" Width="12" Height="12" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                            <iconPacks:PackIconMaterial Kind="ExportVariant" Foreground="{StaticResource Brush.Figma.Ink}" Width="12" Height="12" Margin="0,0,4,0" VerticalAlignment="Center"/>
                             <TextBlock Text="导出 OBJ" FontSize="11"/>
                         </StackPanel>
                     </Button>
 
                     <Button Command="{Binding ExportStlCommand}"
-                            Style="{StaticResource Style.Button.Toolbar}"
-                            ToolTip="导出为 STL 3D 打印模型">
+                            Style="{StaticResource Style.Button.Secondary}"
+                            Padding="12,4"
+                            Margin="6,0,0,0"
+                            ToolTip="导出为 STL 3D 打印三角网格">
                         <StackPanel Orientation="Horizontal">
-                            <iconPacks:PackIconMaterial Kind="ExportVariant" Foreground="{StaticResource Brush.Accent.Yellow}" Width="12" Height="12" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                            <iconPacks:PackIconMaterial Kind="Printer3d" Foreground="{StaticResource Brush.Figma.Ink}" Width="12" Height="12" Margin="0,0,4,0" VerticalAlignment="Center"/>
                             <TextBlock Text="导出 STL" FontSize="11"/>
                         </StackPanel>
                     </Button>
 
                     <Button Command="{Binding ExportParasolidCommand}"
                             Visibility="{Binding HasParasolid, Converter={StaticResource BoolToVisibilityConverter}}"
-                            Style="{StaticResource Style.Button.Toolbar}"
+                            Style="{StaticResource Style.Button.Secondary}"
+                            Padding="12,4"
+                            Margin="6,0,0,0"
                             ToolTip="提取原始 Parasolid Transmit 几何内核数据 (.x_b)">
                         <StackPanel Orientation="Horizontal">
-                            <iconPacks:PackIconMaterial Kind="ExportVariant" Foreground="{StaticResource Brush.Accent.Orange}" Width="12" Height="12" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                            <iconPacks:PackIconMaterial Kind="CodeJson" Foreground="{StaticResource Brush.Figma.Ink}" Width="12" Height="12" Margin="0,0,4,0" VerticalAlignment="Center"/>
                             <TextBlock Text="导出 Parasolid (.x_b)" FontSize="11"/>
                         </StackPanel>
                     </Button>
@@ -99,6 +128,7 @@
         <!-- Viewport3D Area -->
         <Border Grid.Row="1" Background="{StaticResource Brush.Viewport.Gradient}">
             <Grid x:Name="ViewportContainer"
+                  Background="Transparent"
                   ClipToBounds="True"
                   Focusable="True"
                   MouseDown="OnViewportMouseDown"
@@ -130,38 +160,41 @@
 
                     <!-- Model Geometry Visual -->
                     <ModelVisual3D x:Name="ModelVisual" />
+                    <!-- Model Edge Lines Visual (OutlineEdges) -->
+                    <ModelVisual3D x:Name="EdgeVisual" />
                 </Viewport3D>
 
-                <!-- Floating Help Overlay (Non-obstructive Light Translucent) -->
+                <!-- Floating Help Overlay (Figma Pill) -->
                 <Border HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                        Margin="12"
-                        Background="#D0FFFFFF"
-                        BorderBrush="{StaticResource Brush.Border.Primary}"
+                        Margin="16"
+                        Background="#E6FFFFFF"
+                        BorderBrush="{StaticResource Brush.Figma.Hairline}"
                         BorderThickness="1"
-                        CornerRadius="4"
-                        Padding="8,4">
-                    <TextBlock Text="左键拖拽旋转 | 滚轮缩放 | 右键拖拽平移"
-                               FontSize="11" Foreground="{StaticResource Brush.Text.Secondary}" />
+                        CornerRadius="10"
+                        Padding="14,5">
+                    <TextBlock Text="中键拖拽旋转 (或左键) | Ctrl+中键/右键平移 | 滚轮缩放 | 双击中键全图复位"
+                               FontFamily="Consolas, Cascadia Code, Segoe UI"
+                               FontSize="11" Foreground="{StaticResource Brush.Figma.Ink}" />
                 </Border>
 
-                <!-- Empty State Notice Banner (Pinned to Top) -->
+                <!-- Empty State Notice Banner (Figma Pastel Pink Pill) -->
                 <Border Visibility="{Binding HasMesh, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}"
                         VerticalAlignment="Top" HorizontalAlignment="Center"
                         Margin="0,16,0,0"
-                        Background="#E8FFFFFF"
-                        BorderBrush="{StaticResource Brush.Accent.Orange}"
+                        Background="{StaticResource Brush.Figma.BlockPink}"
+                        BorderBrush="{StaticResource Brush.Figma.BlockPink}"
                         BorderThickness="1"
-                        CornerRadius="4"
-                        Padding="12,6">
+                        CornerRadius="10"
+                        Padding="16,6">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <iconPacks:PackIconMaterial Kind="AlertCircleOutline"
-                                                    Foreground="{StaticResource Brush.Accent.Orange}"
-                                                    Width="16" Height="16"
+                                                    Foreground="{StaticResource Brush.Figma.Ink}"
+                                                    Width="14" Height="14"
                                                     Margin="0,0,8,0"
                                                     VerticalAlignment="Center" />
                         <TextBlock Text="当前模型流中未检测到 3D 网格数据 (DisplayLists)"
-                                   FontSize="12"
-                                   Foreground="{StaticResource Brush.Text.Primary}"
+                                   FontSize="12" FontWeight="Medium"
+                                   Foreground="{StaticResource Brush.Figma.Ink}"
                                    VerticalAlignment="Center" />
                     </StackPanel>
                 </Border>

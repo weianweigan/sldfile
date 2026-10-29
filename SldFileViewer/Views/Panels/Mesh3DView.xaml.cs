@@ -13,6 +13,7 @@ public partial class Mesh3DView : UserControl
     private Point _lastMousePos;
     private bool _isRotating;
     private bool _isPanning;
+    private bool _isZooming;
 
     private double _cameraDistance = 250.0;
     private double _cameraWidth = 200.0;
@@ -52,12 +53,21 @@ public partial class Mesh3DView : UserControl
         {
             UpdateMesh();
         }
+        else if (e.PropertyName == nameof(MeshViewerViewModel.ShowEdges) ||
+                 e.PropertyName == nameof(MeshViewerViewModel.WpfEdgeMesh))
+        {
+            UpdateEdgeVisual();
+        }
     }
 
     private void UpdateMesh()
     {
         ModelVisual.Content = null;
-        if (VM?.WpfMesh == null) return;
+        if (VM?.WpfMesh == null)
+        {
+            UpdateEdgeVisual();
+            return;
+        }
 
         var group = new Model3DGroup();
 
@@ -78,7 +88,23 @@ public partial class Mesh3DView : UserControl
         group.Children.Add(surfaceModel);
         ModelVisual.Content = group;
 
+        UpdateEdgeVisual();
         ResetCamera();
+    }
+
+    private void UpdateEdgeVisual()
+    {
+        EdgeVisual.Content = null;
+        if (VM == null || !VM.ShowEdges || VM.WpfEdgeMesh == null) return;
+
+        var edgeMaterial = new EmissiveMaterial(new SolidColorBrush(Color.FromRgb(35, 39, 46)));
+        var edgeModel = new GeometryModel3D
+        {
+            Geometry = VM.WpfEdgeMesh,
+            Material = edgeMaterial,
+            BackMaterial = edgeMaterial
+        };
+        EdgeVisual.Content = edgeModel;
     }
 
     private void ResetCamera()
@@ -130,7 +156,31 @@ public partial class Mesh3DView : UserControl
     {
         _lastMousePos = e.GetPosition(ViewportContainer);
 
-        if (e.ChangedButton == MouseButton.Left)
+        // Double click middle or right button -> Fit to View (SolidWorks convention)
+        if (e.ClickCount == 2 && (e.ChangedButton == MouseButton.Middle || e.ChangedButton == MouseButton.Right))
+        {
+            ResetCamera();
+            e.Handled = true;
+            return;
+        }
+
+        if (e.ChangedButton == MouseButton.Middle)
+        {
+            // SolidWorks controls:
+            // Ctrl + Middle Drag = Pan
+            // Shift + Middle Drag = Zoom
+            // Middle Drag alone = Rotate
+            if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+                _isPanning = true;
+            else if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
+                _isZooming = true;
+            else
+                _isRotating = true;
+
+            ViewportContainer.CaptureMouse();
+            e.Handled = true;
+        }
+        else if (e.ChangedButton == MouseButton.Left)
         {
             _isRotating = true;
             ViewportContainer.CaptureMouse();
@@ -149,7 +199,15 @@ public partial class Mesh3DView : UserControl
         Point currentPos = e.GetPosition(ViewportContainer);
         Vector delta = currentPos - _lastMousePos;
 
-        if (_isRotating)
+        if (_isZooming)
+        {
+            double factor = Math.Pow(1.008, -delta.Y);
+            _cameraWidth = Math.Clamp(_cameraWidth * factor, 0.5, 100000.0);
+            Camera.Width = _cameraWidth;
+            _lastMousePos = currentPos;
+            e.Handled = true;
+        }
+        else if (_isRotating)
         {
             _theta -= delta.X * 0.4;
             _phi = Math.Clamp(_phi - delta.Y * 0.4, 5.0, 175.0);
@@ -163,16 +221,25 @@ public partial class Mesh3DView : UserControl
             double panFactor = _cameraWidth / viewWidth;
 
             Vector3D look = Camera.LookDirection;
-            look.Normalize();
+            if (look.Length > 1e-5)
+            {
+                look.Normalize();
 
-            Vector3D right = Vector3D.CrossProduct(look, Camera.UpDirection);
-            right.Normalize();
+                Vector3D right = Vector3D.CrossProduct(look, Camera.UpDirection);
+                if (right.Length > 1e-5)
+                {
+                    right.Normalize();
 
-            Vector3D up = Vector3D.CrossProduct(right, look);
-            up.Normalize();
+                    Vector3D up = Vector3D.CrossProduct(right, look);
+                    if (up.Length > 1e-5)
+                    {
+                        up.Normalize();
+                        _target += right * (-delta.X * panFactor) + up * (delta.Y * panFactor);
+                        UpdateCameraPosition();
+                    }
+                }
+            }
 
-            _target += right * (-delta.X * panFactor) + up * (delta.Y * panFactor);
-            UpdateCameraPosition();
             _lastMousePos = currentPos;
             e.Handled = true;
         }
@@ -180,10 +247,17 @@ public partial class Mesh3DView : UserControl
 
     private void OnViewportMouseUp(object sender, MouseButtonEventArgs e)
     {
-        if (e.ChangedButton == MouseButton.Left) _isRotating = false;
-        if (e.ChangedButton == MouseButton.Right) _isPanning = false;
+        if (e.ChangedButton == MouseButton.Left || e.ChangedButton == MouseButton.Middle)
+        {
+            _isRotating = false;
+            _isZooming = false;
+        }
+        if (e.ChangedButton == MouseButton.Right || e.ChangedButton == MouseButton.Middle)
+        {
+            _isPanning = false;
+        }
 
-        if (!_isRotating && !_isPanning)
+        if (!_isRotating && !_isPanning && !_isZooming)
         {
             ViewportContainer.ReleaseMouseCapture();
         }

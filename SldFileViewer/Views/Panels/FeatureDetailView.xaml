@@ -7,58 +7,57 @@
              mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="800">
 
-    <Grid Background="{StaticResource Brush.Background.Primary}">
+    <Grid Background="{StaticResource Brush.Figma.Canvas}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Top Header Banner -->
+        <!-- Top Header Banner (Figma Canvas + Hairline) -->
         <Border Grid.Row="0"
-                Background="{StaticResource Brush.Background.Secondary}"
-                BorderBrush="{StaticResource Brush.Border.Primary}"
+                Background="{StaticResource Brush.Figma.Canvas}"
+                BorderBrush="{StaticResource Brush.Figma.Hairline}"
                 BorderThickness="0,0,0,1"
-                Padding="12,8">
+                Padding="16,10">
             <DockPanel LastChildFill="False">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <iconPacks:PackIconMaterial Kind="CubeSend"
-                                                Foreground="{StaticResource Brush.Accent.Blue}"
+                                                Foreground="{StaticResource Brush.Figma.Ink}"
                                                 Width="16" Height="16"
                                                 Margin="0,0,8,0"
                                                 VerticalAlignment="Center" />
                     <TextBlock Text="{Binding FeatureName}"
                                FontWeight="Bold" FontSize="14"
-                               Foreground="{StaticResource Brush.Text.Primary}"
+                               Foreground="{StaticResource Brush.Figma.Ink}"
                                VerticalAlignment="Center" />
-                    <Border Background="{StaticResource Brush.Background.Tertiary}"
-                            BorderBrush="{StaticResource Brush.Border.Primary}"
-                            BorderThickness="1"
-                            CornerRadius="3"
-                            Padding="6,2" Margin="10,0,0,0">
+                    <Border Background="{StaticResource Brush.Figma.BlockLilac}"
+                            CornerRadius="10"
+                            Padding="12,3" Margin="10,0,0,0">
                         <TextBlock Text="{Binding FeatureType}"
-                                   FontSize="11" Foreground="{StaticResource Brush.Accent.Blue}" />
+                                   FontWeight="SemiBold"
+                                   FontSize="11" Foreground="{StaticResource Brush.Figma.Ink}" />
                     </Border>
                     <Border Visibility="{Binding HasDimensions, Converter={StaticResource BoolToVisibilityConverter}}"
-                            Background="#22107C41" BorderBrush="{StaticResource Brush.Accent.Green}"
-                            BorderThickness="1" CornerRadius="3"
-                            Padding="6,2" Margin="6,0,0,0">
-                        <TextBlock Text="含参数尺寸" FontSize="11" Foreground="{StaticResource Brush.Accent.Green}" />
+                            Background="{StaticResource Brush.Figma.BlockMint}"
+                            CornerRadius="10"
+                            Padding="12,3" Margin="6,0,0,0">
+                        <TextBlock Text="含参数尺寸" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Brush.Figma.Ink}" />
                     </Border>
                 </StackPanel>
             </DockPanel>
         </Border>
 
         <!-- Main Content Area -->
-        <ScrollViewer Grid.Row="1" Padding="20" VerticalScrollBarVisibility="Auto">
+        <ScrollViewer Grid.Row="1" Padding="24" VerticalScrollBarVisibility="Auto">
             <StackPanel MaxWidth="900" HorizontalAlignment="Left">
                 
-                <!-- Overview Card -->
+                <!-- Overview Card (Figma Card with Hairline) -->
                 <TextBlock Text="基本属性 (Overview)" FontWeight="Bold" FontSize="13"
-                           Foreground="{StaticResource Brush.Text.Primary}" Margin="0,0,0,8" />
-                <Border Background="{StaticResource Brush.Background.Secondary}"
-                        BorderBrush="{StaticResource Brush.Border.Primary}"
-                        BorderThickness="1" CornerRadius="4"
-                        Padding="16" Margin="0,0,0,20">
+                           Foreground="{StaticResource Brush.Figma.Ink}" Margin="0,0,0,8" />
+                <Border Background="{StaticResource Brush.Figma.Canvas}"
+                        BorderBrush="{StaticResource Brush.Figma.Hairline}"
+                        BorderThickness="1" CornerRadius="8"
+                        Padding="20" Margin="0,0,0,24">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -67,37 +66,36 @@
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="140" />
+                            <ColumnDefinition Width="150" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
 
                         <!-- Feature Name -->
-                        <TextBlock Grid.Row="0" Grid.Column="0" Text="特征名称:" Foreground="{StaticResource Brush.Text.Secondary}" Margin="0,4"/>
-                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding FeatureName}" FontWeight="Bold" Foreground="{StaticResource Brush.Text.Primary}" Margin="0,4"/>
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="特征名称:" Foreground="{StaticResource Brush.Figma.Ink}" Opacity="0.65" Margin="0,5"/>
+                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding FeatureName}" FontWeight="Bold" Foreground="{StaticResource Brush.Figma.Ink}" Margin="0,5"/>
 
                         <!-- Feature Type -->
-                        <TextBlock Grid.Row="1" Grid.Column="0" Text="特征类别 / 类型:" Foreground="{StaticResource Brush.Text.Secondary}" Margin="0,4"/>
-                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding FeatureType}" Foreground="{StaticResource Brush.Accent.Blue}" Margin="0,4"/>
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="特征类别 / 类型:" Foreground="{StaticResource Brush.Figma.Ink}" Opacity="0.65" Margin="0,5"/>
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding FeatureType}" FontWeight="SemiBold" Foreground="{StaticResource Brush.Figma.Ink}" Margin="0,5"/>
 
                         <!-- ID -->
-                        <TextBlock Grid.Row="2" Grid.Column="0" Text="内部标识 (ID):" Foreground="{StaticResource Brush.Text.Secondary}" Margin="0,4"/>
-                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding FeatureId}" Foreground="{StaticResource Brush.Text.Primary}" Margin="0,4"/>
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="内部标识 (ID):" Foreground="{StaticResource Brush.Figma.Ink}" Opacity="0.65" Margin="0,5"/>
+                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding FeatureId}" FontFamily="Consolas, Cascadia Code, Segoe UI" Foreground="{StaticResource Brush.Figma.Ink}" Margin="0,5"/>
 
                         <!-- Source Stream -->
-                        <TextBlock Grid.Row="3" Grid.Column="0" Text="存储来源 (Stream):" Foreground="{StaticResource Brush.Text.Secondary}" Margin="0,4"/>
-                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SourceStream}" Foreground="{StaticResource Brush.Text.Primary}" Margin="0,4"/>
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="存储来源 (Stream):" Foreground="{StaticResource Brush.Figma.Ink}" Opacity="0.65" Margin="0,5"/>
+                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SourceStream}" FontFamily="Consolas, Cascadia Code, Segoe UI" Foreground="{StaticResource Brush.Figma.Ink}" Margin="0,5"/>
                     </Grid>
                 </Border>
 
                 <!-- Dimensions Table (when feature has dimensions) -->
                 <StackPanel Visibility="{Binding HasDimensions, Converter={StaticResource BoolToVisibilityConverter}}"
-                            Margin="0,0,0,20">
+                            Margin="0,0,0,24">
                     <TextBlock Text="特征尺寸明细 (Dimensions)" FontWeight="Bold" FontSize="13"
-                               Foreground="{StaticResource Brush.Text.Primary}" Margin="0,0,0,8" />
-                    <Border Background="{StaticResource Brush.Background.Secondary}"
-                            BorderBrush="{StaticResource Brush.Border.Primary}"
-                            BorderThickness="1" CornerRadius="4"
-                            Padding="2">
+                               Foreground="{StaticResource Brush.Figma.Ink}" Margin="0,0,0,8" />
+                    <Border Background="{StaticResource Brush.Figma.Canvas}"
+                            BorderBrush="{StaticResource Brush.Figma.Hairline}"
+                            BorderThickness="1" CornerRadius="8">
                         <DataGrid ItemsSource="{Binding Dimensions}"
                                   AutoGenerateColumns="False"
                                   CanUserAddRows="False"
@@ -114,13 +112,12 @@
 
                 <!-- Detailed Parameters & Attributes Grid -->
                 <StackPanel Visibility="{Binding HasProperties, Converter={StaticResource BoolToVisibilityConverter}}"
-                            Margin="0,0,0,20">
+                            Margin="0,0,0,24">
                     <TextBlock Text="参数与元数据 (Parameters &amp; Attributes)" FontWeight="Bold" FontSize="13"
-                               Foreground="{StaticResource Brush.Text.Primary}" Margin="0,0,0,8" />
-                    <Border Background="{StaticResource Brush.Background.Secondary}"
-                            BorderBrush="{StaticResource Brush.Border.Primary}"
-                            BorderThickness="1" CornerRadius="4"
-                            Padding="2">
+                               Foreground="{StaticResource Brush.Figma.Ink}" Margin="0,0,0,8" />
+                    <Border Background="{StaticResource Brush.Figma.Canvas}"
+                            BorderBrush="{StaticResource Brush.Figma.Hairline}"
+                            BorderThickness="1" CornerRadius="8">
                         <DataGrid ItemsSource="{Binding Properties}"
                                   AutoGenerateColumns="False"
                                   CanUserAddRows="False"
@@ -136,13 +133,12 @@
 
                 <!-- Child Features / Sub-items (when children exist) -->
                 <StackPanel Visibility="{Binding HasChildren, Converter={StaticResource BoolToVisibilityConverter}}"
-                            Margin="0,0,0,20">
+                            Margin="0,0,0,24">
                     <TextBlock Text="子项与关联实体 (Child Elements &amp; Relations)" FontWeight="Bold" FontSize="13"
-                               Foreground="{StaticResource Brush.Text.Primary}" Margin="0,0,0,8" />
-                    <Border Background="{StaticResource Brush.Background.Secondary}"
-                            BorderBrush="{StaticResource Brush.Border.Primary}"
-                            BorderThickness="1" CornerRadius="4"
-                            Padding="2">
+                               Foreground="{StaticResource Brush.Figma.Ink}" Margin="0,0,0,8" />
+                    <Border Background="{StaticResource Brush.Figma.Canvas}"
+                            BorderBrush="{StaticResource Brush.Figma.Hairline}"
+                            BorderThickness="1" CornerRadius="8">
                         <DataGrid ItemsSource="{Binding Children}"
                                   AutoGenerateColumns="False"
                                   CanUserAddRows="False"

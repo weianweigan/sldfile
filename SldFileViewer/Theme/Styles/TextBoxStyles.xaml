@@ -5,13 +5,14 @@
         <ResourceDictionary Source="../Brushes.xaml" />
     </ResourceDictionary.MergedDictionaries>
 
+    <!-- Figma Form Input (Design.md: components.text-input, rounded.md or pill) -->
     <Style TargetType="TextBox">
-        <Setter Property="Background" Value="{StaticResource Brush.Background.Secondary}" />
-        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}" />
-        <Setter Property="CaretBrush" Value="{StaticResource Brush.Text.Primary}" />
-        <Setter Property="BorderBrush" Value="{StaticResource Brush.Border.Primary}" />
+        <Setter Property="Background" Value="{StaticResource Brush.Figma.Canvas}" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Figma.Ink}" />
+        <Setter Property="CaretBrush" Value="{StaticResource Brush.Figma.Ink}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.Figma.Hairline}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="Padding" Value="6,4" />
+        <Setter Property="Padding" Value="10,6" />
         <Setter Property="FontSize" Value="12" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="Template">
@@ -21,15 +22,17 @@
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="3">
+                            CornerRadius="2">
                         <ScrollViewer x:Name="PART_ContentHost" Focusable="false" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"/>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource Brush.Border.Light}" />
+                            <Setter TargetName="border" Property="BorderBrush" Value="#888888" />
                         </Trigger>
+                        <!-- Focus communicated via crisp black border ring (Design.md) -->
                         <Trigger Property="IsFocused" Value="True">
-                            <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource Brush.Border.Focus}" />
+                            <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource Brush.Figma.Primary}" />
+                            <Setter TargetName="border" Property="BorderThickness" Value="1.5" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

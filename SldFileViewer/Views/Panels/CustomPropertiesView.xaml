@@ -6,64 +6,66 @@
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="700">
 
-    <Grid Background="{StaticResource Brush.Background.Primary}">
+    <Grid Background="{StaticResource Brush.Figma.Canvas}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Top Action Bar -->
+        <!-- Top Action Bar (Figma Canvas + Hairline) -->
         <Border Grid.Row="0"
-                Background="{StaticResource Brush.Background.Secondary}"
-                BorderBrush="{StaticResource Brush.Border.Primary}"
+                Background="{StaticResource Brush.Figma.Canvas}"
+                BorderBrush="{StaticResource Brush.Figma.Hairline}"
                 BorderThickness="0,0,0,1"
-                Padding="10,6">
+                Padding="16,8">
             <DockPanel LastChildFill="False">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <Path Data="{StaticResource Geo.CustomProperties}"
-                          Fill="{StaticResource Brush.Accent.Blue}"
+                          Fill="{StaticResource Brush.Figma.Ink}"
                           Width="14" Height="14" Stretch="Uniform"
-                          Margin="0,0,6,0" />
+                          Margin="0,0,8,0" />
                     <TextBlock Text="自定义属性 (Custom Properties)"
                                FontWeight="Bold" FontSize="13"
-                               Foreground="{StaticResource Brush.Text.Primary}"
+                               Foreground="{StaticResource Brush.Figma.Ink}"
                                VerticalAlignment="Center" />
 
                     <!-- Configuration Selector -->
-                    <TextBlock Text="配置:" FontSize="12" Foreground="{StaticResource Brush.Text.Secondary}"
+                    <TextBlock Text="配置:" FontSize="12" Foreground="{StaticResource Brush.Figma.Ink}" Opacity="0.7"
                                VerticalAlignment="Center" Margin="16,0,6,0" />
                     <ComboBox ItemsSource="{Binding Configurations}"
                               SelectedItem="{Binding SelectedConfiguration}"
-                              MinWidth="120" Height="26"
+                              MinWidth="120" Height="28"
                               VerticalContentAlignment="Center" />
 
-                    <!-- Search Filter -->
-                    <Border Background="{StaticResource Brush.Background.Tertiary}"
-                            BorderBrush="{StaticResource Brush.Border.Primary}"
-                            BorderThickness="1" CornerRadius="3"
-                            Margin="16,0,0,0" Width="200" Height="26">
+                    <!-- Search Filter (Figma Pill Input) -->
+                    <Border Background="{StaticResource Brush.Figma.SurfaceCanvas}"
+                            BorderBrush="{StaticResource Brush.Figma.Hairline}"
+                            BorderThickness="1" CornerRadius="10"
+                            Margin="16,0,0,0" Width="200" Height="28">
                         <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="24" />
+                                <ColumnDefinition Width="26" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <Path Data="{StaticResource Geo.Search}" Fill="{StaticResource Brush.Text.Muted}"
+                            <Path Data="{StaticResource Geo.Search}" Fill="{StaticResource Brush.Figma.Ink}" Opacity="0.45"
                                   Width="12" Height="12" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center" />
                             <TextBox Grid.Column="1"
                                      Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
                                      BorderThickness="0" Background="Transparent"
-                                     VerticalAlignment="Center" Padding="0,0,6,0" />
+                                     VerticalAlignment="Center" Padding="0,0,8,0"
+                                     FontSize="11" />
                         </Grid>
                     </Border>
                 </StackPanel>
 
-                <!-- Save Action -->
+                <!-- Save Action (Figma Primary Pill) -->
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                     <Border Visibility="{Binding HasUnsavedChanges, Converter={StaticResource BoolToVisibilityConverter}}"
-                            Background="#44D19A66" BorderBrush="{StaticResource Brush.Accent.Orange}"
-                            BorderThickness="1" CornerRadius="3"
-                            Padding="6,2" Margin="0,0,8,0">
-                        <TextBlock Text="⚠️ 有未保存的修改" FontSize="11" Foreground="{StaticResource Brush.Accent.Orange}" VerticalAlignment="Center"/>
+                            Background="{StaticResource Brush.Figma.BlockPink}"
+                            BorderBrush="{StaticResource Brush.Figma.BlockPink}"
+                            BorderThickness="1" CornerRadius="10"
+                            Padding="10,3" Margin="0,0,8,0">
+                        <TextBlock Text="有未保存的修改" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Brush.Figma.Ink}" VerticalAlignment="Center"/>
                     </Border>
 
                     <Button Command="{Binding SavePropertiesCommand}"
@@ -82,12 +84,12 @@
                   ItemsSource="{Binding FilteredProperties}"
                   Margin="0">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="所属配置" Binding="{Binding Configuration}" IsReadOnly="True" Width="110" />
+                <DataGridTextColumn Header="所属配置" Binding="{Binding Configuration}" IsReadOnly="True" Width="120" />
                 <DataGridTextColumn Header="属性名称 (Name)" Binding="{Binding Name}" IsReadOnly="True" Width="180" />
-                <DataGridTextColumn Header="类型 (Type)" Binding="{Binding Type}" IsReadOnly="True" Width="90" />
-                <DataGridTextColumn Header="表达式 / 链接值" Binding="{Binding Expression}" IsReadOnly="True" Width="180" />
+                <DataGridTextColumn Header="类型 (Type)" Binding="{Binding Type}" IsReadOnly="True" Width="100" />
+                <DataGridTextColumn Header="表达式 / 链接值" Binding="{Binding Expression}" IsReadOnly="True" Width="200" />
                 <DataGridTextColumn Header="属性值 (Value - 双击可编辑)" Binding="{Binding Value, UpdateSourceTrigger=LostFocus}" Width="*" />
-                <DataGridCheckBoxColumn Header="已修改" Binding="{Binding IsModified}" IsReadOnly="True" Width="60" />
+                <DataGridCheckBoxColumn Header="已修改" Binding="{Binding IsModified}" IsReadOnly="True" Width="70" />
             </DataGrid.Columns>
         </DataGrid>
     </Grid>

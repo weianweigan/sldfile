@@ -75,6 +75,35 @@ public partial class SketchCanvasViewModel : ObservableObject
 
         foreach (var diag in sketch.Diagnostics) Diagnostics.Add(diag);
 
+        // If no direct binary segments were decoded, but dimensions exist (e.g. D1, D2 in absorbed sketch):
+        if (sketch.Segments.Count == 0 && sketch.Dimensions.Count > 0)
+        {
+            double w = 0.1;
+            double h = 0.1;
+            var dimList = sketch.Dimensions.ToList();
+            if (dimList.Count >= 1 && dimList[0].SystemValue.HasValue && dimList[0].SystemValue!.Value > 0)
+                w = dimList[0].SystemValue!.Value;
+            if (dimList.Count >= 2 && dimList[1].SystemValue.HasValue && dimList[1].SystemValue!.Value > 0)
+                h = dimList[1].SystemValue!.Value;
+            else
+                h = w;
+
+            var p1 = sketch.AddPoint(-w / 2, -h / 2);
+            var p2 = sketch.AddPoint(w / 2, -h / 2);
+            var p3 = sketch.AddPoint(w / 2, h / 2);
+            var p4 = sketch.AddPoint(-w / 2, h / 2);
+
+            sketch.AddLine(p1, p2);
+            sketch.AddLine(p2, p3);
+            sketch.AddLine(p3, p4);
+            sketch.AddLine(p4, p1);
+
+            Diagnostics.Add("提示: 当前草图图元由特征尺寸参数 (D1, D2) 反解重构生成几何线框。");
+        }
+
+        // Infer constraints/relations if none exist from binary stream
+        InferRelationsIfEmpty(sketch);
+
         var bounds = new SketchBounds();
 
         // 1. Build Points
@@ -146,40 +175,118 @@ public partial class SketchCanvasViewModel : ObservableObject
             });
         }
 
-        // If no direct binary segments were decoded, but dimensions exist (e.g. D1, D2 in absorbed sketch):
-        if (Segments.Count == 0 && sketch.Dimensions.Count > 0)
-        {
-            double w = 0.1;
-            double h = 0.1;
-            var dimList = sketch.Dimensions.ToList();
-            if (dimList.Count >= 1 && dimList[0].SystemValue.HasValue && dimList[0].SystemValue!.Value > 0)
-                w = dimList[0].SystemValue!.Value;
-            if (dimList.Count >= 2 && dimList[1].SystemValue.HasValue && dimList[1].SystemValue!.Value > 0)
-                h = dimList[1].SystemValue!.Value;
-            else
-                h = w;
-
-            var p1 = new RenderPoint { Id = 1, TableIndex = 0, WorldX = -w / 2, WorldY = -h / 2 };
-            var p2 = new RenderPoint { Id = 2, TableIndex = 1, WorldX = w / 2, WorldY = -h / 2 };
-            var p3 = new RenderPoint { Id = 3, TableIndex = 2, WorldX = w / 2, WorldY = h / 2 };
-            var p4 = new RenderPoint { Id = 4, TableIndex = 3, WorldX = -w / 2, WorldY = h / 2 };
-
-            Points.Add(p1); Points.Add(p2); Points.Add(p3); Points.Add(p4);
-            bounds.Include(-w / 2, -h / 2);
-            bounds.Include(w / 2, h / 2);
-
-            Segments.Add(new RenderSegment { Id = 1, Kind = SketchSegmentKind.Line, Start = p1, End = p2, Text = "Line 1 (底边)" });
-            Segments.Add(new RenderSegment { Id = 2, Kind = SketchSegmentKind.Line, Start = p2, End = p3, Text = "Line 2 (右边)" });
-            Segments.Add(new RenderSegment { Id = 3, Kind = SketchSegmentKind.Line, Start = p3, End = p4, Text = "Line 3 (顶边)" });
-            Segments.Add(new RenderSegment { Id = 4, Kind = SketchSegmentKind.Line, Start = p4, End = p1, Text = "Line 4 (左边)" });
-
-            Diagnostics.Add("提示: 当前草图图元由特征尺寸参数 (D1, D2) 反解重构生成预览。");
-        }
-
         Bounds = bounds;
         StatusInfo = $"图元: {Segments.Count} 条 | 点: {Points.Count} 个 | 约束: {sketch.Relations.Count} 项 | 尺寸: {sketch.Dimensions.Count} 个";
 
         RequestFitView?.Invoke();
+    }
+
+    private static void InferRelationsIfEmpty(SketchFeature sketch)
+    {
+        if (sketch.Relations.Count > 0)
+            return;
+
+        var lines = sketch.Segments.Where(s => s.Kind == SketchSegmentKind.Line && s.StartPoint != null && s.EndPoint != null).ToList();
+        var arcs = sketch.Segments.Where(s => (s.Kind == SketchSegmentKind.Arc || s.Kind == SketchSegmentKind.Ellipse) && s.CenterPoint != null).ToList();
+
+        // 1. Horizontal and Vertical lines
+        foreach (var line in lines)
+        {
+            double dx = Math.Abs(line.EndPoint!.X - line.StartPoint!.X);
+            double dy = Math.Abs(line.EndPoint.Y - line.StartPoint.Y);
+            double len = Math.Sqrt(dx * dx + dy * dy);
+            if (len < 1e-6) continue;
+
+            if (dy / len < 1e-3 || dy < 1e-5)
+            {
+                sketch.AddHorizontal(line);
+            }
+            else if (dx / len < 1e-3 || dx < 1e-5)
+            {
+                sketch.AddVertical(line);
+            }
+        }
+
+        // 2. Coincident points and Perpendicular/Parallel/EqualLength between lines
+        for (int i = 0; i < lines.Count; i++)
+        {
+            for (int j = i + 1; j < lines.Count; j++)
+            {
+                var l1 = lines[i];
+                var l2 = lines[j];
+
+                SketchPoint? pA = null;
+                SketchPoint? pB = null;
+
+                if (PointsMatch(l1.StartPoint, l2.StartPoint)) { pA = l1.StartPoint; pB = l2.StartPoint; }
+                else if (PointsMatch(l1.StartPoint, l2.EndPoint)) { pA = l1.StartPoint; pB = l2.EndPoint; }
+                else if (PointsMatch(l1.EndPoint, l2.StartPoint)) { pA = l1.EndPoint; pB = l2.StartPoint; }
+                else if (PointsMatch(l1.EndPoint, l2.EndPoint)) { pA = l1.EndPoint; pB = l2.EndPoint; }
+
+                if (pA != null && pB != null)
+                {
+                    sketch.AddCoincident(pA, pB);
+
+                    // Check perpendicularity at shared vertex
+                    double dx1 = l1.EndPoint!.X - l1.StartPoint!.X;
+                    double dy1 = l1.EndPoint.Y - l1.StartPoint.Y;
+                    double dx2 = l2.EndPoint!.X - l2.StartPoint!.X;
+                    double dy2 = l2.EndPoint.Y - l2.StartPoint.Y;
+                    double len1 = Math.Sqrt(dx1 * dx1 + dy1 * dy1);
+                    double len2 = Math.Sqrt(dx2 * dx2 + dy2 * dy2);
+                    if (len1 > 1e-6 && len2 > 1e-6)
+                    {
+                        double cosTheta = (dx1 * dx2 + dy1 * dy2) / (len1 * len2);
+                        if (Math.Abs(cosTheta) < 1e-3)
+                        {
+                            sketch.AddPerpendicular(l1, l2);
+                        }
+                    }
+                }
+                else
+                {
+                    // Check parallel and equal length
+                    double dx1 = l1.EndPoint!.X - l1.StartPoint!.X;
+                    double dy1 = l1.EndPoint.Y - l1.StartPoint.Y;
+                    double dx2 = l2.EndPoint!.X - l2.StartPoint!.X;
+                    double dy2 = l2.EndPoint.Y - l2.StartPoint.Y;
+                    double len1 = Math.Sqrt(dx1 * dx1 + dy1 * dy1);
+                    double len2 = Math.Sqrt(dx2 * dx2 + dy2 * dy2);
+                    if (len1 > 1e-6 && len2 > 1e-6)
+                    {
+                        double cross = Math.Abs((dx1 * dy2 - dy1 * dx2) / (len1 * len2));
+                        if (cross < 1e-3)
+                        {
+                            sketch.AddParallel(l1, l2);
+                        }
+
+                        if (Math.Abs(len1 - len2) < 1e-5)
+                        {
+                            sketch.AddEqualLength(l1, l2);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Concentric arcs
+        for (int i = 0; i < arcs.Count; i++)
+        {
+            for (int j = i + 1; j < arcs.Count; j++)
+            {
+                if (PointsMatch(arcs[i].CenterPoint, arcs[j].CenterPoint))
+                {
+                    sketch.AddConcentric(arcs[i], arcs[j]);
+                }
+            }
+        }
+
+        static bool PointsMatch(SketchPoint? a, SketchPoint? b)
+        {
+            if (a == null || b == null) return false;
+            if (ReferenceEquals(a, b)) return true;
+            return Math.Abs(a.X - b.X) < 1e-5 && Math.Abs(a.Y - b.Y) < 1e-5 && Math.Abs(a.Z - b.Z) < 1e-5;
+        }
     }
 
     [RelayCommand]

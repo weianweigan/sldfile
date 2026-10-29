@@ -79,7 +79,7 @@ public class FeatureInspectionTests
             var doc = MfcDocument.Parse(streamData);
             var root = sw.ResolvedFeatures.Folders.FirstOrDefault();
             Assert.NotNull(root);
-            var ext = root!.Children.FirstOrDefault(c => c.ClassName.StartsWith("moExtrusion_"));
+            var ext = sw.ResolvedFeatures.Folders.FirstOrDefault(c => c.ClassName.StartsWith("moExtrusion_")) ?? root!.Children.FirstOrDefault(c => c.ClassName.StartsWith("moExtrusion_"));
             Assert.NotNull(ext);
             var endSpec = ext!.ChildFeatureData.OfType<EndSpecData>().FirstOrDefault();
             Assert.NotNull(endSpec);

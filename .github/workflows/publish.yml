@@ -1,0 +1,106 @@
+name: Publish NuGet & Desktop Viewer
+
+on:
+  push:
+    tags:
+      - 'v*' # 触发格式如 v0.1.0, v0.1.0-alpha, v1.0.0-preview.1
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Package Version (e.g. 0.1.0 or 1.0.0-preview.1)'
+        required: true
+        type: string
+
+jobs:
+  publish:
+    name: Publish SldFile & SldFileViewer
+    runs-on: windows-latest
+    permissions:
+      contents: write # 必须具备 write 权限以创建 GitHub Release
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 获取完整 Git 历史以支持 SourceLink 源码映射
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # 解析版本号：优先从手动输入取，没有则剥离 tag 的 'v' 前缀
+      - name: Resolve Version
+        id: version_step
+        shell: pwsh
+        run: |
+          if ("${{ github.event.inputs.version }}") {
+            $version = "${{ github.event.inputs.version }}"
+          } else {
+            $version = "${{ github.ref_name }}".TrimStart('v')
+          }
+          Write-Host "Target Version: $version"
+          "pkg_version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Prepare Output Directory
+        shell: pwsh
+        run: New-Item -ItemType Directory -Path ./release_assets -Force
+
+      # 运行测试守护（排除 SolidWorks COM 依赖工程）
+      - name: Run SldFile Core Unit Tests
+        run: dotnet test SldFileTests/SldFileTests.csproj -c Release --verbosity normal
+
+      - name: Run SldFileViewer Tests
+        run: dotnet test SldFileViewerTests/SldFileViewerTests.csproj -c Release --verbosity normal
+
+      # 打包 NuGet 类库（包含 .nupkg 与 .snupkg 符号包）
+      - name: Pack SldFile NuGet Package
+        run: >
+          dotnet pack SldFile/SldFile.csproj
+          -c Release
+          -p:PackageVersion=${{ steps.version_step.outputs.pkg_version }}
+          --output ./release_assets
+
+      # 推送 NuGet 包至 NuGet.org
+      - name: Push to NuGet.org
+        run: >
+          dotnet nuget push ./release_assets/*.nupkg
+          --api-key ${{ secrets.NUGET_API_KEY }}
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
+
+      # 发布 SldFileViewer 单文件独立桌面程序并压缩为 Zip
+      - name: Publish SldFileViewer Desktop App
+        shell: pwsh
+        run: |
+          $ver = "${{ steps.version_step.outputs.pkg_version }}"
+          Write-Host "Publishing SldFileViewer for version $ver..."
+          dotnet publish SldFileViewer/SldFileViewer.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:EnableCompressionInSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:Version=$ver `
+            -o ./publish/SldFileViewer
+
+          $zipPath = "./release_assets/SldFileViewer-v${ver}-win-x64.zip"
+          Compress-Archive -Path ./publish/SldFileViewer/* -DestinationPath $zipPath -Force
+          Write-Host "Created Desktop App Archive: $zipPath"
+
+      # 上传构建产物至 Actions Run 记录
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assets
+          path: ./release_assets/*
+
+      # 创建 GitHub Release，将 NuGet 包与桌面端应用 Zip 作为附件一并发布
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version_step.outputs.pkg_version }}
+          files: |
+            ./release_assets/*
+          generate_release_notes: true

@@ -161,7 +161,28 @@ public sealed class DocumentReference
     internal DocumentReference(string filePath, string name) { FilePath = filePath; Name = name; }
 }
 
-public enum FeatureKind { Other, ReferencePlane, Sketch, Extrusion, Dimension, Folder }
+public enum FeatureKind
+{
+    Other,
+    ReferencePlane,
+    Sketch,
+    Extrusion,
+    Dimension,
+    Folder,
+    Cut,
+    Revolve,
+    Sweep,
+    Loft,
+    Fillet,
+    Chamfer,
+    HoleWizard,
+    Pattern,
+    Mirror,
+    Rib,
+    Shell,
+    Draft,
+    Thread
+}
 
 public sealed class FeatureDimension
 {
@@ -187,6 +208,9 @@ public sealed class Feature
     public IReadOnlyDictionary<string, string> Attributes { get; }
     public IReadOnlyList<FeatureDimension> Dimensions { get; }
     public IReadOnlyList<Feature> Children { get; }
+
+    internal Feature(string name, FeatureKind kind)
+        : this(name, kind, null, null, null, null, null) { }
 
     internal Feature(
         string name,

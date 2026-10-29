@@ -1,0 +1,40 @@
+name: CI (Build & Test)
+
+on:
+  push:
+    branches: [ master, main ]
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - 'Assets/**'
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  build-and-test:
+    name: Build & Test (Excludes SW Integration)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore SldFile.CI.slnf
+
+      - name: Build Projects (Release)
+        run: dotnet build SldFile.CI.slnf -c Release --no-restore
+
+      - name: Run SldFile Core Unit Tests
+        run: dotnet test SldFileTests/SldFileTests.csproj -c Release --no-build --verbosity normal
+
+      - name: Run SldFileViewer Tests
+        run: dotnet test SldFileViewerTests/SldFileViewerTests.csproj -c Release --no-build --verbosity normal
+
+      - name: Dry-run Pack (Validate NuGet metadata & assets)
+        run: dotnet pack SldFile/SldFile.csproj -c Release --no-build -p:PackageVersion=0.0.0-ci --output ./artifacts

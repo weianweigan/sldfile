@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
              xmlns:controls="clr-namespace:SldFileViewer.Controls"
              xmlns:converters="clr-namespace:SldFileViewer.Converters"
              mc:Ignorable="d" 
@@ -25,47 +26,47 @@
             <RowDefinition Height="220" MinHeight="100" />
         </Grid.RowDefinitions>
 
-        <!-- Top Sketch Toolbar -->
+        <!-- Top Sketch Toolbar (Figma Canvas + Hairline) -->
         <Border Grid.Row="0"
-                Background="{StaticResource Brush.Background.Secondary}"
-                BorderBrush="{StaticResource Brush.Border.Primary}"
+                Background="{StaticResource Brush.Figma.Canvas}"
+                BorderBrush="{StaticResource Brush.Figma.Hairline}"
                 BorderThickness="0,0,0,1"
-                Padding="8,4">
+                Padding="12,8">
             <DockPanel LastChildFill="False">
                 <!-- Sketch Info -->
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Path Data="{StaticResource Geo.Sketch}"
-                          Fill="{StaticResource Brush.Accent.Blue}"
-                          Width="14" Height="14" Stretch="Uniform"
-                          Margin="0,0,6,0" />
+                    <iconPacks:PackIconMaterial Kind="DrawPen"
+                                                Foreground="{StaticResource Brush.Figma.Ink}"
+                                                Width="16" Height="16"
+                                                Margin="0,0,8,0"
+                                                VerticalAlignment="Center" />
                     <TextBlock Text="{Binding SketchName}"
                                FontWeight="Bold" FontSize="13"
-                               Foreground="{StaticResource Brush.Text.Primary}"
+                               Foreground="{StaticResource Brush.Figma.Ink}"
                                VerticalAlignment="Center" />
-                    <Border Background="{StaticResource Brush.Background.Tertiary}"
-                            BorderBrush="{StaticResource Brush.Border.Primary}"
-                            BorderThickness="1"
-                            CornerRadius="3"
-                            Padding="4,1" Margin="8,0,0,0">
+                    <Border Background="{StaticResource Brush.Figma.BlockMint}"
+                            CornerRadius="10"
+                            Padding="12,3" Margin="10,0,0,0">
                         <TextBlock Text="{Binding StatusInfo}"
-                                   FontSize="11" Foreground="{StaticResource Brush.Text.Secondary}" />
+                                   FontWeight="SemiBold"
+                                   FontSize="11" Foreground="{StaticResource Brush.Figma.Ink}" />
                     </Border>
                     <Border Visibility="{Binding IsPartial, Converter={StaticResource BoolToVisibilityConverter}}"
-                            Background="#44D19A66" BorderBrush="{StaticResource Brush.Accent.Orange}"
-                            BorderThickness="1" CornerRadius="3"
-                            Padding="4,1" Margin="6,0,0,0">
-                        <TextBlock Text="部分解码" FontSize="11" Foreground="{StaticResource Brush.Accent.Orange}" />
+                            Background="{StaticResource Brush.Figma.BlockPink}"
+                            CornerRadius="10"
+                            Padding="10,3" Margin="6,0,0,0">
+                        <TextBlock Text="部分解码" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Brush.Figma.Ink}" />
                     </Border>
                 </StackPanel>
 
-                <!-- Layer Visibility Toggles -->
+                <!-- Layer Visibility Toggles (Figma Pill Toggles) -->
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                     <ToggleButton Style="{StaticResource Style.ToggleButton.Toolbar}"
                                   IsChecked="{Binding ShowPoints}"
                                   ToolTip="显示/隐藏草图点"
-                                  Margin="2,0">
+                                  Margin="3,0">
                         <StackPanel Orientation="Horizontal">
-                            <Ellipse Width="6" Height="6" Fill="{StaticResource Brush.Sketch.Point}" Margin="0,0,4,0"/>
+                            <Ellipse Width="6" Height="6" Fill="{StaticResource Brush.Figma.Primary}" Margin="0,0,4,0"/>
                             <TextBlock Text="点" FontSize="11"/>
                         </StackPanel>
                     </ToggleButton>
@@ -73,10 +74,10 @@
                     <ToggleButton Style="{StaticResource Style.ToggleButton.Toolbar}"
                                   IsChecked="{Binding ShowConstraints}"
                                   ToolTip="显示/隐藏几何约束符号"
-                                  Margin="2,0">
+                                  Margin="3,0">
                         <StackPanel Orientation="Horizontal">
-                            <Border Background="{StaticResource Brush.Sketch.ConstraintBadge}" CornerRadius="2" Width="10" Height="10" Margin="0,0,4,0">
-                                <TextBlock Text="=" FontSize="8" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <Border Background="{StaticResource Brush.Figma.BlockLime}" CornerRadius="2" Width="10" Height="10" Margin="0,0,4,0">
+                                <TextBlock Text="=" FontSize="8" FontWeight="Bold" Foreground="{StaticResource Brush.Figma.Ink}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                             <TextBlock Text="约束" FontSize="11"/>
                         </StackPanel>
@@ -85,26 +86,32 @@
                     <ToggleButton Style="{StaticResource Style.ToggleButton.Toolbar}"
                                   IsChecked="{Binding ShowDimensions}"
                                   ToolTip="显示/隐藏草图尺寸"
-                                  Margin="2,0">
+                                  Margin="3,0">
                         <TextBlock Text="📐 尺寸" FontSize="11"/>
                     </ToggleButton>
 
                     <ToggleButton Style="{StaticResource Style.ToggleButton.Toolbar}"
                                   IsChecked="{Binding ShowConstruction}"
                                   ToolTip="显示/隐藏构造线 (辅助线)"
-                                  Margin="2,0">
+                                  Margin="3,0">
                         <TextBlock Text="┄ 辅助线" FontSize="11"/>
                     </ToggleButton>
 
-                    <Rectangle Width="1" Height="16" Fill="{StaticResource Brush.Border.Primary}" Margin="6,0" />
+                    <Rectangle Width="1" Height="16" Fill="{StaticResource Brush.Figma.Hairline}" Margin="8,0" />
 
                     <!-- Fit View Button -->
                     <Button Command="{Binding FitViewCommand}"
                             ToolTip="适应窗口居中 (快捷键: 双击右键)"
-                            Style="{StaticResource Style.Button.Toolbar}">
-                        <Path Data="{StaticResource Geo.FitView}"
-                              Fill="{StaticResource Brush.Text.Primary}"
-                              Width="14" Height="14" Stretch="Uniform" />
+                            Style="{StaticResource Style.Button.Secondary}"
+                            Padding="12,4">
+                        <StackPanel Orientation="Horizontal">
+                            <iconPacks:PackIconMaterial Kind="FitToScreenOutline"
+                                                        Foreground="{StaticResource Brush.Figma.Ink}"
+                                                        Width="12" Height="12"
+                                                        Margin="0,0,4,0"
+                                                        VerticalAlignment="Center" />
+                            <TextBlock Text="适应窗口" FontSize="11" />
+                        </StackPanel>
                     </Button>
                 </StackPanel>
             </DockPanel>
@@ -116,29 +123,31 @@
                                      WorldBounds="{Binding Bounds}"
                                      ClipToBounds="True" />
 
-            <!-- Floating Overlay Hint -->
+            <!-- Floating Overlay Hint (Figma Pill) -->
             <Border HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                    Margin="12"
-                    Background="#D0FFFFFF"
-                    BorderBrush="{StaticResource Brush.Border.Primary}"
+                    Margin="16"
+                    Background="#E6FFFFFF"
+                    BorderBrush="{StaticResource Brush.Figma.Hairline}"
                     BorderThickness="1"
-                    CornerRadius="4"
-                    Padding="8,4">
+                    CornerRadius="10"
+                    Padding="14,5">
                 <TextBlock Text="滚轮缩放 | 中键拖动平移 | 双击右键复位"
-                           FontSize="11" Foreground="{StaticResource Brush.Text.Secondary}" />
+                           FontFamily="Consolas, Cascadia Code, Segoe UI"
+                           FontSize="11" Foreground="{StaticResource Brush.Figma.Ink}" />
             </Border>
         </Grid>
 
-        <!-- Splitter -->
-        <GridSplitter Grid.Row="2" Height="5"
+        <!-- Hairline Splitter -->
+        <GridSplitter Grid.Row="2" Height="1"
                       HorizontalAlignment="Stretch"
-                      Background="{StaticResource Brush.Border.Primary}"
+                      Background="{StaticResource Brush.Figma.Hairline}"
                       ResizeDirection="Rows" />
 
-        <!-- Details DataGrid Drawer -->
+        <!-- Details DataGrid Drawer (Figma Canvas) -->
         <Border Grid.Row="3"
-                Background="{StaticResource Brush.Background.Secondary}">
-            <TabControl Style="{StaticResource Style.TabControl.CAD}">
+                Background="{StaticResource Brush.Figma.Canvas}"
+                Padding="12,8,12,12">
+            <TabControl>
                 <!-- Segments Table -->
                 <TabItem Header="图元明细 (Segments)">
                     <DataGrid ItemsSource="{Binding Segments}"
