@@ -289,7 +289,7 @@ public class ViewerIntegrationTests
     }
 
     [Fact]
-    public void ExportMeshService_ExportsObjAndStlSuccessfully()
+    public void ExportMeshService_ExportsObjStlAndGlbSuccessfully()
     {
         var docService = new SwDocumentService();
         var dialogService = new MockDialogService();
@@ -301,6 +301,7 @@ public class ViewerIntegrationTests
 
         string tempObj = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid():N}.obj");
         string tempStl = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid():N}.stl");
+        string tempGlb = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid():N}.glb");
 
         try
         {
@@ -311,11 +312,16 @@ public class ViewerIntegrationTests
             exportService.ExportMeshToStl(mesh!, tempStl);
             Assert.True(File.Exists(tempStl));
             Assert.True(new FileInfo(tempStl).Length > 0);
+
+            exportService.ExportMeshToGlb(mesh!, tempGlb);
+            Assert.True(File.Exists(tempGlb));
+            Assert.True(new FileInfo(tempGlb).Length > 0);
         }
         finally
         {
             if (File.Exists(tempObj)) File.Delete(tempObj);
             if (File.Exists(tempStl)) File.Delete(tempStl);
+            if (File.Exists(tempGlb)) File.Delete(tempGlb);
         }
     }
 

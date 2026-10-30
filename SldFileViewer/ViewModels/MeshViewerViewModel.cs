@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Windows.Media.Media3D;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -236,6 +236,24 @@ public partial class MeshViewerViewModel : ObservableObject
             {
                 _exportService.ExportMeshToStl(Mesh, savePath);
                 _dialogService.ShowInformation("导出成功", $"STL 模型已导出至:\n{savePath}");
+            }
+            catch (Exception ex)
+            {
+                _dialogService.ShowError("导出失败", ex.Message);
+            }
+        }
+    }
+
+    [RelayCommand]
+    private void ExportGlb()
+    {
+        if (Mesh == null) return;
+        if (_dialogService.ShowSaveFileDialog("Model.glb", "glTF 2.0 二进制模型 (*.glb)|*.glb", out var savePath))
+        {
+            try
+            {
+                _exportService.ExportMeshToGlb(Mesh, savePath);
+                _dialogService.ShowInformation("导出成功", $"glTF 2.0 (GLB) 模型已导出至:\n{savePath}");
             }
             catch (Exception ex)
             {

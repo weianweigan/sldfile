@@ -1,4 +1,4 @@
-# SldFile Detailed Usage Guide
+﻿# SldFile Detailed Usage Guide
 
 **English** | [简体中文](USAGE.zh-CN.md) | [Back to README](README.md)
 

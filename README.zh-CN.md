@@ -1,4 +1,4 @@
-![SldFile — 离线读取与编辑 SolidWorks 文件](Assets/banner.png)
+﻿![SldFile — 离线读取与编辑 SolidWorks 文件](Assets/banner.png)
 
 # SldFile
 
@@ -38,7 +38,7 @@
 - **三维几何与网格导出**：
   - 提取并导出指定配置的原生 Parasolid 二进制传输数据（`.x_b`）。
   - 解码轻量化 3D 显示网格（包含顶点、法线、三角面索引及轮廓边）。
-  - 支持将网格直接导出为 **Wavefront OBJ**（`.obj`）和二进制 **STL**（`.stl`）。
+  - 支持将网格直接导出为 **glTF 2.0**（`.glb`）、**Wavefront OBJ**（`.obj`）和二进制 **STL**（`.stl`）。
 - **工程图图纸与视图**：
   - 提取工程图图纸列表、图纸视图层级及引用的三维模型路径与配置。
   - 提取各图纸的独立 PNG 预览图。
@@ -101,7 +101,7 @@ editableDoc.Save(); // 保存更改到磁盘
 - **[2. 自定义属性与配置属性](USAGE.zh-CN.md#2-自定义属性与配置属性)**：文档级与配置级强类型自定义属性（`string`、`int`、`double`、`bool`、`DateTime`）的增删改查。
 - **[3. 提取预览图](USAGE.zh-CN.md#3-提取预览图)**：提取高清 PNG 与标准 BMP 缩略图。
 - **[4. 装配体组件树与物料清单 (BOM)](USAGE.zh-CN.md#4-装配体组件树与物料清单-bom)**：组件层级树、位姿矩阵、虚拟件及自动汇总 BOM。
-- **[5. 三维几何导出：Parasolid 与显示网格](USAGE.zh-CN.md#5-三维几何导出parasolid-与显示网格)**：导出 Parasolid（`.x_b`）及将 3D 显示网格导出为 OBJ 与 STL。
+- **[5. 三维几何导出：Parasolid 与显示网格](USAGE.zh-CN.md#5-三维几何导出parasolid-与显示网格)**：导出 Parasolid（`.x_b`）及将 3D 显示网格导出为 GLB、OBJ 与 STL。
 - **[6. 工程图图纸与视图读取](USAGE.zh-CN.md#6-工程图图纸与视图读取)**：图纸列表、视图层级、关联模型与图纸 PNG 预览。
 - **[7. 草图几何读取](USAGE.zh-CN.md#7-草图几何读取)**：草图点坐标、图元线段/弧线/圆/样条曲线及尺寸。
 - **[8. 草图特征模板 (.ske)](USAGE.zh-CN.md#8-草图特征模板-ske)**：异型孔向导等 `.ske` 模板的尺寸与参数名称修改。
