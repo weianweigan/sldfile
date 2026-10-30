@@ -123,23 +123,27 @@ public partial class MainViewModel : ObservableObject
             // Set active configuration (triggers OnSelectedConfigurationChanged to link BOM, properties, and tree)
             SelectedConfiguration = Configurations.FirstOrDefault();
 
+            // Load initial preview for selected configuration
+            int initCfgIdx = SelectedConfiguration?.Index ?? 0;
+            string initCfgName = SelectedConfiguration?.Name ?? "默认";
+            var initialPng = _docService.GetPreviewPng(initCfgIdx) ?? _docService.GetPreviewBitmap(initCfgIdx);
+            if (initialPng != null)
+            {
+                ImagePreview.LoadImage(initialPng, $"模型预览 (配置: {initCfgName})");
+            }
+
             // Set default view to MeshViewer or Preview
             if (MeshViewer.HasMesh)
             {
                 CurrentView = MeshViewer;
             }
+            else if (initialPng != null)
+            {
+                CurrentView = ImagePreview;
+            }
             else
             {
-                var png = _docService.GetPreviewPng();
-                if (png != null)
-                {
-                    ImagePreview.LoadImage(png, "模型预览");
-                    CurrentView = ImagePreview;
-                }
-                else
-                {
-                    CurrentView = CustomProps;
-                }
+                CurrentView = CustomProps;
             }
 
             DocumentInfo = $"{sw.Kind} | 配置数: {sw.Configurations.Count} | 用户: {string.Join(", ", sw.Users)}";
@@ -177,7 +181,38 @@ public partial class MainViewModel : ObservableObject
         // 3. 3D 检视器 Parasolid 配置索引联动
         MeshViewer.CurrentConfigIndex = value.Index;
 
-        StatusMessage = $"当前配置: {value.Name}";
+        // 4. 关键：提取当前配置专属的高清渲染预览图，动态刷新模型预览！
+        var png = _docService.GetPreviewPng(value.Index);
+        var bmp = png == null ? _docService.GetPreviewBitmap(value.Index) : null;
+        var previewData = png ?? bmp;
+        if (previewData != null)
+        {
+            ImagePreview.LoadImage(previewData, $"模型预览 (配置: {value.Name})");
+        }
+
+        StatusMessage = $"已切换至配置: {value.Name} (索引: {value.Index})";
+    }
+
+    [RelayCommand]
+    public void SwitchToConfigPreview()
+    {
+        int idx = SelectedConfiguration?.Index ?? 0;
+        string name = SelectedConfiguration?.Name ?? "默认";
+        var png = _docService.GetPreviewPng(idx) ?? _docService.GetPreviewBitmap(idx);
+        if (png != null)
+        {
+            ImagePreview.LoadImage(png, $"模型预览 (配置: {name})");
+            CurrentView = ImagePreview;
+        }
+    }
+
+    [RelayCommand]
+    public void SwitchTo3DView()
+    {
+        if (MeshViewer.HasMesh)
+        {
+            CurrentView = MeshViewer;
+        }
     }
 
     [RelayCommand]
@@ -200,26 +235,6 @@ public partial class MainViewModel : ObservableObject
     {
         switch (node.Kind)
         {
-            case TreeNodeKind.ConfigurationFolder:
-                CustomProps.SelectedConfiguration = "All";
-                CurrentView = CustomProps;
-                break;
-
-            case TreeNodeKind.Configuration:
-                if (node.Tag is ConfigurationItem cfgItem)
-                {
-                    if (SelectedConfiguration != cfgItem)
-                    {
-                        SelectedConfiguration = cfgItem;
-                    }
-                    else
-                    {
-                        CustomProps.SelectedConfiguration = cfgItem.Name;
-                    }
-                    CurrentView = CustomProps;
-                }
-                break;
-
             case TreeNodeKind.CustomProperties:
                 CurrentView = CustomProps;
                 break;
@@ -229,15 +244,25 @@ public partial class MainViewModel : ObservableObject
                 break;
 
             case TreeNodeKind.GeometryPreview:
+                int cfgIdx = SelectedConfiguration?.Index ?? 0;
+                string cfgName = SelectedConfiguration?.Name ?? "默认";
+                var img = _docService.GetPreviewPng(cfgIdx) ?? _docService.GetPreviewBitmap(cfgIdx);
+                if (img != null)
+                {
+                    ImagePreview.LoadImage(img, $"模型预览 (配置: {cfgName})");
+                }
+
                 if (MeshViewer.HasMesh)
                 {
                     CurrentView = MeshViewer;
                 }
+                else if (img != null)
+                {
+                    CurrentView = ImagePreview;
+                }
                 else
                 {
-                    var img = _docService.GetPreviewPng() ?? _docService.GetPreviewBitmap();
-                    ImagePreview.LoadImage(img, "模型缩略图");
-                    CurrentView = ImagePreview;
+                    CurrentView = CustomProps;
                 }
                 break;
 
@@ -253,8 +278,8 @@ public partial class MainViewModel : ObservableObject
                 }
                 else if (node.Tag is Feature feat)
                 {
-                    int cfgIdx = SelectedConfiguration?.Index ?? 0;
-                    var sketches = _docService.GetSketches(cfgIdx);
+                    int featCfgIdx = SelectedConfiguration?.Index ?? 0;
+                    var sketches = _docService.GetSketches(featCfgIdx);
                     var matched = sketches.FirstOrDefault(s => string.Equals(s.Name, feat.Name, StringComparison.OrdinalIgnoreCase));
                     if (matched != null)
                     {

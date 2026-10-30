@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -24,10 +24,38 @@ public abstract partial class SwFile
     public IReadOnlyList<string> DrawingSheetNames => SheetNames.Names;
 
     /// <summary>Returns a copy of the PNG preview, or null when the document has none.</summary>
-    public byte[]? GetPreviewPng() => PreviewPng == null ? null : (byte[])PreviewPng.Clone();
+    /// <summary>Returns a copy of the PNG preview for the specified configuration (or active configuration if 0), or null when none is present.</summary>
+    public byte[]? GetPreviewPng(int configIndex = 0)
+    {
+        if (configIndex > 0)
+        {
+            string key1 = $"Config-{configIndex}-PreviewPNG";
+            if (RawStreams.TryGetValue(key1, out var bytes) && bytes != null && bytes.Length > 0)
+                return (byte[])bytes.Clone();
+
+            string key2 = $"Contents/Config-{configIndex}-PreviewPNG";
+            if (RawStreams.TryGetValue(key2, out var bytes2) && bytes2 != null && bytes2.Length > 0)
+                return (byte[])bytes2.Clone();
+        }
+        return PreviewPng == null ? null : (byte[])PreviewPng.Clone();
+    }
 
     /// <summary>Returns a copy of the Preview stream converted to standard BMP format, or null when none is present.</summary>
-    public byte[]? GetPreviewBitmap() => DibBitmapConverter.ConvertToBmp(PreviewImage);
+    /// <summary>Returns a copy of the Preview stream converted to standard BMP format for the specified configuration, or null when none is present.</summary>
+    public byte[]? GetPreviewBitmap(int configIndex = 0)
+    {
+        if (configIndex > 0)
+        {
+            string key1 = $"Config-{configIndex}-Preview";
+            if (RawStreams.TryGetValue(key1, out var bytes) && bytes != null && bytes.Length > 0)
+                return DibBitmapConverter.ConvertToBmp(bytes);
+
+            string key2 = $"Contents/Config-{configIndex}-Preview";
+            if (RawStreams.TryGetValue(key2, out var bytes2) && bytes2 != null && bytes2.Length > 0)
+                return DibBitmapConverter.ConvertToBmp(bytes2);
+        }
+        return DibBitmapConverter.ConvertToBmp(PreviewImage);
+    }
 
     /// <summary>Returns a copy of the raw Preview stream bytes (4-byte length prefix + DIB), or null when none is present.</summary>
     public byte[]? GetRawPreviewDib() => PreviewImage == null ? null : (byte[])PreviewImage.Clone();

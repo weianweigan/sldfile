@@ -4,6 +4,7 @@ using System.Windows.Media.Media3D;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SldFile;
+using SldFileViewer.Models;
 using SldFileViewer.Services;
 
 namespace SldFileViewer.ViewModels;
@@ -47,6 +48,41 @@ public partial class MeshViewerViewModel : ObservableObject
     [ObservableProperty]
     private bool _showEdges = true;
 
+    // ── 剖视图 (Cross-Section View) 状态与属性 ──
+
+    [ObservableProperty]
+    private bool _isSectionViewEnabled;
+
+    [ObservableProperty]
+    private SectionAxis _sectionAxis = SectionAxis.X;
+
+    [ObservableProperty]
+    private double _sectionOffsetPercent = 0.0;
+
+    [ObservableProperty]
+    private bool _isSectionInverted;
+
+    [ObservableProperty]
+    private string _sectionOffsetDisplay = "0.0 mm";
+
+    public bool IsAxisX
+    {
+        get => SectionAxis == SectionAxis.X;
+        set { if (value) SectionAxis = SectionAxis.X; }
+    }
+
+    public bool IsAxisY
+    {
+        get => SectionAxis == SectionAxis.Y;
+        set { if (value) SectionAxis = SectionAxis.Y; }
+    }
+
+    public bool IsAxisZ
+    {
+        get => SectionAxis == SectionAxis.Z;
+        set { if (value) SectionAxis = SectionAxis.Z; }
+    }
+
     public MeshViewerViewModel(ISwDocumentService docService, IExportService exportService, IDialogService dialogService)
     {
         _docService = docService;
@@ -73,7 +109,7 @@ public partial class MeshViewerViewModel : ObservableObject
             var size = mesh.Max - mesh.Min;
             DimensionsText = $"{size.X:F1} x {size.Y:F1} x {size.Z:F1} mm";
 
-            BuildWpfMesh(mesh);
+            RebuildWpfMeshes();
         }
         else
         {
@@ -92,12 +128,91 @@ public partial class MeshViewerViewModel : ObservableObject
             (_docService.CurrentFile.ExtractParasolid(value) != null);
     }
 
-    private void BuildWpfMesh(DisplayMesh mesh)
+    partial void OnIsSectionViewEnabledChanged(bool value) => RebuildWpfMeshes();
+    partial void OnSectionAxisChanged(SectionAxis value)
+    {
+        OnPropertyChanged(nameof(IsAxisX));
+        OnPropertyChanged(nameof(IsAxisY));
+        OnPropertyChanged(nameof(IsAxisZ));
+        RebuildWpfMeshes();
+    }
+    partial void OnSectionOffsetPercentChanged(double value) => RebuildWpfMeshes();
+    partial void OnIsSectionInvertedChanged(bool value) => RebuildWpfMeshes();
+
+    [RelayCommand]
+    private void SetSectionAxis(SectionAxis axis)
+    {
+        SectionAxis = axis;
+    }
+
+    [RelayCommand]
+    private void ToggleSectionInvert()
+    {
+        IsSectionInverted = !IsSectionInverted;
+    }
+
+    [RelayCommand]
+    private void ResetSectionOffset()
+    {
+        SectionOffsetPercent = 0.0;
+    }
+
+    private void RebuildWpfMeshes()
+    {
+        if (Mesh == null || Mesh.Positions.Count == 0)
+        {
+            WpfMesh = null;
+            WpfEdgeMesh = null;
+            return;
+        }
+
+        var center = (Mesh.Min + Mesh.Max) * 0.5f;
+
+        if (!IsSectionViewEnabled)
+        {
+            BuildWpfMesh(Mesh, center);
+            BuildEdgeMesh(Mesh, center);
+            return;
+        }
+
+        // 计算剖切平面法向量与距离
+        var size = Mesh.Max - Mesh.Min;
+        float halfDim;
+        System.Numerics.Vector3 normal;
+
+        switch (SectionAxis)
+        {
+            case SectionAxis.Y:
+                halfDim = size.Y * 0.5f;
+                normal = new System.Numerics.Vector3(0, 1, 0);
+                break;
+            case SectionAxis.Z:
+                halfDim = size.Z * 0.5f;
+                normal = new System.Numerics.Vector3(0, 0, 1);
+                break;
+            case SectionAxis.X:
+            default:
+                halfDim = size.X * 0.5f;
+                normal = new System.Numerics.Vector3(1, 0, 0);
+                break;
+        }
+
+        float offset = (float)(halfDim * (SectionOffsetPercent / 100.0));
+        SectionOffsetDisplay = $"{offset:F1} mm";
+
+        if (IsSectionInverted)
+        {
+            normal = -normal;
+            offset = -offset;
+        }
+
+        BuildClippedWpfMesh(Mesh, center, normal, offset);
+        BuildClippedEdgeMesh(Mesh, center, normal, offset);
+    }
+
+    private void BuildWpfMesh(DisplayMesh mesh, System.Numerics.Vector3 center)
     {
         var geo = new MeshGeometry3D();
-
-        // SolidWorks positions are in mm; center around origin
-        var center = (mesh.Min + mesh.Max) * 0.5f;
 
         for (int i = 0; i < mesh.Positions.Count; i++)
         {
@@ -105,7 +220,6 @@ public partial class MeshViewerViewModel : ObservableObject
             geo.Positions.Add(new Point3D(p.X, p.Y, p.Z));
         }
 
-        // Only supply normals if exact count matches vertex count (WPF requirement)
         if (mesh.Normals.Count == mesh.Positions.Count)
         {
             for (int i = 0; i < mesh.Normals.Count; i++)
@@ -133,8 +247,154 @@ public partial class MeshViewerViewModel : ObservableObject
 
         geo.Freeze();
         WpfMesh = geo;
+    }
 
-        BuildEdgeMesh(mesh, center);
+    private void BuildClippedWpfMesh(DisplayMesh mesh, System.Numerics.Vector3 center, System.Numerics.Vector3 normal, float planeDist)
+    {
+        var geo = new MeshGeometry3D();
+        var posCount = mesh.Positions.Count;
+        bool hasNormals = mesh.Normals.Count == posCount;
+
+        var dists = new float[posCount];
+        var centeredPos = new System.Numerics.Vector3[posCount];
+        for (int i = 0; i < posCount; i++)
+        {
+            var p = mesh.Positions[i] - center;
+            centeredPos[i] = p;
+            dists[i] = System.Numerics.Vector3.Dot(p, normal) - planeDist;
+        }
+
+        int AddVertex(System.Numerics.Vector3 p, System.Numerics.Vector3 n)
+        {
+            int idx = geo.Positions.Count;
+            geo.Positions.Add(new Point3D(p.X, p.Y, p.Z));
+            if (hasNormals)
+            {
+                geo.Normals.Add(new Vector3D(n.X, n.Y, n.Z));
+            }
+            return idx;
+        }
+
+        for (int i = 0; i + 2 < mesh.TriangleIndices.Count; i += 3)
+        {
+            int idxA = mesh.TriangleIndices[i];
+            int idxB = mesh.TriangleIndices[i + 1];
+            int idxC = mesh.TriangleIndices[i + 2];
+
+            if (idxA < 0 || idxA >= posCount || idxB < 0 || idxB >= posCount || idxC < 0 || idxC >= posCount)
+                continue;
+
+            float dA = dists[idxA];
+            float dB = dists[idxB];
+            float dC = dists[idxC];
+
+            bool inA = dA >= 0;
+            bool inB = dB >= 0;
+            bool inC = dC >= 0;
+
+            int inCount = (inA ? 1 : 0) + (inB ? 1 : 0) + (inC ? 1 : 0);
+            if (inCount == 3)
+            {
+                var pA = centeredPos[idxA];
+                var pB = centeredPos[idxB];
+                var pC = centeredPos[idxC];
+                var nA = hasNormals ? mesh.Normals[idxA] : System.Numerics.Vector3.Zero;
+                var nB = hasNormals ? mesh.Normals[idxB] : System.Numerics.Vector3.Zero;
+                var nC = hasNormals ? mesh.Normals[idxC] : System.Numerics.Vector3.Zero;
+
+                int vA = AddVertex(pA, nA);
+                int vB = AddVertex(pB, nB);
+                int vC = AddVertex(pC, nC);
+
+                geo.TriangleIndices.Add(vA);
+                geo.TriangleIndices.Add(vB);
+                geo.TriangleIndices.Add(vC);
+            }
+            else if (inCount == 0)
+            {
+                continue;
+            }
+            else if (inCount == 1)
+            {
+                int insideIdx, out1Idx, out2Idx;
+                if (inA) { insideIdx = idxA; out1Idx = idxB; out2Idx = idxC; }
+                else if (inB) { insideIdx = idxB; out1Idx = idxC; out2Idx = idxA; }
+                else { insideIdx = idxC; out1Idx = idxA; out2Idx = idxB; }
+
+                float dIn = dists[insideIdx];
+                float dOut1 = dists[out1Idx];
+                float dOut2 = dists[out2Idx];
+
+                float t1 = dIn / (dIn - dOut1);
+                float t2 = dIn / (dIn - dOut2);
+
+                var pIn = centeredPos[insideIdx];
+                var pOut1 = centeredPos[out1Idx];
+                var pOut2 = centeredPos[out2Idx];
+
+                var pInt1 = pIn + (pOut1 - pIn) * t1;
+                var pInt2 = pIn + (pOut2 - pIn) * t2;
+
+                var nIn = hasNormals ? mesh.Normals[insideIdx] : System.Numerics.Vector3.Zero;
+                var nOut1 = hasNormals ? mesh.Normals[out1Idx] : System.Numerics.Vector3.Zero;
+                var nOut2 = hasNormals ? mesh.Normals[out2Idx] : System.Numerics.Vector3.Zero;
+
+                var nInt1 = hasNormals ? System.Numerics.Vector3.Normalize(nIn + (nOut1 - nIn) * t1) : System.Numerics.Vector3.Zero;
+                var nInt2 = hasNormals ? System.Numerics.Vector3.Normalize(nIn + (nOut2 - nIn) * t2) : System.Numerics.Vector3.Zero;
+
+                int v0 = AddVertex(pIn, nIn);
+                int v1 = AddVertex(pInt1, nInt1);
+                int v2 = AddVertex(pInt2, nInt2);
+
+                geo.TriangleIndices.Add(v0);
+                geo.TriangleIndices.Add(v1);
+                geo.TriangleIndices.Add(v2);
+            }
+            else if (inCount == 2)
+            {
+                int in1Idx, in2Idx, outIdx;
+                if (!inA) { outIdx = idxA; in1Idx = idxB; in2Idx = idxC; }
+                else if (!inB) { outIdx = idxB; in1Idx = idxC; in2Idx = idxA; }
+                else { outIdx = idxC; in1Idx = idxA; in2Idx = idxB; }
+
+                float dIn1 = dists[in1Idx];
+                float dIn2 = dists[in2Idx];
+                float dOut = dists[outIdx];
+
+                float t1 = dIn1 / (dIn1 - dOut);
+                float t2 = dIn2 / (dIn2 - dOut);
+
+                var pIn1 = centeredPos[in1Idx];
+                var pIn2 = centeredPos[in2Idx];
+                var pOut = centeredPos[outIdx];
+
+                var pInt1 = pIn1 + (pOut - pIn1) * t1;
+                var pInt2 = pIn2 + (pOut - pIn2) * t2;
+
+                var nIn1 = hasNormals ? mesh.Normals[in1Idx] : System.Numerics.Vector3.Zero;
+                var nIn2 = hasNormals ? mesh.Normals[in2Idx] : System.Numerics.Vector3.Zero;
+                var nOut = hasNormals ? mesh.Normals[outIdx] : System.Numerics.Vector3.Zero;
+
+                var nInt1 = hasNormals ? System.Numerics.Vector3.Normalize(nIn1 + (nOut - nIn1) * t1) : System.Numerics.Vector3.Zero;
+                var nInt2 = hasNormals ? System.Numerics.Vector3.Normalize(nIn2 + (nOut - nIn2) * t2) : System.Numerics.Vector3.Zero;
+
+                int vIn1 = AddVertex(pIn1, nIn1);
+                int vIn2 = AddVertex(pIn2, nIn2);
+                int vInt1 = AddVertex(pInt1, nInt1);
+                int vInt2 = AddVertex(pInt2, nInt2);
+
+                geo.TriangleIndices.Add(vIn1);
+                geo.TriangleIndices.Add(vIn2);
+                geo.TriangleIndices.Add(vInt1);
+
+                geo.TriangleIndices.Add(vIn2);
+                geo.TriangleIndices.Add(vInt2);
+                geo.TriangleIndices.Add(vInt1);
+            }
+        }
+
+        geo.Freeze();
+        WpfMesh = geo;
     }
 
     private void BuildEdgeMesh(DisplayMesh mesh, System.Numerics.Vector3 center)
@@ -161,61 +421,112 @@ public partial class MeshViewerViewModel : ObservableObject
             var p0 = mesh.Positions[start] - center;
             var p1 = mesh.Positions[end] - center;
 
-            var dir = p1 - p0;
-            float len = dir.Length();
-            if (len < 1e-4f) continue;
-
-            // Compute perpendicular vectors
-            var v = Math.Abs(dir.X) > 0.9f * len ? new System.Numerics.Vector3(0, 1, 0) : new System.Numerics.Vector3(1, 0, 0);
-            var u = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(dir, v)) * thickness;
-            var w = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(dir, u)) * thickness;
-
-            // 8 vertices for 2 crossed quads
-            edgeGeo.Positions.Add(new Point3D(p0.X - u.X, p0.Y - u.Y, p0.Z - u.Z));
-            edgeGeo.Positions.Add(new Point3D(p0.X + u.X, p0.Y + u.Y, p0.Z + u.Z));
-            edgeGeo.Positions.Add(new Point3D(p1.X + u.X, p1.Y + u.Y, p1.Z + u.Z));
-            edgeGeo.Positions.Add(new Point3D(p1.X - u.X, p1.Y - u.Y, p1.Z - u.Z));
-
-            edgeGeo.Positions.Add(new Point3D(p0.X - w.X, p0.Y - w.Y, p0.Z - w.Z));
-            edgeGeo.Positions.Add(new Point3D(p0.X + w.X, p0.Y + w.Y, p0.Z + w.Z));
-            edgeGeo.Positions.Add(new Point3D(p1.X + w.X, p1.Y + w.Y, p1.Z + w.Z));
-            edgeGeo.Positions.Add(new Point3D(p1.X - w.X, p1.Y - w.Y, p1.Z - w.Z));
-
-            // Quad 1 (front + back)
-            edgeGeo.TriangleIndices.Add(vertexBase);
-            edgeGeo.TriangleIndices.Add(vertexBase + 1);
-            edgeGeo.TriangleIndices.Add(vertexBase + 2);
-            edgeGeo.TriangleIndices.Add(vertexBase);
-            edgeGeo.TriangleIndices.Add(vertexBase + 2);
-            edgeGeo.TriangleIndices.Add(vertexBase + 3);
-
-            edgeGeo.TriangleIndices.Add(vertexBase);
-            edgeGeo.TriangleIndices.Add(vertexBase + 2);
-            edgeGeo.TriangleIndices.Add(vertexBase + 1);
-            edgeGeo.TriangleIndices.Add(vertexBase);
-            edgeGeo.TriangleIndices.Add(vertexBase + 3);
-            edgeGeo.TriangleIndices.Add(vertexBase + 2);
-
-            // Quad 2 (front + back)
-            edgeGeo.TriangleIndices.Add(vertexBase + 4);
-            edgeGeo.TriangleIndices.Add(vertexBase + 5);
-            edgeGeo.TriangleIndices.Add(vertexBase + 6);
-            edgeGeo.TriangleIndices.Add(vertexBase + 4);
-            edgeGeo.TriangleIndices.Add(vertexBase + 6);
-            edgeGeo.TriangleIndices.Add(vertexBase + 7);
-
-            edgeGeo.TriangleIndices.Add(vertexBase + 4);
-            edgeGeo.TriangleIndices.Add(vertexBase + 6);
-            edgeGeo.TriangleIndices.Add(vertexBase + 5);
-            edgeGeo.TriangleIndices.Add(vertexBase + 4);
-            edgeGeo.TriangleIndices.Add(vertexBase + 7);
-            edgeGeo.TriangleIndices.Add(vertexBase + 6);
-
-            vertexBase += 8;
+            AppendThickEdge(edgeGeo, p0, p1, thickness, ref vertexBase);
         }
 
         edgeGeo.Freeze();
         WpfEdgeMesh = edgeGeo;
+    }
+
+    private void BuildClippedEdgeMesh(DisplayMesh mesh, System.Numerics.Vector3 center, System.Numerics.Vector3 normal, float planeDist)
+    {
+        if (mesh.OutlineEdges == null || mesh.OutlineEdges.Count == 0 || mesh.Positions.Count == 0)
+        {
+            WpfEdgeMesh = null;
+            return;
+        }
+
+        var edgeGeo = new MeshGeometry3D();
+        var size = mesh.Max - mesh.Min;
+        double maxDim = Math.Max(size.X, Math.Max(size.Y, size.Z));
+        float thickness = (float)Math.Clamp(maxDim * 0.0012, 0.05, 5.0);
+
+        int posCount = mesh.Positions.Count;
+        int vertexBase = 0;
+
+        foreach (var (start, end) in mesh.OutlineEdges)
+        {
+            if (start < 0 || start >= posCount || end < 0 || end >= posCount || start == end)
+                continue;
+
+            var p0 = mesh.Positions[start] - center;
+            var p1 = mesh.Positions[end] - center;
+
+            float d0 = System.Numerics.Vector3.Dot(p0, normal) - planeDist;
+            float d1 = System.Numerics.Vector3.Dot(p1, normal) - planeDist;
+
+            if (d0 < 0 && d1 < 0) continue; // 全部剔除
+
+            if (d0 >= 0 && d1 >= 0)
+            {
+                // 全部保留
+                AppendThickEdge(edgeGeo, p0, p1, thickness, ref vertexBase);
+            }
+            else
+            {
+                // 截交线
+                float t = d0 / (d0 - d1);
+                var pInt = p0 + (p1 - p0) * t;
+                if (d0 >= 0)
+                    AppendThickEdge(edgeGeo, p0, pInt, thickness, ref vertexBase);
+                else
+                    AppendThickEdge(edgeGeo, pInt, p1, thickness, ref vertexBase);
+            }
+        }
+
+        edgeGeo.Freeze();
+        WpfEdgeMesh = edgeGeo;
+    }
+
+    private static void AppendThickEdge(MeshGeometry3D edgeGeo, System.Numerics.Vector3 p0, System.Numerics.Vector3 p1, float thickness, ref int vertexBase)
+    {
+        var dir = p1 - p0;
+        float len = dir.Length();
+        if (len < 1e-4f) return;
+
+        var v = Math.Abs(dir.X) > 0.9f * len ? new System.Numerics.Vector3(0, 1, 0) : new System.Numerics.Vector3(1, 0, 0);
+        var u = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(dir, v)) * thickness;
+        var w = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(dir, u)) * thickness;
+
+        edgeGeo.Positions.Add(new Point3D(p0.X - u.X, p0.Y - u.Y, p0.Z - u.Z));
+        edgeGeo.Positions.Add(new Point3D(p0.X + u.X, p0.Y + u.Y, p0.Z + u.Z));
+        edgeGeo.Positions.Add(new Point3D(p1.X + u.X, p1.Y + u.Y, p1.Z + u.Z));
+        edgeGeo.Positions.Add(new Point3D(p1.X - u.X, p1.Y - u.Y, p1.Z - u.Z));
+
+        edgeGeo.Positions.Add(new Point3D(p0.X - w.X, p0.Y - w.Y, p0.Z - w.Z));
+        edgeGeo.Positions.Add(new Point3D(p0.X + w.X, p0.Y + w.Y, p0.Z + w.Z));
+        edgeGeo.Positions.Add(new Point3D(p1.X + w.X, p1.Y + w.Y, p1.Z + w.Z));
+        edgeGeo.Positions.Add(new Point3D(p1.X - w.X, p1.Y - w.Y, p1.Z - w.Z));
+
+        edgeGeo.TriangleIndices.Add(vertexBase);
+        edgeGeo.TriangleIndices.Add(vertexBase + 1);
+        edgeGeo.TriangleIndices.Add(vertexBase + 2);
+        edgeGeo.TriangleIndices.Add(vertexBase);
+        edgeGeo.TriangleIndices.Add(vertexBase + 2);
+        edgeGeo.TriangleIndices.Add(vertexBase + 3);
+
+        edgeGeo.TriangleIndices.Add(vertexBase);
+        edgeGeo.TriangleIndices.Add(vertexBase + 2);
+        edgeGeo.TriangleIndices.Add(vertexBase + 1);
+        edgeGeo.TriangleIndices.Add(vertexBase);
+        edgeGeo.TriangleIndices.Add(vertexBase + 3);
+        edgeGeo.TriangleIndices.Add(vertexBase + 2);
+
+        edgeGeo.TriangleIndices.Add(vertexBase + 4);
+        edgeGeo.TriangleIndices.Add(vertexBase + 5);
+        edgeGeo.TriangleIndices.Add(vertexBase + 6);
+        edgeGeo.TriangleIndices.Add(vertexBase + 4);
+        edgeGeo.TriangleIndices.Add(vertexBase + 6);
+        edgeGeo.TriangleIndices.Add(vertexBase + 7);
+
+        edgeGeo.TriangleIndices.Add(vertexBase + 4);
+        edgeGeo.TriangleIndices.Add(vertexBase + 6);
+        edgeGeo.TriangleIndices.Add(vertexBase + 5);
+        edgeGeo.TriangleIndices.Add(vertexBase + 4);
+        edgeGeo.TriangleIndices.Add(vertexBase + 7);
+        edgeGeo.TriangleIndices.Add(vertexBase + 6);
+
+        vertexBase += 8;
     }
 
     private string GetDefaultFileName(string extension)

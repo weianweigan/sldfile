@@ -617,7 +617,7 @@ public class ViewerIntegrationTests
     }
 
     [Fact]
-    public async Task LoadAssembly_PopulatesConfigurationsAndTreeNodes()
+    public async Task LoadAssembly_PopulatesConfigurations()
     {
         var docService = new SwDocumentService();
         var dialogService = new MockDialogService();
@@ -641,11 +641,9 @@ public class ViewerIntegrationTests
         Assert.NotEmpty(mainVm.Configurations);
         Assert.NotNull(mainVm.SelectedConfiguration);
 
+        // 验证左侧树为纯粹的模型/装配体特征树，不重复放置配置管理器节点
         var root = treeVm.RootNodes[0];
-        var configFolder = root.Children.FirstOrDefault(c => c.Kind == TreeNodeKind.ConfigurationFolder);
-        Assert.NotNull(configFolder);
-        Assert.NotEmpty(configFolder!.Children);
-        Assert.All(configFolder.Children, c => Assert.Equal(TreeNodeKind.Configuration, c.Kind));
+        Assert.DoesNotContain(root.Children, c => c.Kind == TreeNodeKind.ConfigurationFolder);
 
         mainVm.CloseFileCommand.Execute(null);
         Assert.False(mainVm.HasConfigurations);
@@ -684,36 +682,54 @@ public class ViewerIntegrationTests
     }
 
     [Fact]
-    public async Task ClickingConfigurationNodeOnTree_UpdatesSelectedConfiguration()
+    public async Task MeshViewer_SectionView_ClipsMeshCorrectly()
     {
         var docService = new SwDocumentService();
         var dialogService = new MockDialogService();
         var exportService = new ExportService();
 
-        var treeVm = new DocumentTreeViewModel(docService);
-        var sketchVm = new SketchCanvasViewModel();
-        var propsVm = new CustomPropsViewModel(docService, dialogService);
-        var eqVm = new EquationsViewModel(docService);
-        var bomVm = new BomViewModel(docService, exportService, dialogService);
         var meshVm = new MeshViewerViewModel(docService, exportService, dialogService);
-        var imgVm = new ImagePreviewViewModel(docService);
-        var featVm = new FeatureDetailViewModel();
 
-        var mainVm = new MainViewModel(docService, dialogService, treeVm, sketchVm, propsVm, eqVm, bomVm, meshVm, imgVm, featVm);
+        using var sw = SldFile.SwFile.Open(_cubePart, readOnly: true);
+        await docService.OpenAsync(_cubePart);
 
-        await mainVm.LoadDocumentAsync(_assembly);
+        meshVm.LoadMesh(0);
+        Assert.True(meshVm.HasMesh);
+        Assert.NotNull(meshVm.WpfMesh);
+        int originalTriangles = meshVm.WpfMesh!.TriangleIndices.Count / 3;
 
-        var root = treeVm.RootNodes[0];
-        var configFolder = root.Children.First(c => c.Kind == TreeNodeKind.ConfigurationFolder);
-        var configNode = configFolder.Children.First();
+        // 1. 开启剖视图
+        meshVm.IsSectionViewEnabled = true;
+        Assert.NotNull(meshVm.WpfMesh);
 
-        treeVm.SelectedNode = configNode;
+        // 2. 切 X 轴（中间位置）
+        meshVm.SectionAxis = SectionAxis.X;
+        meshVm.SectionOffsetPercent = 0.0;
+        Assert.True(meshVm.IsAxisX);
+        Assert.NotNull(meshVm.WpfMesh);
+        int clippedTrianglesX = meshVm.WpfMesh!.TriangleIndices.Count / 3;
+        Assert.True(clippedTrianglesX > 0);
 
-        Assert.NotNull(mainVm.SelectedConfiguration);
-        Assert.Equal(configNode.Title, mainVm.SelectedConfiguration!.Name);
-        Assert.Same(propsVm, mainVm.CurrentView);
+        // 3. 切 Y 轴并反向
+        meshVm.SectionAxis = SectionAxis.Y;
+        Assert.True(meshVm.IsAxisY);
+        meshVm.ToggleSectionInvertCommand.Execute(null);
+        Assert.True(meshVm.IsSectionInverted);
+        Assert.NotNull(meshVm.WpfMesh);
 
-        mainVm.CloseFileCommand.Execute(null);
+        // 4. 切 Z 轴并复位
+        meshVm.SectionAxis = SectionAxis.Z;
+        Assert.True(meshVm.IsAxisZ);
+        meshVm.SectionOffsetPercent = 50.0;
+        meshVm.ResetSectionOffsetCommand.Execute(null);
+        Assert.Equal(0.0, meshVm.SectionOffsetPercent);
+
+        // 5. 关闭剖视图，网格恢复
+        meshVm.IsSectionViewEnabled = false;
+        Assert.NotNull(meshVm.WpfMesh);
+        Assert.Equal(originalTriangles, meshVm.WpfMesh!.TriangleIndices.Count / 3);
+
+        docService.Close();
     }
 
     [Fact]

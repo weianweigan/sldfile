@@ -15,7 +15,6 @@ public partial class DocumentTreeViewModel : ObservableObject
 {
     private readonly ISwDocumentService _docService;
     private TreeNodeModel? _componentsFolder;
-    private TreeNodeModel? _configurationsFolder;
     private TreeNodeModel? _featTreeFolder;
     private SwFile? _currentSwFile;
 
@@ -44,7 +43,6 @@ public partial class DocumentTreeViewModel : ObservableObject
     {
         _currentSwFile = swFile;
         _componentsFolder = null;
-        _configurationsFolder = null;
         _featTreeFolder = null;
         RootNodes.Clear();
 
@@ -61,20 +59,6 @@ public partial class DocumentTreeViewModel : ObservableObject
         rootNode.Children.Add(propsNode);
         rootNode.Children.Add(eqNode);
         rootNode.Children.Add(geoNode);
-
-        // Configuration Manager Branch
-        if (swFile.Configurations.Count > 0)
-        {
-            _configurationsFolder = CreateNode("配置管理器 (Configurations)", TreeNodeKind.ConfigurationFolder, null, $"{swFile.Configurations.Count} 个配置");
-            _configurationsFolder.IsExpanded = true;
-            foreach (var config in swFile.Configurations)
-            {
-                var item = new ConfigurationItem(config);
-                var cfgNode = CreateNode(item.Name, TreeNodeKind.Configuration, item, $"索引: {item.Index}");
-                _configurationsFolder.Children.Add(cfgNode);
-            }
-            rootNode.Children.Add(_configurationsFolder);
-        }
 
         // BOM node for Assembly
         if (swFile.Kind == DocumentKind.Assembly)
@@ -323,3 +307,5 @@ public partial class DocumentTreeViewModel : ObservableObject
         }
     }
 }
+
+
