@@ -95,15 +95,20 @@ public partial class MeshViewerViewModel : ObservableObject
         set { if (value) SectionAxis = SectionAxis.Z; }
     }
 
-    public System.Numerics.Vector3 GetCurrentSectionNormal()
+    public System.Numerics.Vector3 GetCurrentSectionAxisDir()
     {
-        System.Numerics.Vector3 normal = SectionAxis switch
+        return SectionAxis switch
         {
             SectionAxis.Y => new System.Numerics.Vector3(0, 1, 0),
             SectionAxis.Z => new System.Numerics.Vector3(0, 0, 1),
             _ => new System.Numerics.Vector3(1, 0, 0)
         };
-        return IsSectionInverted ? -normal : normal;
+    }
+
+    public System.Numerics.Vector3 GetCurrentSectionArrowDir()
+    {
+        var axis = GetCurrentSectionAxisDir();
+        return IsSectionInverted ? -axis : axis;
     }
 
     public double GetCurrentAxisHalfDim()
@@ -214,40 +219,23 @@ public partial class MeshViewerViewModel : ObservableObject
             return;
         }
 
-        // 计算剖切平面法向量与距离
+        // 计算剖切平面轴向与距离
         var size = Mesh.Max - Mesh.Min;
-        float halfDim;
-        System.Numerics.Vector3 normal;
-
-        switch (SectionAxis)
-        {
-            case SectionAxis.Y:
-                halfDim = size.Y * 0.5f;
-                normal = new System.Numerics.Vector3(0, 1, 0);
-                break;
-            case SectionAxis.Z:
-                halfDim = size.Z * 0.5f;
-                normal = new System.Numerics.Vector3(0, 0, 1);
-                break;
-            case SectionAxis.X:
-            default:
-                halfDim = size.X * 0.5f;
-                normal = new System.Numerics.Vector3(1, 0, 0);
-                break;
-        }
+        var axisDir = GetCurrentSectionAxisDir();
+        double halfDim = GetCurrentAxisHalfDim();
 
         float offset = (float)(halfDim * (SectionOffsetPercent / 100.0));
         SectionOffsetDisplay = $"{offset:F1} mm";
 
-        if (IsSectionInverted)
-        {
-            normal = -normal;
-            offset = -offset;
-        }
+        // 裁剪面法向量与距离
+        // 默认保留 P · axisDir <= offset 侧 (即切除 +axisDir 侧，箭头指向剖切推进侧)
+        // 反向保留 P · axisDir >= offset 侧 (即切除 -axisDir 侧)
+        System.Numerics.Vector3 clipNormal = IsSectionInverted ? axisDir : -axisDir;
+        float clipDist = IsSectionInverted ? offset : -offset;
 
-        BuildClippedWpfMesh(Mesh, center, normal, offset);
-        BuildClippedEdgeMesh(Mesh, center, normal, offset);
-        BuildSectionPlaneMeshes(size, normal, offset);
+        BuildClippedWpfMesh(Mesh, center, clipNormal, clipDist);
+        BuildClippedEdgeMesh(Mesh, center, clipNormal, clipDist);
+        BuildSectionPlaneMeshes(size, axisDir, offset);
     }
 
     private void BuildWpfMesh(DisplayMesh mesh, System.Numerics.Vector3 center)
@@ -463,7 +451,7 @@ public partial class MeshViewerViewModel : ObservableObject
         }
     }
 
-    private void BuildSectionPlaneMeshes(System.Numerics.Vector3 size, System.Numerics.Vector3 normal, float planeDist)
+    private void BuildSectionPlaneMeshes(System.Numerics.Vector3 size, System.Numerics.Vector3 axisDir, float offset)
     {
         float maxDim = Math.Max(size.X, Math.Max(size.Y, size.Z));
         if (maxDim <= 0.001f) maxDim = 100.0f;
@@ -496,7 +484,8 @@ public partial class MeshViewerViewModel : ObservableObject
                 break;
         }
 
-        var planeCenter = normal * planeDist;
+        // 剖切平面在 3D 空间的客观中心位置
+        var planeCenter = axisDir * offset;
         var halfU = uDir * (w * 0.5f);
         var halfV = vDir * (h * 0.5f);
 
@@ -505,33 +494,25 @@ public partial class MeshViewerViewModel : ObservableObject
         var c2 = planeCenter + halfU + halfV;
         var c3 = planeCenter - halfU + halfV;
 
-        // 1. 半透明剖切平面网格
+        // 1. 半透明剖切平面网格 (单面2个三角形，由 WPF BackMaterial 实现无重叠双面半透明渲染)
         var planeGeo = new MeshGeometry3D();
         planeGeo.Positions.Add(new Point3D(c0.X, c0.Y, c0.Z));
         planeGeo.Positions.Add(new Point3D(c1.X, c1.Y, c1.Z));
         planeGeo.Positions.Add(new Point3D(c2.X, c2.Y, c2.Z));
         planeGeo.Positions.Add(new Point3D(c3.X, c3.Y, c3.Z));
 
-        var n3D = new Vector3D(normal.X, normal.Y, normal.Z);
+        var n3D = new Vector3D(axisDir.X, axisDir.Y, axisDir.Z);
         planeGeo.Normals.Add(n3D);
         planeGeo.Normals.Add(n3D);
         planeGeo.Normals.Add(n3D);
         planeGeo.Normals.Add(n3D);
 
-        // 双面三角形
         planeGeo.TriangleIndices.Add(0);
         planeGeo.TriangleIndices.Add(1);
         planeGeo.TriangleIndices.Add(2);
         planeGeo.TriangleIndices.Add(0);
         planeGeo.TriangleIndices.Add(2);
         planeGeo.TriangleIndices.Add(3);
-
-        planeGeo.TriangleIndices.Add(0);
-        planeGeo.TriangleIndices.Add(2);
-        planeGeo.TriangleIndices.Add(1);
-        planeGeo.TriangleIndices.Add(0);
-        planeGeo.TriangleIndices.Add(3);
-        planeGeo.TriangleIndices.Add(2);
 
         planeGeo.Freeze();
         WpfSectionPlaneMesh = planeGeo;
@@ -547,9 +528,12 @@ public partial class MeshViewerViewModel : ObservableObject
         borderGeo.Freeze();
         WpfSectionPlaneBorderMesh = borderGeo;
 
-        // 3. 中心操纵手柄网格 (带方向指示箭头)
+        // 3. 中心操纵手柄网格 (箭头方向指示剖切操作方向，反向时自动掉头)
         var manipGeo = new MeshGeometry3D();
         int manipVBase = 0;
+
+        var arrowDir = IsSectionInverted ? -axisDir : axisDir;
+        var arrow3D = new Vector3D(arrowDir.X, arrowDir.Y, arrowDir.Z);
 
         float handleRadius = Math.Max(maxDim * 0.045f, 1.8f);
         float stemLength = Math.Max(maxDim * 0.12f, 4.0f);
@@ -560,14 +544,14 @@ public partial class MeshViewerViewModel : ObservableObject
         int segments = 12;
         int centerIdx = manipGeo.Positions.Count;
         manipGeo.Positions.Add(new Point3D(planeCenter.X, planeCenter.Y, planeCenter.Z));
-        manipGeo.Normals.Add(n3D);
+        manipGeo.Normals.Add(arrow3D);
 
         for (int i = 0; i < segments; i++)
         {
             double angle = 2.0 * Math.PI * i / segments;
             var discP = planeCenter + (uDir * (float)Math.Cos(angle) + vDir * (float)Math.Sin(angle)) * handleRadius;
             manipGeo.Positions.Add(new Point3D(discP.X, discP.Y, discP.Z));
-            manipGeo.Normals.Add(n3D);
+            manipGeo.Normals.Add(arrow3D);
         }
 
         for (int i = 0; i < segments; i++)
@@ -585,18 +569,18 @@ public partial class MeshViewerViewModel : ObservableObject
         manipVBase = manipGeo.Positions.Count;
 
         // 箭头主轴杆
-        var shaftEnd = planeCenter + normal * stemLength;
+        var shaftEnd = planeCenter + arrowDir * stemLength;
         AppendThickEdge(manipGeo, planeCenter, shaftEnd, borderThickness * 1.5f, ref manipVBase);
 
         // 箭头圆锥体
-        var arrowTip = shaftEnd + normal * arrowLength;
+        var arrowTip = shaftEnd + arrowDir * arrowLength;
         int tipIdx = manipGeo.Positions.Count;
         manipGeo.Positions.Add(new Point3D(arrowTip.X, arrowTip.Y, arrowTip.Z));
-        manipGeo.Normals.Add(n3D);
+        manipGeo.Normals.Add(arrow3D);
 
         int baseCenterIdx = manipGeo.Positions.Count;
         manipGeo.Positions.Add(new Point3D(shaftEnd.X, shaftEnd.Y, shaftEnd.Z));
-        manipGeo.Normals.Add(-n3D);
+        manipGeo.Normals.Add(-arrow3D);
 
         int coneBaseStart = manipGeo.Positions.Count;
         for (int i = 0; i < segments; i++)
@@ -604,7 +588,7 @@ public partial class MeshViewerViewModel : ObservableObject
             double angle = 2.0 * Math.PI * i / segments;
             var coneP = shaftEnd + (uDir * (float)Math.Cos(angle) + vDir * (float)Math.Sin(angle)) * arrowRadius;
             manipGeo.Positions.Add(new Point3D(coneP.X, coneP.Y, coneP.Z));
-            manipGeo.Normals.Add(n3D);
+            manipGeo.Normals.Add(arrow3D);
         }
 
         for (int i = 0; i < segments; i++)

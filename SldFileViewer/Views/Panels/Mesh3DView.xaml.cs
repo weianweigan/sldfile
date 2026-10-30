@@ -151,21 +151,24 @@ public partial class Mesh3DView : UserControl
             return;
         }
 
-        // 1. 半透明剖切基准面 (SolidWorks 经典冰蓝半透明面)
+        // 1. 半透明剖切基准面 (SolidWorks 经典冰蓝半透明面，显式 Brush.Opacity 确保 Alpha 混合)
         if (VM.WpfSectionPlaneMesh != null)
         {
-            var planeMat = new MaterialGroup();
-            var planeBrush = new SolidColorBrush(Color.FromArgb(70, 0, 150, 255));
-            planeMat.Children.Add(new DiffuseMaterial(planeBrush));
-            planeMat.Children.Add(new SpecularMaterial(Brushes.LightSkyBlue, 30.0));
+            var planeBrush = new SolidColorBrush(Color.FromRgb(30, 150, 255))
+            {
+                Opacity = 0.28
+            };
+            planeBrush.Freeze();
 
-            var backMat = new DiffuseMaterial(planeBrush);
+            var planeMat = new MaterialGroup();
+            planeMat.Children.Add(new DiffuseMaterial(planeBrush));
+            planeMat.Children.Add(new EmissiveMaterial(planeBrush));
 
             SectionPlaneVisual.Content = new GeometryModel3D
             {
                 Geometry = VM.WpfSectionPlaneMesh,
                 Material = planeMat,
-                BackMaterial = backMat
+                BackMaterial = planeMat
             };
         }
         else
@@ -379,12 +382,12 @@ public partial class Mesh3DView : UserControl
             // 鼠标在相机正交投影平面上的 3D 位移
             Vector3D mouseWorldDelta = right * (totalDelta.X * worldPerPixel) - up * (totalDelta.Y * worldPerPixel);
 
-            // 获取当前剖切轴向法向量
-            var normal = VM.GetCurrentSectionNormal();
-            Vector3D normalVec = new Vector3D(normal.X, normal.Y, normal.Z);
+            // 获取当前剖切轴向物理向量 (客观基准轴)
+            var axisDir = VM.GetCurrentSectionAxisDir();
+            Vector3D axisVec = new Vector3D(axisDir.X, axisDir.Y, axisDir.Z);
 
-            // 沿剖切法向的投影距离 (mm)
-            double deltaDistance = Vector3D.DotProduct(mouseWorldDelta, normalVec);
+            // 沿基准轴向的物理位移 (mm)
+            double deltaDistance = Vector3D.DotProduct(mouseWorldDelta, axisVec);
 
             double halfDim = VM.GetCurrentAxisHalfDim();
             if (halfDim > 1e-4)
