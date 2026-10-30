@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 
@@ -32,7 +32,9 @@ public enum TreeNodeKind
     FeatureGeneric,
     AssemblyComponent,
     AssemblyMate,
-    DrawingSheet
+    DrawingSheet,
+    ConfigurationFolder,
+    Configuration
 }
 
 public partial class TreeNodeModel : ObservableObject

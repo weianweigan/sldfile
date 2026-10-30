@@ -615,4 +615,140 @@ public class ViewerIntegrationTests
 
         if (threadEx != null) throw new Exception("Thread failed: " + threadEx.Message + " at " + threadEx.StackTrace, threadEx);
     }
+
+    [Fact]
+    public async Task LoadAssembly_PopulatesConfigurationsAndTreeNodes()
+    {
+        var docService = new SwDocumentService();
+        var dialogService = new MockDialogService();
+        var exportService = new ExportService();
+
+        var treeVm = new DocumentTreeViewModel(docService);
+        var sketchVm = new SketchCanvasViewModel();
+        var propsVm = new CustomPropsViewModel(docService, dialogService);
+        var eqVm = new EquationsViewModel(docService);
+        var bomVm = new BomViewModel(docService, exportService, dialogService);
+        var meshVm = new MeshViewerViewModel(docService, exportService, dialogService);
+        var imgVm = new ImagePreviewViewModel(docService);
+        var featVm = new FeatureDetailViewModel();
+
+        var mainVm = new MainViewModel(docService, dialogService, treeVm, sketchVm, propsVm, eqVm, bomVm, meshVm, imgVm, featVm);
+
+        await mainVm.LoadDocumentAsync(_assembly);
+
+        Assert.True(mainVm.IsFileLoaded);
+        Assert.True(mainVm.HasConfigurations);
+        Assert.NotEmpty(mainVm.Configurations);
+        Assert.NotNull(mainVm.SelectedConfiguration);
+
+        var root = treeVm.RootNodes[0];
+        var configFolder = root.Children.FirstOrDefault(c => c.Kind == TreeNodeKind.ConfigurationFolder);
+        Assert.NotNull(configFolder);
+        Assert.NotEmpty(configFolder!.Children);
+        Assert.All(configFolder.Children, c => Assert.Equal(TreeNodeKind.Configuration, c.Kind));
+
+        mainVm.CloseFileCommand.Execute(null);
+        Assert.False(mainVm.HasConfigurations);
+        Assert.Empty(mainVm.Configurations);
+        Assert.Null(mainVm.SelectedConfiguration);
+    }
+
+    [Fact]
+    public async Task SwitchConfiguration_TriggersBomAndCustomPropertiesLinkage()
+    {
+        var docService = new SwDocumentService();
+        var dialogService = new MockDialogService();
+        var exportService = new ExportService();
+
+        var treeVm = new DocumentTreeViewModel(docService);
+        var sketchVm = new SketchCanvasViewModel();
+        var propsVm = new CustomPropsViewModel(docService, dialogService);
+        var eqVm = new EquationsViewModel(docService);
+        var bomVm = new BomViewModel(docService, exportService, dialogService);
+        var meshVm = new MeshViewerViewModel(docService, exportService, dialogService);
+        var imgVm = new ImagePreviewViewModel(docService);
+        var featVm = new FeatureDetailViewModel();
+
+        var mainVm = new MainViewModel(docService, dialogService, treeVm, sketchVm, propsVm, eqVm, bomVm, meshVm, imgVm, featVm);
+
+        await mainVm.LoadDocumentAsync(_assembly);
+
+        var targetConfig = mainVm.Configurations[0];
+        mainVm.SelectedConfiguration = targetConfig;
+
+        Assert.Equal(targetConfig.Name, propsVm.SelectedConfiguration);
+        Assert.Equal(targetConfig.Name, bomVm.CurrentConfiguration);
+        Assert.Equal(targetConfig.Index, meshVm.CurrentConfigIndex);
+
+        mainVm.CloseFileCommand.Execute(null);
+    }
+
+    [Fact]
+    public async Task ClickingConfigurationNodeOnTree_UpdatesSelectedConfiguration()
+    {
+        var docService = new SwDocumentService();
+        var dialogService = new MockDialogService();
+        var exportService = new ExportService();
+
+        var treeVm = new DocumentTreeViewModel(docService);
+        var sketchVm = new SketchCanvasViewModel();
+        var propsVm = new CustomPropsViewModel(docService, dialogService);
+        var eqVm = new EquationsViewModel(docService);
+        var bomVm = new BomViewModel(docService, exportService, dialogService);
+        var meshVm = new MeshViewerViewModel(docService, exportService, dialogService);
+        var imgVm = new ImagePreviewViewModel(docService);
+        var featVm = new FeatureDetailViewModel();
+
+        var mainVm = new MainViewModel(docService, dialogService, treeVm, sketchVm, propsVm, eqVm, bomVm, meshVm, imgVm, featVm);
+
+        await mainVm.LoadDocumentAsync(_assembly);
+
+        var root = treeVm.RootNodes[0];
+        var configFolder = root.Children.First(c => c.Kind == TreeNodeKind.ConfigurationFolder);
+        var configNode = configFolder.Children.First();
+
+        treeVm.SelectedNode = configNode;
+
+        Assert.NotNull(mainVm.SelectedConfiguration);
+        Assert.Equal(configNode.Title, mainVm.SelectedConfiguration!.Name);
+        Assert.Same(propsVm, mainVm.CurrentView);
+
+        mainVm.CloseFileCommand.Execute(null);
+    }
+
+    [Fact]
+    public async Task MeshViewer_ConfigurationExportParasolid()
+    {
+        var docService = new SwDocumentService();
+        var dialogService = new MockDialogService();
+        var exportService = new ExportService();
+
+        var treeVm = new DocumentTreeViewModel(docService);
+        var sketchVm = new SketchCanvasViewModel();
+        var propsVm = new CustomPropsViewModel(docService, dialogService);
+        var eqVm = new EquationsViewModel(docService);
+        var bomVm = new BomViewModel(docService, exportService, dialogService);
+        var meshVm = new MeshViewerViewModel(docService, exportService, dialogService);
+        var imgVm = new ImagePreviewViewModel(docService);
+        var featVm = new FeatureDetailViewModel();
+
+        var mainVm = new MainViewModel(docService, dialogService, treeVm, sketchVm, propsVm, eqVm, bomVm, meshVm, imgVm, featVm);
+
+        await mainVm.LoadDocumentAsync(_cubePart);
+
+        Assert.True(meshVm.HasParasolid);
+        string tempXb = Path.Combine(Path.GetTempPath(), "test_parasolid_" + Guid.NewGuid().ToString("N") + ".x_b");
+        try
+        {
+            exportService.ExportParasolid(docService.CurrentFile!, tempXb, meshVm.CurrentConfigIndex);
+            Assert.True(File.Exists(tempXb));
+            Assert.True(new FileInfo(tempXb).Length > 0);
+        }
+        finally
+        {
+            if (File.Exists(tempXb)) File.Delete(tempXb);
+        }
+
+        mainVm.CloseFileCommand.Execute(null);
+    }
 }

@@ -33,6 +33,9 @@ public partial class MeshViewerViewModel : ObservableObject
     private bool _hasParasolid;
 
     [ObservableProperty]
+    private int _currentConfigIndex;
+
+    [ObservableProperty]
     private string _dimensionsText = string.Empty;
 
     [ObservableProperty]
@@ -51,14 +54,15 @@ public partial class MeshViewerViewModel : ObservableObject
         _dialogService = dialogService;
     }
 
-    public void LoadMesh()
+    public void LoadMesh(int configIndex = 0)
     {
+        CurrentConfigIndex = configIndex;
         var mesh = _docService.GetDisplayMesh();
         Mesh = mesh;
         HasMesh = mesh != null && mesh.VertexCount > 0;
 
         HasParasolid = _docService.CurrentFile != null &&
-            (_docService.CurrentFile.ExtractParasolid(0) != null);
+            (_docService.CurrentFile.ExtractParasolid(configIndex) != null);
 
         if (mesh != null)
         {
@@ -80,6 +84,12 @@ public partial class MeshViewerViewModel : ObservableObject
             WpfMesh = null;
             WpfEdgeMesh = null;
         }
+    }
+
+    partial void OnCurrentConfigIndexChanged(int value)
+    {
+        HasParasolid = _docService.CurrentFile != null &&
+            (_docService.CurrentFile.ExtractParasolid(value) != null);
     }
 
     private void BuildWpfMesh(DisplayMesh mesh)
@@ -284,7 +294,7 @@ public partial class MeshViewerViewModel : ObservableObject
         {
             try
             {
-                _exportService.ExportParasolid(_docService.CurrentFile, savePath);
+                _exportService.ExportParasolid(_docService.CurrentFile, savePath, CurrentConfigIndex);
                 _dialogService.ShowInformation("导出成功", $"Parasolid 几何数据已导出至:\n{savePath}");
             }
             catch (Exception ex)

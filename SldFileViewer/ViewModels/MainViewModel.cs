@@ -1,5 +1,7 @@
-using System;
+﻿using System;
+using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -36,6 +38,14 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private object? _currentView;
+
+    [ObservableProperty]
+    private ConfigurationItem? _selectedConfiguration;
+
+    [ObservableProperty]
+    private bool _hasConfigurations;
+
+    public ObservableCollection<ConfigurationItem> Configurations { get; } = new();
 
     public DocumentTreeViewModel DocumentTree { get; }
     public SketchCanvasViewModel SketchCanvas { get; }
@@ -96,15 +106,22 @@ public partial class MainViewModel : ObservableObject
             IsFileLoaded = true;
             WindowTitle = $"{Path.GetFileName(filePath)} - SldFileViewer";
 
+            // Populate configurations
+            Configurations.Clear();
+            foreach (var cfg in sw.Configurations)
+            {
+                Configurations.Add(new ConfigurationItem(cfg));
+            }
+            HasConfigurations = Configurations.Count > 0;
+
             // Initialize all child view models
             DocumentTree.BuildTree(sw, filePath);
             CustomProps.LoadProperties();
             Equations.LoadEquations();
             MeshViewer.LoadMesh();
-            if (sw.Kind == DocumentKind.Assembly)
-            {
-                Bom.LoadBom();
-            }
+
+            // Set active configuration (triggers OnSelectedConfigurationChanged to link BOM, properties, and tree)
+            SelectedConfiguration = Configurations.FirstOrDefault();
 
             // Set default view to MeshViewer or Preview
             if (MeshViewer.HasMesh)
@@ -126,7 +143,7 @@ public partial class MainViewModel : ObservableObject
             }
 
             DocumentInfo = $"{sw.Kind} | 配置数: {sw.Configurations.Count} | 用户: {string.Join(", ", sw.Users)}";
-            StatusMessage = $"成功打开: {Path.GetFileName(filePath)}";
+            StatusMessage = $"成功打开: {Path.GetFileName(filePath)}" + (SelectedConfiguration != null ? $" (当前配置: {SelectedConfiguration.Name})" : "");
         }
         catch (Exception ex)
         {
@@ -139,11 +156,38 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    partial void OnSelectedConfigurationChanged(ConfigurationItem? value)
+    {
+        if (value == null) return;
+
+        // 1. 同步联动自定义属性视图筛选
+        CustomProps.SelectedConfiguration = value.Name;
+
+        // 2. 装配体联动：刷新 BOM 和装配体树
+        if (_docService.CurrentFile?.Kind == DocumentKind.Assembly)
+        {
+            Bom.LoadBom(value.Name);
+            DocumentTree.UpdateAssemblyComponents(value.Name);
+        }
+        else if (_docService.CurrentFile?.Kind == DocumentKind.Part)
+        {
+            DocumentTree.UpdatePartSketches(value.Index);
+        }
+
+        // 3. 3D 检视器 Parasolid 配置索引联动
+        MeshViewer.CurrentConfigIndex = value.Index;
+
+        StatusMessage = $"当前配置: {value.Name}";
+    }
+
     [RelayCommand]
     private void CloseFile()
     {
         _docService.Close();
         IsFileLoaded = false;
+        HasConfigurations = false;
+        Configurations.Clear();
+        SelectedConfiguration = null;
         CurrentFilePath = string.Empty;
         WindowTitle = "SolidWorks 文件可视化解析工具 (SldFileViewer)";
         StatusMessage = "已关闭文件。";
@@ -156,6 +200,26 @@ public partial class MainViewModel : ObservableObject
     {
         switch (node.Kind)
         {
+            case TreeNodeKind.ConfigurationFolder:
+                CustomProps.SelectedConfiguration = "All";
+                CurrentView = CustomProps;
+                break;
+
+            case TreeNodeKind.Configuration:
+                if (node.Tag is ConfigurationItem cfgItem)
+                {
+                    if (SelectedConfiguration != cfgItem)
+                    {
+                        SelectedConfiguration = cfgItem;
+                    }
+                    else
+                    {
+                        CustomProps.SelectedConfiguration = cfgItem.Name;
+                    }
+                    CurrentView = CustomProps;
+                }
+                break;
+
             case TreeNodeKind.CustomProperties:
                 CurrentView = CustomProps;
                 break;
@@ -189,8 +253,8 @@ public partial class MainViewModel : ObservableObject
                 }
                 else if (node.Tag is Feature feat)
                 {
-                    // Find sketch in service
-                    var sketches = _docService.GetSketches(0);
+                    int cfgIdx = SelectedConfiguration?.Index ?? 0;
+                    var sketches = _docService.GetSketches(cfgIdx);
                     var matched = sketches.FirstOrDefault(s => string.Equals(s.Name, feat.Name, StringComparison.OrdinalIgnoreCase));
                     if (matched != null)
                     {
@@ -199,7 +263,6 @@ public partial class MainViewModel : ObservableObject
                     }
                     else
                     {
-                        // Synthesize sketch from feature metadata (dimensions, name, id)
                         var syn = new SketchFeature(feat.Name)
                         {
                             Id = feat.Id,
