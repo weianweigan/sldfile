@@ -208,11 +208,25 @@ public partial class MeshViewerViewModel : ObservableObject
         WpfEdgeMesh = edgeGeo;
     }
 
+    private string GetDefaultFileName(string extension)
+    {
+        var currentPath = _docService.CurrentFilePath;
+        if (!string.IsNullOrWhiteSpace(currentPath))
+        {
+            var baseName = Path.GetFileNameWithoutExtension(currentPath);
+            if (!string.IsNullOrWhiteSpace(baseName))
+            {
+                return $"{baseName}{extension}";
+            }
+        }
+        return $"Model{extension}";
+    }
+
     [RelayCommand]
     private void ExportObj()
     {
         if (Mesh == null) return;
-        if (_dialogService.ShowSaveFileDialog("Model.obj", "Wavefront OBJ (*.obj)|*.obj", out var savePath))
+        if (_dialogService.ShowSaveFileDialog(GetDefaultFileName(".obj"), "Wavefront OBJ (*.obj)|*.obj", out var savePath))
         {
             try
             {
@@ -230,7 +244,7 @@ public partial class MeshViewerViewModel : ObservableObject
     private void ExportStl()
     {
         if (Mesh == null) return;
-        if (_dialogService.ShowSaveFileDialog("Model.stl", "STL 几何模型 (*.stl)|*.stl", out var savePath))
+        if (_dialogService.ShowSaveFileDialog(GetDefaultFileName(".stl"), "STL 几何模型 (*.stl)|*.stl", out var savePath))
         {
             try
             {
@@ -248,7 +262,7 @@ public partial class MeshViewerViewModel : ObservableObject
     private void ExportGlb()
     {
         if (Mesh == null) return;
-        if (_dialogService.ShowSaveFileDialog("Model.glb", "glTF 2.0 二进制模型 (*.glb)|*.glb", out var savePath))
+        if (_dialogService.ShowSaveFileDialog(GetDefaultFileName(".glb"), "glTF 2.0 二进制模型 (*.glb)|*.glb", out var savePath))
         {
             try
             {
@@ -266,7 +280,7 @@ public partial class MeshViewerViewModel : ObservableObject
     private void ExportParasolid()
     {
         if (_docService.CurrentFile == null) return;
-        if (_dialogService.ShowSaveFileDialog("Model.x_b", "Parasolid Transmit 二进制 (*.x_b)|*.x_b", out var savePath))
+        if (_dialogService.ShowSaveFileDialog(GetDefaultFileName(".x_b"), "Parasolid Transmit 二进制 (*.x_b)|*.x_b", out var savePath))
         {
             try
             {
