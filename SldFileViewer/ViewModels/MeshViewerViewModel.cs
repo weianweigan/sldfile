@@ -65,6 +65,18 @@ public partial class MeshViewerViewModel : ObservableObject
     [ObservableProperty]
     private string _sectionOffsetDisplay = "0.0 mm";
 
+    [ObservableProperty]
+    private MeshGeometry3D? _wpfSectionPlaneMesh;
+
+    [ObservableProperty]
+    private MeshGeometry3D? _wpfSectionPlaneBorderMesh;
+
+    [ObservableProperty]
+    private MeshGeometry3D? _wpfSectionCutMesh;
+
+    [ObservableProperty]
+    private MeshGeometry3D? _wpfSectionManipulatorMesh;
+
     public bool IsAxisX
     {
         get => SectionAxis == SectionAxis.X;
@@ -81,6 +93,29 @@ public partial class MeshViewerViewModel : ObservableObject
     {
         get => SectionAxis == SectionAxis.Z;
         set { if (value) SectionAxis = SectionAxis.Z; }
+    }
+
+    public System.Numerics.Vector3 GetCurrentSectionNormal()
+    {
+        System.Numerics.Vector3 normal = SectionAxis switch
+        {
+            SectionAxis.Y => new System.Numerics.Vector3(0, 1, 0),
+            SectionAxis.Z => new System.Numerics.Vector3(0, 0, 1),
+            _ => new System.Numerics.Vector3(1, 0, 0)
+        };
+        return IsSectionInverted ? -normal : normal;
+    }
+
+    public double GetCurrentAxisHalfDim()
+    {
+        if (Mesh == null || Mesh.Positions.Count == 0) return 50.0;
+        var size = Mesh.Max - Mesh.Min;
+        return SectionAxis switch
+        {
+            SectionAxis.Y => Math.Max(size.Y * 0.5, 0.1),
+            SectionAxis.Z => Math.Max(size.Z * 0.5, 0.1),
+            _ => Math.Max(size.X * 0.5, 0.1)
+        };
     }
 
     public MeshViewerViewModel(ISwDocumentService docService, IExportService exportService, IDialogService dialogService)
@@ -172,6 +207,10 @@ public partial class MeshViewerViewModel : ObservableObject
         {
             BuildWpfMesh(Mesh, center);
             BuildEdgeMesh(Mesh, center);
+            WpfSectionPlaneMesh = null;
+            WpfSectionPlaneBorderMesh = null;
+            WpfSectionCutMesh = null;
+            WpfSectionManipulatorMesh = null;
             return;
         }
 
@@ -208,6 +247,7 @@ public partial class MeshViewerViewModel : ObservableObject
 
         BuildClippedWpfMesh(Mesh, center, normal, offset);
         BuildClippedEdgeMesh(Mesh, center, normal, offset);
+        BuildSectionPlaneMeshes(size, normal, offset);
     }
 
     private void BuildWpfMesh(DisplayMesh mesh, System.Numerics.Vector3 center)
@@ -263,6 +303,8 @@ public partial class MeshViewerViewModel : ObservableObject
             centeredPos[i] = p;
             dists[i] = System.Numerics.Vector3.Dot(p, normal) - planeDist;
         }
+
+        var cutSegments = new List<(System.Numerics.Vector3, System.Numerics.Vector3)>();
 
         int AddVertex(System.Numerics.Vector3 p, System.Numerics.Vector3 n)
         {
@@ -335,6 +377,8 @@ public partial class MeshViewerViewModel : ObservableObject
                 var pInt1 = pIn + (pOut1 - pIn) * t1;
                 var pInt2 = pIn + (pOut2 - pIn) * t2;
 
+                cutSegments.Add((pInt1, pInt2));
+
                 var nIn = hasNormals ? mesh.Normals[insideIdx] : System.Numerics.Vector3.Zero;
                 var nOut1 = hasNormals ? mesh.Normals[out1Idx] : System.Numerics.Vector3.Zero;
                 var nOut2 = hasNormals ? mesh.Normals[out2Idx] : System.Numerics.Vector3.Zero;
@@ -371,6 +415,8 @@ public partial class MeshViewerViewModel : ObservableObject
                 var pInt1 = pIn1 + (pOut - pIn1) * t1;
                 var pInt2 = pIn2 + (pOut - pIn2) * t2;
 
+                cutSegments.Add((pInt1, pInt2));
+
                 var nIn1 = hasNormals ? mesh.Normals[in1Idx] : System.Numerics.Vector3.Zero;
                 var nIn2 = hasNormals ? mesh.Normals[in2Idx] : System.Numerics.Vector3.Zero;
                 var nOut = hasNormals ? mesh.Normals[outIdx] : System.Numerics.Vector3.Zero;
@@ -395,8 +441,189 @@ public partial class MeshViewerViewModel : ObservableObject
 
         geo.Freeze();
         WpfMesh = geo;
+
+        // 生成截面边缘高亮线 (Section Cut Outlines)
+        if (cutSegments.Count > 0)
+        {
+            var cutGeo = new MeshGeometry3D();
+            int cutVBase = 0;
+            var size = mesh.Max - mesh.Min;
+            float maxDim = Math.Max(size.X, Math.Max(size.Y, size.Z));
+            float cutThickness = Math.Max(maxDim * 0.0035f, 0.25f);
+            foreach (var (cp0, cp1) in cutSegments)
+            {
+                AppendThickEdge(cutGeo, cp0, cp1, cutThickness, ref cutVBase);
+            }
+            cutGeo.Freeze();
+            WpfSectionCutMesh = cutGeo;
+        }
+        else
+        {
+            WpfSectionCutMesh = null;
+        }
     }
 
+    private void BuildSectionPlaneMeshes(System.Numerics.Vector3 size, System.Numerics.Vector3 normal, float planeDist)
+    {
+        float maxDim = Math.Max(size.X, Math.Max(size.Y, size.Z));
+        if (maxDim <= 0.001f) maxDim = 100.0f;
+
+        System.Numerics.Vector3 uDir;
+        System.Numerics.Vector3 vDir;
+        float w;
+        float h;
+
+        switch (SectionAxis)
+        {
+            case SectionAxis.Y:
+                uDir = new System.Numerics.Vector3(1, 0, 0);
+                vDir = new System.Numerics.Vector3(0, 0, 1);
+                w = Math.Max(size.X * 1.35f, maxDim * 0.6f);
+                h = Math.Max(size.Z * 1.35f, maxDim * 0.6f);
+                break;
+            case SectionAxis.Z:
+                uDir = new System.Numerics.Vector3(1, 0, 0);
+                vDir = new System.Numerics.Vector3(0, 1, 0);
+                w = Math.Max(size.X * 1.35f, maxDim * 0.6f);
+                h = Math.Max(size.Y * 1.35f, maxDim * 0.6f);
+                break;
+            case SectionAxis.X:
+            default:
+                uDir = new System.Numerics.Vector3(0, 1, 0);
+                vDir = new System.Numerics.Vector3(0, 0, 1);
+                w = Math.Max(size.Y * 1.35f, maxDim * 0.6f);
+                h = Math.Max(size.Z * 1.35f, maxDim * 0.6f);
+                break;
+        }
+
+        var planeCenter = normal * planeDist;
+        var halfU = uDir * (w * 0.5f);
+        var halfV = vDir * (h * 0.5f);
+
+        var c0 = planeCenter - halfU - halfV;
+        var c1 = planeCenter + halfU - halfV;
+        var c2 = planeCenter + halfU + halfV;
+        var c3 = planeCenter - halfU + halfV;
+
+        // 1. 半透明剖切平面网格
+        var planeGeo = new MeshGeometry3D();
+        planeGeo.Positions.Add(new Point3D(c0.X, c0.Y, c0.Z));
+        planeGeo.Positions.Add(new Point3D(c1.X, c1.Y, c1.Z));
+        planeGeo.Positions.Add(new Point3D(c2.X, c2.Y, c2.Z));
+        planeGeo.Positions.Add(new Point3D(c3.X, c3.Y, c3.Z));
+
+        var n3D = new Vector3D(normal.X, normal.Y, normal.Z);
+        planeGeo.Normals.Add(n3D);
+        planeGeo.Normals.Add(n3D);
+        planeGeo.Normals.Add(n3D);
+        planeGeo.Normals.Add(n3D);
+
+        // 双面三角形
+        planeGeo.TriangleIndices.Add(0);
+        planeGeo.TriangleIndices.Add(1);
+        planeGeo.TriangleIndices.Add(2);
+        planeGeo.TriangleIndices.Add(0);
+        planeGeo.TriangleIndices.Add(2);
+        planeGeo.TriangleIndices.Add(3);
+
+        planeGeo.TriangleIndices.Add(0);
+        planeGeo.TriangleIndices.Add(2);
+        planeGeo.TriangleIndices.Add(1);
+        planeGeo.TriangleIndices.Add(0);
+        planeGeo.TriangleIndices.Add(3);
+        planeGeo.TriangleIndices.Add(2);
+
+        planeGeo.Freeze();
+        WpfSectionPlaneMesh = planeGeo;
+
+        // 2. 剖切平面外边框网格 (亮蓝色线框)
+        var borderGeo = new MeshGeometry3D();
+        int borderVBase = 0;
+        float borderThickness = Math.Max(maxDim * 0.0035f, 0.2f);
+        AppendThickEdge(borderGeo, c0, c1, borderThickness, ref borderVBase);
+        AppendThickEdge(borderGeo, c1, c2, borderThickness, ref borderVBase);
+        AppendThickEdge(borderGeo, c2, c3, borderThickness, ref borderVBase);
+        AppendThickEdge(borderGeo, c3, c0, borderThickness, ref borderVBase);
+        borderGeo.Freeze();
+        WpfSectionPlaneBorderMesh = borderGeo;
+
+        // 3. 中心操纵手柄网格 (带方向指示箭头)
+        var manipGeo = new MeshGeometry3D();
+        int manipVBase = 0;
+
+        float handleRadius = Math.Max(maxDim * 0.045f, 1.8f);
+        float stemLength = Math.Max(maxDim * 0.12f, 4.0f);
+        float arrowLength = Math.Max(maxDim * 0.06f, 2.5f);
+        float arrowRadius = handleRadius * 0.55f;
+
+        // 中心圆盘
+        int segments = 12;
+        int centerIdx = manipGeo.Positions.Count;
+        manipGeo.Positions.Add(new Point3D(planeCenter.X, planeCenter.Y, planeCenter.Z));
+        manipGeo.Normals.Add(n3D);
+
+        for (int i = 0; i < segments; i++)
+        {
+            double angle = 2.0 * Math.PI * i / segments;
+            var discP = planeCenter + (uDir * (float)Math.Cos(angle) + vDir * (float)Math.Sin(angle)) * handleRadius;
+            manipGeo.Positions.Add(new Point3D(discP.X, discP.Y, discP.Z));
+            manipGeo.Normals.Add(n3D);
+        }
+
+        for (int i = 0; i < segments; i++)
+        {
+            int next = (i + 1) % segments;
+            manipGeo.TriangleIndices.Add(centerIdx);
+            manipGeo.TriangleIndices.Add(centerIdx + 1 + i);
+            manipGeo.TriangleIndices.Add(centerIdx + 1 + next);
+
+            manipGeo.TriangleIndices.Add(centerIdx);
+            manipGeo.TriangleIndices.Add(centerIdx + 1 + next);
+            manipGeo.TriangleIndices.Add(centerIdx + 1 + i);
+        }
+
+        manipVBase = manipGeo.Positions.Count;
+
+        // 箭头主轴杆
+        var shaftEnd = planeCenter + normal * stemLength;
+        AppendThickEdge(manipGeo, planeCenter, shaftEnd, borderThickness * 1.5f, ref manipVBase);
+
+        // 箭头圆锥体
+        var arrowTip = shaftEnd + normal * arrowLength;
+        int tipIdx = manipGeo.Positions.Count;
+        manipGeo.Positions.Add(new Point3D(arrowTip.X, arrowTip.Y, arrowTip.Z));
+        manipGeo.Normals.Add(n3D);
+
+        int baseCenterIdx = manipGeo.Positions.Count;
+        manipGeo.Positions.Add(new Point3D(shaftEnd.X, shaftEnd.Y, shaftEnd.Z));
+        manipGeo.Normals.Add(-n3D);
+
+        int coneBaseStart = manipGeo.Positions.Count;
+        for (int i = 0; i < segments; i++)
+        {
+            double angle = 2.0 * Math.PI * i / segments;
+            var coneP = shaftEnd + (uDir * (float)Math.Cos(angle) + vDir * (float)Math.Sin(angle)) * arrowRadius;
+            manipGeo.Positions.Add(new Point3D(coneP.X, coneP.Y, coneP.Z));
+            manipGeo.Normals.Add(n3D);
+        }
+
+        for (int i = 0; i < segments; i++)
+        {
+            int next = (i + 1) % segments;
+            // 锥侧面
+            manipGeo.TriangleIndices.Add(tipIdx);
+            manipGeo.TriangleIndices.Add(coneBaseStart + i);
+            manipGeo.TriangleIndices.Add(coneBaseStart + next);
+
+            // 锥底面
+            manipGeo.TriangleIndices.Add(baseCenterIdx);
+            manipGeo.TriangleIndices.Add(coneBaseStart + next);
+            manipGeo.TriangleIndices.Add(coneBaseStart + i);
+        }
+
+        manipGeo.Freeze();
+        WpfSectionManipulatorMesh = manipGeo;
+    }
     private void BuildEdgeMesh(DisplayMesh mesh, System.Numerics.Vector3 center)
     {
         if (mesh.OutlineEdges == null || mesh.OutlineEdges.Count == 0 || mesh.Positions.Count == 0)

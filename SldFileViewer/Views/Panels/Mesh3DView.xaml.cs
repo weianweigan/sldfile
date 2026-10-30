@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -14,6 +14,11 @@ public partial class Mesh3DView : UserControl
     private bool _isRotating;
     private bool _isPanning;
     private bool _isZooming;
+
+    // 剖切平面拖动交互状态
+    private bool _isDraggingSection;
+    private Point _dragStartMousePos;
+    private double _dragStartPercent;
 
     private double _cameraDistance = 250.0;
     private double _cameraWidth = 200.0;
@@ -35,7 +40,8 @@ public partial class Mesh3DView : UserControl
         if (VM != null)
         {
             VM.PropertyChanged += OnViewModelPropertyChanged;
-            UpdateMesh();
+            UpdateMesh(resetCamera: true);
+            UpdateSectionVisuals();
         }
     }
 
@@ -45,33 +51,51 @@ public partial class Mesh3DView : UserControl
         {
             VM.PropertyChanged -= OnViewModelPropertyChanged;
         }
+        if (Mouse.OverrideCursor == Cursors.SizeAll)
+        {
+            Mouse.OverrideCursor = null;
+        }
     }
 
     private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(MeshViewerViewModel.WpfMesh))
+        if (e.PropertyName == nameof(MeshViewerViewModel.Mesh))
         {
-            UpdateMesh();
+            UpdateMesh(resetCamera: true);
+        }
+        else if (e.PropertyName == nameof(MeshViewerViewModel.WpfMesh))
+        {
+            // 剖切重新裁剪网格时不重置相机视角，保持视角稳定连续
+            UpdateMesh(resetCamera: false);
         }
         else if (e.PropertyName == nameof(MeshViewerViewModel.ShowEdges) ||
                  e.PropertyName == nameof(MeshViewerViewModel.WpfEdgeMesh))
         {
             UpdateEdgeVisual();
         }
+        else if (e.PropertyName == nameof(MeshViewerViewModel.WpfSectionPlaneMesh) ||
+                 e.PropertyName == nameof(MeshViewerViewModel.WpfSectionPlaneBorderMesh) ||
+                 e.PropertyName == nameof(MeshViewerViewModel.WpfSectionCutMesh) ||
+                 e.PropertyName == nameof(MeshViewerViewModel.WpfSectionManipulatorMesh) ||
+                 e.PropertyName == nameof(MeshViewerViewModel.IsSectionViewEnabled))
+        {
+            UpdateSectionVisuals();
+        }
     }
 
-    private void UpdateMesh()
+    private void UpdateMesh(bool resetCamera)
     {
         ModelVisual.Content = null;
         if (VM?.WpfMesh == null)
         {
             UpdateEdgeVisual();
+            UpdateSectionVisuals();
             return;
         }
 
         var group = new Model3DGroup();
 
-        // Shaded surface material (CAD metallic paint look)
+        // CAD 金属漆面着色材质
         var materialGroup = new MaterialGroup();
         materialGroup.Children.Add(new DiffuseMaterial(new SolidColorBrush(Color.FromRgb(150, 168, 185))));
         materialGroup.Children.Add(new SpecularMaterial(Brushes.White, 30.0));
@@ -89,7 +113,12 @@ public partial class Mesh3DView : UserControl
         ModelVisual.Content = group;
 
         UpdateEdgeVisual();
-        ResetCamera();
+        UpdateSectionVisuals();
+
+        if (resetCamera)
+        {
+            ResetCamera();
+        }
     }
 
     private void UpdateEdgeVisual()
@@ -105,6 +134,121 @@ public partial class Mesh3DView : UserControl
             BackMaterial = edgeMaterial
         };
         EdgeVisual.Content = edgeModel;
+    }
+
+    private void UpdateSectionVisuals()
+    {
+        if (VM == null || !VM.IsSectionViewEnabled)
+        {
+            SectionPlaneVisual.Content = null;
+            SectionBorderVisual.Content = null;
+            SectionCutVisual.Content = null;
+            SectionManipulatorVisual.Content = null;
+            if (Mouse.OverrideCursor == Cursors.SizeAll)
+            {
+                Mouse.OverrideCursor = null;
+            }
+            return;
+        }
+
+        // 1. 半透明剖切基准面 (SolidWorks 经典冰蓝半透明面)
+        if (VM.WpfSectionPlaneMesh != null)
+        {
+            var planeMat = new MaterialGroup();
+            var planeBrush = new SolidColorBrush(Color.FromArgb(70, 0, 150, 255));
+            planeMat.Children.Add(new DiffuseMaterial(planeBrush));
+            planeMat.Children.Add(new SpecularMaterial(Brushes.LightSkyBlue, 30.0));
+
+            var backMat = new DiffuseMaterial(planeBrush);
+
+            SectionPlaneVisual.Content = new GeometryModel3D
+            {
+                Geometry = VM.WpfSectionPlaneMesh,
+                Material = planeMat,
+                BackMaterial = backMat
+            };
+        }
+        else
+        {
+            SectionPlaneVisual.Content = null;
+        }
+
+        // 2. 剖切平面外边框线 (亮蓝色线框)
+        if (VM.WpfSectionPlaneBorderMesh != null)
+        {
+            var borderMat = new EmissiveMaterial(new SolidColorBrush(Color.FromRgb(0, 120, 215)));
+            SectionBorderVisual.Content = new GeometryModel3D
+            {
+                Geometry = VM.WpfSectionPlaneBorderMesh,
+                Material = borderMat,
+                BackMaterial = borderMat
+            };
+        }
+        else
+        {
+            SectionBorderVisual.Content = null;
+        }
+
+        // 3. 截面边缘交线 (高对比度金橙色高亮线)
+        if (VM.WpfSectionCutMesh != null)
+        {
+            var cutMat = new EmissiveMaterial(new SolidColorBrush(Color.FromRgb(255, 120, 0)));
+            SectionCutVisual.Content = new GeometryModel3D
+            {
+                Geometry = VM.WpfSectionCutMesh,
+                Material = cutMat,
+                BackMaterial = cutMat
+            };
+        }
+        else
+        {
+            SectionCutVisual.Content = null;
+        }
+
+        // 4. 中心操纵手柄与箭头 (亮金橙色立体材质)
+        if (VM.WpfSectionManipulatorMesh != null)
+        {
+            var handleMat = new MaterialGroup();
+            handleMat.Children.Add(new DiffuseMaterial(new SolidColorBrush(Color.FromRgb(255, 170, 0))));
+            handleMat.Children.Add(new SpecularMaterial(Brushes.White, 45.0));
+
+            SectionManipulatorVisual.Content = new GeometryModel3D
+            {
+                Geometry = VM.WpfSectionManipulatorMesh,
+                Material = handleMat,
+                BackMaterial = handleMat
+            };
+        }
+        else
+        {
+            SectionManipulatorVisual.Content = null;
+        }
+    }
+
+    private bool HitTestSectionVisual(Point point)
+    {
+        if (VM == null || !VM.IsSectionViewEnabled) return false;
+        if (SectionPlaneVisual.Content == null && SectionManipulatorVisual.Content == null) return false;
+
+        bool hit = false;
+        PointHitTestParameters hitParams = new(point);
+        VisualTreeHelper.HitTest(MainViewport, null, hitResult =>
+        {
+            if (hitResult is RayMeshGeometry3DHitTestResult meshHit)
+            {
+                var visual = meshHit.VisualHit as ModelVisual3D;
+                if (visual == SectionPlaneVisual ||
+                    visual == SectionManipulatorVisual ||
+                    visual == SectionBorderVisual)
+                {
+                    hit = true;
+                    return HitTestResultBehavior.Stop;
+                }
+            }
+            return HitTestResultBehavior.Continue;
+        }, hitParams);
+
+        return hit;
     }
 
     private void ResetCamera()
@@ -156,7 +300,7 @@ public partial class Mesh3DView : UserControl
     {
         _lastMousePos = e.GetPosition(ViewportContainer);
 
-        // Double click middle or right button -> Fit to View (SolidWorks convention)
+        // 双击中键或右键 -> 全图复位 (SolidWorks 经典习惯)
         if (e.ClickCount == 2 && (e.ChangedButton == MouseButton.Middle || e.ChangedButton == MouseButton.Right))
         {
             ResetCamera();
@@ -164,12 +308,26 @@ public partial class Mesh3DView : UserControl
             return;
         }
 
+        // 剖切平面鼠标左键直接拖动判定
+        if (e.ChangedButton == MouseButton.Left && VM != null && VM.IsSectionViewEnabled)
+        {
+            if (HitTestSectionVisual(_lastMousePos))
+            {
+                _isDraggingSection = true;
+                _dragStartMousePos = _lastMousePos;
+                _dragStartPercent = VM.SectionOffsetPercent;
+                ViewportContainer.CaptureMouse();
+                e.Handled = true;
+                return;
+            }
+        }
+
         if (e.ChangedButton == MouseButton.Middle)
         {
-            // SolidWorks controls:
-            // Ctrl + Middle Drag = Pan
-            // Shift + Middle Drag = Zoom
-            // Middle Drag alone = Rotate
+            // SolidWorks 控制键位：
+            // Ctrl + 中键拖拽 = 平移
+            // Shift + 中键拖拽 = 缩放
+            // 中键拖拽 = 旋转
             if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
                 _isPanning = true;
             else if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
@@ -199,6 +357,61 @@ public partial class Mesh3DView : UserControl
         Point currentPos = e.GetPosition(ViewportContainer);
         Vector delta = currentPos - _lastMousePos;
 
+        // 1. 正在拖动剖切平面
+        if (_isDraggingSection && VM != null)
+        {
+            Vector totalDelta = currentPos - _dragStartMousePos;
+            double viewWidth = ViewportContainer.ActualWidth > 0 ? ViewportContainer.ActualWidth : 800;
+            double worldPerPixel = Camera.Width / viewWidth;
+
+            Vector3D look = Camera.LookDirection;
+            if (look.Length > 1e-5) look.Normalize();
+
+            Vector3D up = Camera.UpDirection;
+            if (up.Length > 1e-5) up.Normalize();
+
+            Vector3D right = Vector3D.CrossProduct(look, up);
+            if (right.Length > 1e-5) right.Normalize();
+
+            up = Vector3D.CrossProduct(right, look);
+            if (up.Length > 1e-5) up.Normalize();
+
+            // 鼠标在相机正交投影平面上的 3D 位移
+            Vector3D mouseWorldDelta = right * (totalDelta.X * worldPerPixel) - up * (totalDelta.Y * worldPerPixel);
+
+            // 获取当前剖切轴向法向量
+            var normal = VM.GetCurrentSectionNormal();
+            Vector3D normalVec = new Vector3D(normal.X, normal.Y, normal.Z);
+
+            // 沿剖切法向的投影距离 (mm)
+            double deltaDistance = Vector3D.DotProduct(mouseWorldDelta, normalVec);
+
+            double halfDim = VM.GetCurrentAxisHalfDim();
+            if (halfDim > 1e-4)
+            {
+                double deltaPercent = (deltaDistance / halfDim) * 100.0;
+                double newPercent = Math.Clamp(_dragStartPercent + deltaPercent, -100.0, 100.0);
+                VM.SectionOffsetPercent = newPercent;
+            }
+
+            e.Handled = true;
+            return;
+        }
+
+        // 2. 悬停检测：当鼠标悬浮在剖切面上时显示拖动光标
+        if (!_isRotating && !_isPanning && !_isZooming && VM != null && VM.IsSectionViewEnabled)
+        {
+            if (HitTestSectionVisual(currentPos))
+            {
+                Mouse.OverrideCursor = Cursors.SizeAll;
+            }
+            else if (Mouse.OverrideCursor == Cursors.SizeAll)
+            {
+                Mouse.OverrideCursor = null;
+            }
+        }
+
+        // 3. 视图缩放、旋转与平移
         if (_isZooming)
         {
             double factor = Math.Pow(1.008, -delta.Y);
@@ -247,6 +460,18 @@ public partial class Mesh3DView : UserControl
 
     private void OnViewportMouseUp(object sender, MouseButtonEventArgs e)
     {
+        if (_isDraggingSection)
+        {
+            _isDraggingSection = false;
+            ViewportContainer.ReleaseMouseCapture();
+            if (Mouse.OverrideCursor == Cursors.SizeAll)
+            {
+                Mouse.OverrideCursor = null;
+            }
+            e.Handled = true;
+            return;
+        }
+
         if (e.ChangedButton == MouseButton.Left || e.ChangedButton == MouseButton.Middle)
         {
             _isRotating = false;
@@ -257,19 +482,25 @@ public partial class Mesh3DView : UserControl
             _isPanning = false;
         }
 
-        if (!_isRotating && !_isPanning && !_isZooming)
+        if (!_isRotating && !_isPanning && !_isZooming && !_isDraggingSection)
         {
             ViewportContainer.ReleaseMouseCapture();
         }
         e.Handled = true;
     }
 
+    private void OnViewportMouseLeave(object sender, MouseEventArgs e)
+    {
+        if (Mouse.OverrideCursor == Cursors.SizeAll && !_isDraggingSection)
+        {
+            Mouse.OverrideCursor = null;
+        }
+    }
+
     private void OnViewportMouseWheel(object sender, MouseWheelEventArgs e)
     {
         double factor = e.Delta > 0 ? 0.85 : 1.18;
 
-        // In CAD orthographic projection, zoom changes Camera.Width, not camera distance.
-        // Camera distance stays safely outside bounding box so camera never moves inside the model!
         double minWidth = 0.5;
         double maxWidth = 100000.0;
         if (VM?.Mesh != null && VM.Mesh.VertexCount > 0)

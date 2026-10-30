@@ -184,6 +184,14 @@
                     <ModelVisual3D x:Name="ModelVisual" />
                     <!-- Model Edge Lines Visual (OutlineEdges) -->
                     <ModelVisual3D x:Name="EdgeVisual" />
+                    <!-- Section Cut Outlines Visual (High-contrast Cut Lines) -->
+                    <ModelVisual3D x:Name="SectionCutVisual" />
+                    <!-- Section Cutting Plane Visual (Semi-transparent Plane) -->
+                    <ModelVisual3D x:Name="SectionPlaneVisual" />
+                    <!-- Section Cutting Plane Border Visual (Wireframe Line) -->
+                    <ModelVisual3D x:Name="SectionBorderVisual" />
+                    <!-- Section Manipulator Handle Visual -->
+                    <ModelVisual3D x:Name="SectionManipulatorVisual" />
                 </Viewport3D>
 
                 <!-- Section View Floating Control Toolbar -->
@@ -244,7 +252,7 @@
                         BorderThickness="1"
                         CornerRadius="10"
                         Padding="14,5">
-                    <TextBlock Text="中键拖拽旋转 (或左键) | Ctrl+中键/右键平移 | 滚轮缩放 | 双击中键全图复位"
+                    <TextBlock Text="中键拖拽旋转 (或左键) | Ctrl+中键/右键平移 | 滚轮缩放 | 剖视图开启时鼠标可直接拖拽剖切面"
                                FontFamily="Consolas, Cascadia Code, Segoe UI"
                                FontSize="11" Foreground="{StaticResource Brush.Figma.Ink}" />
                 </Border>

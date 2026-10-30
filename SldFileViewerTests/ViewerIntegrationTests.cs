@@ -701,12 +701,19 @@ public class ViewerIntegrationTests
         // 1. 开启剖视图
         meshVm.IsSectionViewEnabled = true;
         Assert.NotNull(meshVm.WpfMesh);
+        Assert.NotNull(meshVm.WpfSectionPlaneMesh);
+        Assert.NotNull(meshVm.WpfSectionPlaneBorderMesh);
+        Assert.NotNull(meshVm.WpfSectionCutMesh);
+        Assert.NotNull(meshVm.WpfSectionManipulatorMesh);
+        Assert.True(meshVm.GetCurrentAxisHalfDim() > 0);
 
         // 2. 切 X 轴（中间位置）
         meshVm.SectionAxis = SectionAxis.X;
         meshVm.SectionOffsetPercent = 0.0;
         Assert.True(meshVm.IsAxisX);
         Assert.NotNull(meshVm.WpfMesh);
+        Assert.NotNull(meshVm.WpfSectionPlaneMesh);
+        Assert.NotNull(meshVm.WpfSectionCutMesh);
         int clippedTrianglesX = meshVm.WpfMesh!.TriangleIndices.Count / 3;
         Assert.True(clippedTrianglesX > 0);
 
@@ -716,6 +723,7 @@ public class ViewerIntegrationTests
         meshVm.ToggleSectionInvertCommand.Execute(null);
         Assert.True(meshVm.IsSectionInverted);
         Assert.NotNull(meshVm.WpfMesh);
+        Assert.NotNull(meshVm.WpfSectionManipulatorMesh);
 
         // 4. 切 Z 轴并复位
         meshVm.SectionAxis = SectionAxis.Z;
@@ -724,9 +732,13 @@ public class ViewerIntegrationTests
         meshVm.ResetSectionOffsetCommand.Execute(null);
         Assert.Equal(0.0, meshVm.SectionOffsetPercent);
 
-        // 5. 关闭剖视图，网格恢复
+        // 5. 关闭剖视图，网格恢复且视觉辅助元素清空
         meshVm.IsSectionViewEnabled = false;
         Assert.NotNull(meshVm.WpfMesh);
+        Assert.Null(meshVm.WpfSectionPlaneMesh);
+        Assert.Null(meshVm.WpfSectionPlaneBorderMesh);
+        Assert.Null(meshVm.WpfSectionCutMesh);
+        Assert.Null(meshVm.WpfSectionManipulatorMesh);
         Assert.Equal(originalTriangles, meshVm.WpfMesh!.TriangleIndices.Count / 3);
 
         docService.Close();
