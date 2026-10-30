@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -13,11 +13,24 @@ public class ViewerIntegrationTests
 {
     private static string ResolveModelPath(string relativePath)
     {
+        var candidates = new System.Collections.Generic.List<string> { relativePath };
+        var fileName = Path.GetFileName(relativePath);
+        if (!string.IsNullOrEmpty(fileName))
+        {
+            candidates.Add(Path.Combine("SldFileTests", "TestFiles", "Solidworks2026", fileName));
+            candidates.Add(Path.Combine("TestFiles", "Solidworks2026", fileName));
+            candidates.Add(Path.Combine("SldFileTests", "TestFiles", "Solidworks2012", fileName));
+            candidates.Add(Path.Combine("TestFiles", "Solidworks2012", fileName));
+        }
+
         var dir = AppContext.BaseDirectory;
         for (int i = 0; i < 6; i++)
         {
-            var candidate = Path.Combine(dir, relativePath);
-            if (File.Exists(candidate)) return Path.GetFullPath(candidate);
+            foreach (var rel in candidates)
+            {
+                var candidate = Path.Combine(dir, rel);
+                if (File.Exists(candidate)) return Path.GetFullPath(candidate);
+            }
             var parent = Path.GetDirectoryName(dir);
             if (parent == null) break;
             dir = parent;
@@ -25,8 +38,11 @@ public class ViewerIntegrationTests
         dir = Directory.GetCurrentDirectory();
         for (int i = 0; i < 6; i++)
         {
-            var candidate = Path.Combine(dir, relativePath);
-            if (File.Exists(candidate)) return Path.GetFullPath(candidate);
+            foreach (var rel in candidates)
+            {
+                var candidate = Path.Combine(dir, rel);
+                if (File.Exists(candidate)) return Path.GetFullPath(candidate);
+            }
             var parent = Path.GetDirectoryName(dir);
             if (parent == null) break;
             dir = parent;
@@ -34,9 +50,9 @@ public class ViewerIntegrationTests
         return Path.GetFullPath(relativePath);
     }
 
-    private readonly string _cubePart = ResolveModelPath(@"models\cube.SLDPRT");
-    private readonly string _assembly = ResolveModelPath(@"models\assembly.SLDASM");
-    private readonly string _cubeDrawing = ResolveModelPath(@"models\cube.SLDDRW");
+    private readonly string _cubePart = ResolveModelPath(@"SldFileTests/TestFiles/Solidworks2026/cube.SLDPRT");
+    private readonly string _assembly = ResolveModelPath(@"SldFileTests/TestFiles/Solidworks2026/assembly.SLDASM");
+    private readonly string _cubeDrawing = ResolveModelPath(@"SldFileTests/TestFiles/Solidworks2026/cube.SLDDRW");
 
     private class MockDialogService : IDialogService
     {

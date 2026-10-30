@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <TargetFramework>net8.0-windows</TargetFramework>
@@ -9,9 +9,11 @@
         <IsTestProject>true</IsTestProject>
         <SolidWorksInstallDir Condition="'$(SolidWorksInstallDir)' == ''">C:\Program Files\SOLIDWORKS Corp\SOLIDWORKS</SolidWorksInstallDir>
         <FallbackInteropDir>$(MSBuildThisFileDirectory)..\reverse_workspace\tools\SketchLab\bin\Debug\net8.0-windows</FallbackInteropDir>
+        <HasSolidWorksInterop Condition="Exists('$(SolidWorksInstallDir)\api\redist\SolidWorks.Interop.sldworks.dll') Or Exists('$(FallbackInteropDir)\SolidWorks.Interop.sldworks.dll')">true</HasSolidWorksInterop>
+        <HasSolidWorksInterop Condition="'$(HasSolidWorksInterop)' == ''">false</HasSolidWorksInterop>
     </PropertyGroup>
 
-    <ItemGroup>
+    <ItemGroup Condition="'$(HasSolidWorksInterop)' == 'true'">
         <Reference Include="SolidWorks.Interop.sldworks">
             <HintPath Condition="Exists('$(SolidWorksInstallDir)\api\redist\SolidWorks.Interop.sldworks.dll')">$(SolidWorksInstallDir)\api\redist\SolidWorks.Interop.sldworks.dll</HintPath>
             <HintPath Condition="!Exists('$(SolidWorksInstallDir)\api\redist\SolidWorks.Interop.sldworks.dll')">$(FallbackInteropDir)\SolidWorks.Interop.sldworks.dll</HintPath>
@@ -23,6 +25,14 @@
             <EmbedInteropTypes>false</EmbedInteropTypes>
         </Reference>
     </ItemGroup>
+
+    <ItemGroup Condition="'$(HasSolidWorksInterop)' != 'true'">
+        <Compile Remove="**\*.cs" />
+    </ItemGroup>
+
+    <Target Name="WarnNoSolidWorks" BeforeTargets="BeforeBuild" Condition="'$(HasSolidWorksInterop)' != 'true'">
+        <Warning Text="未检测到 SolidWorks COM Interop 组件 ('$(SolidWorksInstallDir)\api\redist')。已跳过需要 SolidWorks 运行环境的 COM 集成测试。" />
+    </Target>
 
     <ItemGroup>
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0"/>
