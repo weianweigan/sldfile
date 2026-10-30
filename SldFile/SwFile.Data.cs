@@ -182,6 +182,29 @@ public abstract partial class SwFile
                 ? DateTimeOffset.FromUnixTimeSeconds(timestamp!.Value) : (DateTimeOffset?)null);
         }).ToArray());
         References = Array.AsReadOnly(Header2.ExternalReferences.Select(e => new DocumentReference(e.FullPath, e.ShortName)).ToArray());
+        if (!string.IsNullOrEmpty(SolidWorksInformation.ConfigurationName) && Configurations != null && Configurations.Count > 0)
+        {
+            for (int i = 0; i < Configurations.Count; i++)
+            {
+                if (string.Equals(Configurations[i].Name, SolidWorksInformation.ConfigurationName, StringComparison.OrdinalIgnoreCase))
+                {
+                    ActiveConfigurationIndex = i;
+                    break;
+                }
+            }
+        }
+        RefreshFeaturesFromFolders(streams);
+    }
+
+    internal void ReParseResolvedFeatures(byte[] newStream)
+    {
+        var reader = new SldFile.Binary.ResolvedFeaturesStreamReader();
+        reader.Parse(newStream, ResolvedFeatures);
+        RefreshFeaturesFromFolders(RawStreams);
+    }
+
+    internal void RefreshFeaturesFromFolders(Dictionary<string, byte[]> streams)
+    {
         var features = new List<Feature>();
         Feature MapFolder(FeatureFolder folder)
         {

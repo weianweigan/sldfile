@@ -1,4 +1,5 @@
 using System;
+using SldFile.Binary.Topology;
 using SldFile.Mfc;
 
 namespace SldFile.Binary;
@@ -316,6 +317,7 @@ internal static class FeatureDataParsers
         if (offset < len)
             data.UnparsedTail = MfcPrimitives.CopyRange(raw, offset, len);
 
+        TopologyParsers.ParseEnrichedSketchChain(data, raw);
         return data;
     }
 
@@ -404,23 +406,15 @@ internal static class FeatureDataParsers
     internal static FaceRefData? ParseFaceRef(MfcElement element)
     {
         var data = new FaceRefData();
-        byte[] raw = element.RawData;
-        data.RawData = raw;
-        int offset = 0;
-
-        if (offset + 4 <= raw.Length)
-            data.FaceCount = BitConverter.ToUInt32(raw, offset);
-        offset += 4;
-
-        if (offset < raw.Length)
-            data.TopologyData = MfcPrimitives.CopyRange(raw, offset, raw.Length);
-
+        TopologyParsers.ParseEnrichedFaceRef(data, element.RawData);
         return data;
     }
 
     internal static EndFaceSurfIdRepData? ParseEndFaceSurfIdRep(MfcElement element)
     {
-        return new EndFaceSurfIdRepData { RawData = element.RawData };
+        var data = new EndFaceSurfIdRepData();
+        TopologyParsers.ParseEnrichedEndFaceSurfIdRep(data, element.RawData);
+        return data;
     }
 
     internal static FrData? ParseFr(MfcElement element)
@@ -430,7 +424,9 @@ internal static class FeatureDataParsers
 
     internal static FromSktEntSurfIdRepData? ParseFromSktEntSurfIdRep(MfcElement element)
     {
-        return new FromSktEntSurfIdRepData { RawData = element.RawData };
+        var data = new FromSktEntSurfIdRepData();
+        TopologyParsers.ParseEnrichedFromSktEntSurfIdRep(data, element.RawData);
+        return data;
     }
 
     internal static BBoxCenterData? ParseBBoxCenter(MfcElement element)

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using SldFile;
 
 namespace SldFile.Binary;
@@ -199,6 +200,9 @@ internal sealed class SketchChainData : IFeatureData
     public uint[] Indices { get; set; } = new uint[4];
     public uint Flag { get; set; }
     public uint Count { get; set; }
+    public bool IsClosed { get; set; } = true;
+    public uint SketchId { get; set; }
+    public List<uint> EntityIndices { get; set; } = new();
 
     internal byte[] RawData = Array.Empty<byte>();
     internal byte[] UnparsedTail = Array.Empty<byte>();
@@ -299,6 +303,9 @@ internal sealed class FaceRefData : IFeatureData
     public uint TypeId => 0;
 
     public uint FaceCount { get; set; }
+    public uint TopologyType { get; set; }
+    public ulong BodyMagic { get; set; }
+    public List<uint> FaceIds { get; set; } = new();
 
     internal byte[] RawData = Array.Empty<byte>();
     internal byte[] TopologyData = Array.Empty<byte>();
@@ -310,6 +317,9 @@ internal sealed class EndFaceSurfIdRepData : IFeatureData
     public string ClassName => "moEndFaceSurfIdRep_c";
     public uint TypeId => 0;
 
+    public string SurfaceName { get; set; } = string.Empty;
+    public uint SurfaceId { get; set; }
+
     internal byte[] RawData = Array.Empty<byte>();
 }
 
@@ -319,6 +329,8 @@ internal sealed class FrData : IFeatureData
     public string ClassName => "moFR_c";
     public uint TypeId => 0;
 
+    public string PathName { get; set; } = string.Empty;
+
     internal byte[] RawData = Array.Empty<byte>();
 }
 
@@ -327,6 +339,9 @@ internal sealed class FromSktEntSurfIdRepData : IFeatureData
 {
     public string ClassName => "moFromSktEntSurfIdRep_c";
     public uint TypeId => 0;
+
+    public uint FeatureTypeId { get; set; }
+    public List<SldFile.Binary.Topology.SktEntSurfMapping> Mappings { get; set; } = new();
 
     internal byte[] RawData = Array.Empty<byte>();
 }

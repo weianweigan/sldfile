@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using SldFile.Binary.Topology;
 using SldFile.Mfc;
 
 namespace SldFile.Binary;
@@ -65,6 +66,18 @@ internal static class FeatureDataRegistry
         Register("moBBoxCenterData_c", FeatureDataParsers.ParseBBoxCenter);
         Register("moEndSpec_c", FeatureDataParsers.ParseEndSpec);
         Register("moFromEndSpec_c", FeatureDataParsers.ParseFromEndSpec);
+
+        // ── Persistent Topology & Selection primitives ────────────────────
+        Register("moSketchRegion_c", TopologyParsers.ParseSketchRegion);
+        Register("moEdgeRef_c", TopologyParsers.ParseEdgeRef);
+        Register("moCompEdge_c", TopologyParsers.ParseCompEdge);
+        Register("moFaceRefPlnData_c", TopologyParsers.ParseFaceRefPln);
+        Register("moCompFace_c", TopologyParsers.ParseCompFace);
+        Register("moCompSolidBody_c", TopologyParsers.ParseCompSolidBody);
+        Register("moSurfaceIdRep_c", TopologyParsers.ParseSurfaceIdRep);
+        Register("moEndFace3IntSurfIdRep_c", TopologyParsers.ParseEndFace3IntSurfIdRep);
+        Register("moFromSktEnt3IntSurfIdRep_c", TopologyParsers.ParseFromSktEnt3IntSurfIdRep);
+        Register("moFilletSurfIdRep_c", TopologyParsers.ParseFilletSurfIdRep);
     }
 
     /// <summary>

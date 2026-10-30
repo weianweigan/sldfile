@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace SldFile;
 
@@ -21,8 +22,8 @@ public interface IFeatureData
 /// </summary>
 public sealed class ExtrudeFeatureDefinitionData : IFeatureData
 {
-    public string ClassName => "moExtrusion_c";
-    public uint TypeId => 0x4B;
+    public string ClassName => IsCut ? "moICE_c" : "moExtrusion_c";
+    public uint TypeId => IsCut ? 0x56u : 0x4Fu;
 
     // ── 深度与终止条件 (Directions 1 & 2) ──
 
@@ -125,8 +126,110 @@ public sealed class ExtrudeFeatureDefinitionData : IFeatureData
 
     // ── 钣金联动 ──
 
-    /// <summary>拉伸深度是否链接到基体法兰厚度。对应 IExtrudeFeatureData2::LinkToThickness</summary>
+    /// <summary>钣金联动厚度。对应 IExtrudeFeatureData2::LinkToThickness</summary>
     public bool LinkToThickness { get; set; }
+
+    // ── 拔模与平移高级选项 ──
+
+    /// <summary>方向 1 是否拔模。对应 IExtrudeFeatureData2::GetDraftWhileExtruding(true)</summary>
+    public bool DraftWhileExtruding { get; set; }
+
+    /// <summary>方向 2 是否拔模。对应 IExtrudeFeatureData2::GetDraftWhileExtruding(false)</summary>
+    public bool DraftWhileExtrudingDirection2 { get; set; }
+
+    /// <summary>方向 1 表面平移。对应 IExtrudeFeatureData2::GetTranslateSurface(true)</summary>
+    public bool TranslateSurface { get; set; }
+
+    /// <summary>方向 2 表面平移。对应 IExtrudeFeatureData2::GetTranslateSurface(false)</summary>
+    public bool TranslateSurfaceDirection2 { get; set; }
+
+    /// <summary>方向 1 反向等距。对应 IExtrudeFeatureData2::GetReverseOffset(true)</summary>
+    public bool ReverseOffset { get; set; }
+
+    /// <summary>方向 2 反向等距。对应 IExtrudeFeatureData2::GetReverseOffset(false)</summary>
+    public bool ReverseOffsetDirection2 { get; set; }
+
+    /// <summary>自动圆角角点。对应 IExtrudeFeatureData2::AutoFilletCorners</summary>
+    public bool AutoFilletCorners { get; set; }
+
+    /// <summary>自动圆角半径 (米)。对应 IExtrudeFeatureData2::AutoFilletRadius</summary>
+    public double AutoFilletRadius { get; set; }
+
+    /// <summary>是否为基体拉伸。对应 IExtrudeFeatureData2::IsBaseExtrude()</summary>
+    public bool IsBaseExtrude { get; set; }
+
+    // ── 拓扑与 Selection 选择项 (Topology & Selection) ──
+
+    /// <summary>父草图名称 (如 "草图1" 或 "Sketch1")</summary>
+    public string? SketchName { get; set; }
+
+    /// <summary>所选封闭轮廓集合。对应 IExtrudeFeatureData2::Contours</summary>
+    public IReadOnlyList<SketchContourReference> SelectedContours { get; set; } = Array.Empty<SketchContourReference>();
+
+    /// <summary>所选封闭区域集合。对应 IExtrudeFeatureData2::Contours (Region)</summary>
+    public IReadOnlyList<SketchRegionReference> SelectedRegions { get; set; } = Array.Empty<SketchRegionReference>();
+
+    /// <summary>拉伸方向向量或参考实体 (如边线、基准面)。对应 IExtrudeFeatureData2::DirectionReference</summary>
+    public DirectionReference? DirectionReference { get; set; }
+
+    /// <summary>终止目标实体引用 (Up to Surface/Vertex/Body)。对应 IExtrudeFeatureData2::GetEndConditionEntity()</summary>
+    public EndConditionEntityReference? EndConditionEntity { get; set; }
+
+    /// <summary>多实体特征作用范围。对应 IExtrudeFeatureData2::FeatureScopeBodies</summary>
+    public BodyScopeData BodyScope { get; set; } = new BodyScopeData();
+
+    // ── IExtrudeFeatureData2 对齐便捷方法 (Convenience API Methods) ──
+
+    /// <summary>获取拉伸深度 (米)。对应 IExtrudeFeatureData2::GetDepth</summary>
+    public double GetDepth(bool forward) => forward ? Depth : DepthDirection2;
+
+    /// <summary>设置拉伸深度 (米)。对应 IExtrudeFeatureData2::SetDepth</summary>
+    public void SetDepth(bool forward, double depth) { if (forward) Depth = depth; else DepthDirection2 = depth; }
+
+    /// <summary>获取终止条件。对应 IExtrudeFeatureData2::GetEndCondition</summary>
+    public uint GetEndCondition(bool forward) => forward ? EndCondition : EndConditionDirection2;
+
+    /// <summary>设置终止条件。对应 IExtrudeFeatureData2::SetEndCondition</summary>
+    public void SetEndCondition(bool forward, uint condition) { if (forward) EndCondition = condition; else EndConditionDirection2 = condition; }
+
+    /// <summary>获取拔模角度。对应 IExtrudeFeatureData2::GetDraftAngle</summary>
+    public double GetDraftAngle(bool forward) => forward ? DraftAngle : DraftAngleDirection2;
+
+    /// <summary>设置拔模角度。对应 IExtrudeFeatureData2::SetDraftAngle</summary>
+    public void SetDraftAngle(bool forward, double angle) { if (forward) DraftAngle = angle; else DraftAngleDirection2 = angle; }
+
+    /// <summary>获取是否向外拔模。对应 IExtrudeFeatureData2::GetDraftOutward</summary>
+    public bool GetDraftOutward(bool forward) => forward ? DraftOutward : DraftOutwardDirection2;
+
+    /// <summary>设置是否向外拔模。对应 IExtrudeFeatureData2::SetDraftOutward</summary>
+    public void SetDraftOutward(bool forward, bool outward) { if (forward) DraftOutward = outward; else DraftOutwardDirection2 = outward; }
+
+    /// <summary>获取拉伸时是否拔模。对应 IExtrudeFeatureData2::GetDraftWhileExtruding</summary>
+    public bool GetDraftWhileExtruding(bool forward) => forward ? DraftWhileExtruding : DraftWhileExtrudingDirection2;
+
+    /// <summary>设置拉伸时是否拔模。对应 IExtrudeFeatureData2::SetDraftWhileExtruding</summary>
+    public void SetDraftWhileExtruding(bool forward, bool draft) { if (forward) DraftWhileExtruding = draft; else DraftWhileExtrudingDirection2 = draft; }
+
+    /// <summary>获取壁厚 (米)。对应 IExtrudeFeatureData2::GetWallThickness</summary>
+    public double GetWallThickness(bool forward) => forward ? WallThickness : WallThicknessDirection2;
+
+    /// <summary>设置壁厚 (米)。对应 IExtrudeFeatureData2::SetWallThickness</summary>
+    public void SetWallThickness(bool forward, double thickness) { if (forward) WallThickness = thickness; else WallThicknessDirection2 = thickness; }
+
+    /// <summary>获取是否反向等距。对应 IExtrudeFeatureData2::GetReverseOffset</summary>
+    public bool GetReverseOffset(bool forward) => forward ? ReverseOffset : ReverseOffsetDirection2;
+
+    /// <summary>设置是否反向等距。对应 IExtrudeFeatureData2::SetReverseOffset</summary>
+    public void SetReverseOffset(bool forward, bool reverse) { if (forward) ReverseOffset = reverse; else ReverseOffsetDirection2 = reverse; }
+
+    /// <summary>获取是否平移表面。对应 IExtrudeFeatureData2::GetTranslateSurface</summary>
+    public bool GetTranslateSurface(bool forward) => forward ? TranslateSurface : TranslateSurfaceDirection2;
+
+    /// <summary>设置是否平移表面。对应 IExtrudeFeatureData2::SetTranslateSurface</summary>
+    public void SetTranslateSurface(bool forward, bool translate) { if (forward) TranslateSurface = translate; else TranslateSurfaceDirection2 = translate; }
+
+    /// <summary>是否为凸台特征。对应 IExtrudeFeatureData2::IsBossFeature()</summary>
+    public bool IsBossFeature() => !IsCut;
 
     internal byte[] RawData = Array.Empty<byte>();
 }
@@ -195,6 +298,23 @@ public sealed class SheetMetalBaseFlangeDefinitionData : IFeatureData
 
     /// <summary>是否使用钣金规格表。对应 IBaseFlangeFeatureData::UseGaugeTable</summary>
     public bool UseGaugeTable { get; set; }
+
+    // ── 拓扑与 Selection 选择项 (Topology & Selection) ──
+
+    /// <summary>父草图名称 (如 "草图1" 或 "Sketch1")</summary>
+    public string? SketchName { get; set; }
+
+    /// <summary>所选封闭轮廓集合。对应 IBaseFlangeFeatureData::Contours</summary>
+    public IReadOnlyList<SketchContourReference> SelectedContours { get; set; } = Array.Empty<SketchContourReference>();
+
+    /// <summary>所选封闭区域集合。对应 IBaseFlangeFeatureData::Contours (Region)</summary>
+    public IReadOnlyList<SketchRegionReference> SelectedRegions { get; set; } = Array.Empty<SketchRegionReference>();
+
+    /// <summary>成形方向向量或参考实体</summary>
+    public DirectionReference? DirectionReference { get; set; }
+
+    /// <summary>多实体特征作用范围</summary>
+    public BodyScopeData BodyScope { get; set; } = new BodyScopeData();
 
     internal byte[] RawData = Array.Empty<byte>();
 }
