@@ -1,6 +1,8 @@
-using System.IO.Compression;
+﻿using System.IO.Compression;
+using System.Linq;
 using System.Text;
 using System.Xml.Linq;
+using SldFile;
 using SldFile.Binary;
 
 namespace SldFileTests;
@@ -94,11 +96,11 @@ public class SectionArchiveTests
     public void OpaqueGapsAndTrailingNoiseArePreserved()
     {
         var data = File.ReadAllBytes(TestFileProvider.CubePart2026);
-        var before = SectionArchiveDirectory.Read(data, data[7]);
+        var border = SectionArchiveDirectory.Read(data, data[7]);
         var saved = new SectionContainerWriter(data, data[7]).Write(new() { ["docProps/core.xml"] = Encoding.UTF8.GetBytes("<changed/>") });
         var after = SectionArchiveDirectory.Read(saved, saved[7]);
         int oldCursor = 0, newCursor = 0;
-        var oldEntries = before.Entries.OrderBy(e => e.LocalOffset).ToArray();
+        var oldEntries = border.Entries.OrderBy(e => e.LocalOffset).ToArray();
         var newEntries = after.Entries.OrderBy(e => e.LocalOffset).ToArray();
         for (int i = 0; i < oldEntries.Length; i++)
         {
@@ -106,8 +108,8 @@ public class SectionArchiveTests
             oldCursor = oldEntries[i].LocalOffset + oldEntries[i].HeaderLength + oldEntries[i].CompressedSize;
             newCursor = newEntries[i].LocalOffset + newEntries[i].HeaderLength + newEntries[i].CompressedSize;
         }
-        Assert.Equal(data[oldCursor..before.DirectoryOffset], saved[newCursor..after.DirectoryOffset]);
-        Assert.Equal(data[(before.EndOffset + 22)..], saved[(after.EndOffset + 22)..]);
+        Assert.Equal(data[oldCursor..border.DirectoryOffset], saved[newCursor..after.DirectoryOffset]);
+        Assert.Equal(data[(border.EndOffset + 22)..], saved[(after.EndOffset + 22)..]);
     }
 
     [Fact]
@@ -132,6 +134,70 @@ public class SectionArchiveTests
                 .Elements("property").Single(e => (string?)e.Attribute("pid") == (string?)property.Attribute("pid"));
             Assert.True(XNode.DeepEquals(property, preserved));
         }
+    }
+
+    [Fact]
+    public void Utf8StreamNamesForVirtualComponentsAreSupported()
+    {
+        var data = (byte[])File.ReadAllBytes(TestFileProvider.CubePart2026).Clone();
+        byte key = data[7];
+        var index = SectionArchiveDirectory.Read(data, key);
+        var entry = index.Entries.Single(e => e.Name == "docProps/custom.xml");
+
+        // 构造等长的 UTF-8 中文流名称："VirtualComp/件.xml" (12 + 3 + 4 = 19 字节)
+        string utf8Name = "VirtualComp/件.xml";
+        byte[] utf8Bytes = Encoding.UTF8.GetBytes(utf8Name);
+        Assert.Equal(entry.Name.Length, utf8Bytes.Length);
+
+        for (int i = 0; i < utf8Bytes.Length; i++)
+        {
+            byte encoded = SectionContainerReader.Ror(utf8Bytes[i], key);
+            data[entry.LocalOffset + 30 + i] = encoded;
+            data[entry.CentralOffset + 46 + i] = encoded;
+        }
+
+        var newIndex = SectionArchiveDirectory.Read(data, key);
+        var utf8Entry = Assert.Single(newIndex.Entries, e => e.Name == utf8Name);
+        var payload = newIndex.Extract(data, utf8Entry);
+        Assert.NotEmpty(payload);
+    }
+
+    [Fact]
+    public void InvalidUtf8OrControlCharsInStreamNameAreRejected()
+    {
+        var data = (byte[])File.ReadAllBytes(TestFileProvider.CubePart2026).Clone();
+        byte key = data[7];
+        var index = SectionArchiveDirectory.Read(data, key);
+        var entry = index.Entries.Single(e => e.Name == "docProps/custom.xml");
+
+        // 写入控制字符 (例如 '\t' = 9 < 32)
+        byte controlEncoded = SectionContainerReader.Ror(9, key);
+        var controlData = (byte[])data.Clone();
+        controlData[entry.LocalOffset + 30] = controlEncoded;
+        controlData[entry.CentralOffset + 46] = controlEncoded;
+        Assert.Throws<InvalidDataException>(() => SectionArchiveDirectory.Read(controlData, key));
+
+        // 写入非法 UTF-8 序列 (单字节 0xFF)
+        byte invalidUtf8Encoded = SectionContainerReader.Ror(0xFF, key);
+        var invalidData = (byte[])data.Clone();
+        invalidData[entry.LocalOffset + 30] = invalidUtf8Encoded;
+        invalidData[entry.CentralOffset + 46] = invalidUtf8Encoded;
+        Assert.Throws<InvalidDataException>(() => SectionArchiveDirectory.Read(invalidData, key));
+    }
+
+    [Fact]
+    public void NativeAssemblyWithVirtualComponentOpensSuccessfullyIfPresent()
+    {
+        string localAssembly = @"E:\01_Work\93_开拔\01_测试模型\轴承装配\20260531\装配体1.SLDASM";
+        if (!File.Exists(localAssembly)) return;
+
+        using var file = SldFile.SwFile.Open(localAssembly);
+        Assert.NotNull(file);
+        Assert.IsType<SldAssembly>(file);
+        var components = file.GetAssemblyTree();
+        Assert.NotEmpty(components);
+        var virtualComp = Assert.Single(components, c => c.Name.Contains("虚拟装配体"));
+        Assert.True(virtualComp.IsVirtual);
     }
 
     private static XDocument ReadCustom(string path) => XDocument.Parse(Encoding.UTF8.GetString(
