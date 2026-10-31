@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 
@@ -34,5 +34,11 @@ internal sealed class SectionContainerReader
     {
         shift &= 7;
         return (byte)((value << shift) | (value >> (8 - shift)));
+    }
+
+    internal static byte Ror(byte value, int shift)
+    {
+        shift &= 7;
+        return (byte)((value >> shift) | (value << (8 - shift)));
     }
 }
