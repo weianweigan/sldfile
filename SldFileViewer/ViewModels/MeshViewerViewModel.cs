@@ -540,33 +540,7 @@ public partial class MeshViewerViewModel : ObservableObject
         float arrowLength = Math.Max(maxDim * 0.06f, 2.5f);
         float arrowRadius = handleRadius * 0.55f;
 
-        // 中心圆盘
         int segments = 12;
-        int centerIdx = manipGeo.Positions.Count;
-        manipGeo.Positions.Add(new Point3D(planeCenter.X, planeCenter.Y, planeCenter.Z));
-        manipGeo.Normals.Add(arrow3D);
-
-        for (int i = 0; i < segments; i++)
-        {
-            double angle = 2.0 * Math.PI * i / segments;
-            var discP = planeCenter + (uDir * (float)Math.Cos(angle) + vDir * (float)Math.Sin(angle)) * handleRadius;
-            manipGeo.Positions.Add(new Point3D(discP.X, discP.Y, discP.Z));
-            manipGeo.Normals.Add(arrow3D);
-        }
-
-        for (int i = 0; i < segments; i++)
-        {
-            int next = (i + 1) % segments;
-            manipGeo.TriangleIndices.Add(centerIdx);
-            manipGeo.TriangleIndices.Add(centerIdx + 1 + i);
-            manipGeo.TriangleIndices.Add(centerIdx + 1 + next);
-
-            manipGeo.TriangleIndices.Add(centerIdx);
-            manipGeo.TriangleIndices.Add(centerIdx + 1 + next);
-            manipGeo.TriangleIndices.Add(centerIdx + 1 + i);
-        }
-
-        manipVBase = manipGeo.Positions.Count;
 
         // 箭头主轴杆
         var shaftEnd = planeCenter + arrowDir * stemLength;
