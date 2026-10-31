@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
@@ -59,19 +59,35 @@ internal sealed class SectionArchiveDirectory
                 throw new InvalidDataException("Local and central headers disagree.");
             int header = 30 + nameLength + U16(data, local + 28);
             if ((long)local + header + compressed > DirectoryOffset) throw new InvalidDataException("Overlapping archive data.");
-            var chars = new char[nameLength];
+            var rawName = new byte[nameLength];
             for (int n = 0; n < nameLength; n++)
             {
                 byte encoded = data[cursor + 46 + n];
                 if (data[local + 30 + n] != encoded) throw new InvalidDataException("Local and central names disagree.");
                 byte decoded = SectionContainerReader.Rol(encoded, key);
-                if (decoded < 32 || decoded > 126) throw new InvalidDataException("Unsupported stream name.");
-                chars[n] = (char)decoded;
+                if (decoded < 32) throw new InvalidDataException("Unsupported stream name control character.");
+                rawName[n] = decoded;
             }
+
+            string streamName;
+            try
+            {
+                // SolidWorks 2026 section container uses UTF-8 encoding for stream names (including Chinese virtual component names).
+                var strictUtf8 = new System.Text.UTF8Encoding(false, true);
+                streamName = strictUtf8.GetString(rawName);
+            }
+            catch (Exception)
+            {
+                throw new InvalidDataException("Stream name contains invalid UTF-8 byte sequence.");
+            }
+
+            if (string.IsNullOrWhiteSpace(streamName) || streamName.Any(char.IsControl))
+                throw new InvalidDataException("Stream name contains invalid characters.");
+
             ushort method = U16(data, local + 8);
             if ((U16(data, local + 6) & 1) != 0) throw new InvalidDataException("Encrypted archive entries are unsupported.");
             if (method != 0 && method != 8) throw new InvalidDataException("Unsupported compression method.");
-            Entries.Add(new Entry { Name = new string(chars), LocalOffset = local, CentralOffset = cursor, HeaderLength = header,
+            Entries.Add(new Entry { Name = streamName, LocalOffset = local, CentralOffset = cursor, HeaderLength = header,
                 CompressedSize = (int)compressed, Size = (int)size, Crc = U32(data, local + 14), Method = method });
             cursor = next;
         }
