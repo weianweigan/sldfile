@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -16,6 +16,9 @@ public class ViewerIntegrationTests
         var rawName = Path.GetFileName(relativePath);
         string[] candidates =
         {
+            Path.Combine("TestFiles", "Solidworks2026", rawName),
+            Path.Combine("..", "SldFileTests", "TestFiles", "Solidworks2026", rawName),
+            Path.Combine("SldFileTests", "TestFiles", "Solidworks2026", rawName),
             Path.Combine("TestFiles", "Solidworks2012", rawName),
             Path.Combine("..", "SldFileTests", "TestFiles", "Solidworks2012", rawName),
             Path.Combine("SldFileTests", "TestFiles", "Solidworks2012", rawName),
@@ -281,7 +284,7 @@ public class ViewerIntegrationTests
     }
 
     [Fact]
-    public void ExportMeshService_ExportsObjAndStlSuccessfully()
+    public void ExportMeshService_ExportsObjStlAndGlbSuccessfully()
     {
         var docService = new SwDocumentService();
         var dialogService = new MockDialogService();
@@ -293,6 +296,7 @@ public class ViewerIntegrationTests
 
         string tempObj = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid():N}.obj");
         string tempStl = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid():N}.stl");
+        string tempGlb = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid():N}.glb");
 
         try
         {
@@ -303,11 +307,16 @@ public class ViewerIntegrationTests
             exportService.ExportMeshToStl(mesh!, tempStl);
             Assert.True(File.Exists(tempStl));
             Assert.True(new FileInfo(tempStl).Length > 0);
+
+            exportService.ExportMeshToGlb(mesh!, tempGlb);
+            Assert.True(File.Exists(tempGlb));
+            Assert.True(new FileInfo(tempGlb).Length > 0);
         }
         finally
         {
             if (File.Exists(tempObj)) File.Delete(tempObj);
             if (File.Exists(tempStl)) File.Delete(tempStl);
+            if (File.Exists(tempGlb)) File.Delete(tempGlb);
         }
     }
 
@@ -600,5 +609,169 @@ public class ViewerIntegrationTests
         thread.Join();
 
         if (threadEx != null) throw new Exception("Thread failed: " + threadEx.Message + " at " + threadEx.StackTrace, threadEx);
+    }
+
+    [Fact]
+    public async Task LoadAssembly_PopulatesConfigurations()
+    {
+        var docService = new SwDocumentService();
+        var dialogService = new MockDialogService();
+        var exportService = new ExportService();
+
+        var treeVm = new DocumentTreeViewModel(docService);
+        var sketchVm = new SketchCanvasViewModel();
+        var propsVm = new CustomPropsViewModel(docService, dialogService);
+        var eqVm = new EquationsViewModel(docService);
+        var bomVm = new BomViewModel(docService, exportService, dialogService);
+        var meshVm = new MeshViewerViewModel(docService, exportService, dialogService);
+        var imgVm = new ImagePreviewViewModel(docService);
+        var featVm = new FeatureDetailViewModel();
+
+        var mainVm = new MainViewModel(docService, dialogService, treeVm, sketchVm, propsVm, eqVm, bomVm, meshVm, imgVm, featVm);
+
+        await mainVm.LoadDocumentAsync(_assembly);
+
+        Assert.True(mainVm.IsFileLoaded);
+        Assert.True(mainVm.HasConfigurations);
+        Assert.NotEmpty(mainVm.Configurations);
+        Assert.NotNull(mainVm.SelectedConfiguration);
+
+        // 验证左侧树为纯粹的模型/装配体特征树，不重复放置配置管理器节点
+        var root = treeVm.RootNodes[0];
+        Assert.DoesNotContain(root.Children, c => c.Kind == TreeNodeKind.ConfigurationFolder);
+
+        mainVm.CloseFileCommand.Execute(null);
+        Assert.False(mainVm.HasConfigurations);
+        Assert.Empty(mainVm.Configurations);
+        Assert.Null(mainVm.SelectedConfiguration);
+    }
+
+    [Fact]
+    public async Task SwitchConfiguration_TriggersBomAndCustomPropertiesLinkage()
+    {
+        var docService = new SwDocumentService();
+        var dialogService = new MockDialogService();
+        var exportService = new ExportService();
+
+        var treeVm = new DocumentTreeViewModel(docService);
+        var sketchVm = new SketchCanvasViewModel();
+        var propsVm = new CustomPropsViewModel(docService, dialogService);
+        var eqVm = new EquationsViewModel(docService);
+        var bomVm = new BomViewModel(docService, exportService, dialogService);
+        var meshVm = new MeshViewerViewModel(docService, exportService, dialogService);
+        var imgVm = new ImagePreviewViewModel(docService);
+        var featVm = new FeatureDetailViewModel();
+
+        var mainVm = new MainViewModel(docService, dialogService, treeVm, sketchVm, propsVm, eqVm, bomVm, meshVm, imgVm, featVm);
+
+        await mainVm.LoadDocumentAsync(_assembly);
+
+        var targetConfig = mainVm.Configurations[0];
+        mainVm.SelectedConfiguration = targetConfig;
+
+        Assert.Equal(targetConfig.Name, propsVm.SelectedConfiguration);
+        Assert.Equal(targetConfig.Name, bomVm.CurrentConfiguration);
+        Assert.Equal(targetConfig.Index, meshVm.CurrentConfigIndex);
+
+        mainVm.CloseFileCommand.Execute(null);
+    }
+
+    [Fact]
+    public async Task MeshViewer_SectionView_ClipsMeshCorrectly()
+    {
+        var docService = new SwDocumentService();
+        var dialogService = new MockDialogService();
+        var exportService = new ExportService();
+
+        var meshVm = new MeshViewerViewModel(docService, exportService, dialogService);
+
+        using var sw = SldFile.SwFile.Open(_cubePart, readOnly: true);
+        await docService.OpenAsync(_cubePart);
+
+        meshVm.LoadMesh(0);
+        Assert.True(meshVm.HasMesh);
+        Assert.NotNull(meshVm.WpfMesh);
+        int originalTriangles = meshVm.WpfMesh!.TriangleIndices.Count / 3;
+
+        // 1. 开启剖视图
+        meshVm.IsSectionViewEnabled = true;
+        Assert.NotNull(meshVm.WpfMesh);
+        Assert.NotNull(meshVm.WpfSectionPlaneMesh);
+        Assert.NotNull(meshVm.WpfSectionPlaneBorderMesh);
+        Assert.NotNull(meshVm.WpfSectionCutMesh);
+        Assert.NotNull(meshVm.WpfSectionManipulatorMesh);
+        Assert.True(meshVm.GetCurrentAxisHalfDim() > 0);
+
+        // 2. 切 X 轴（中间位置）
+        meshVm.SectionAxis = SectionAxis.X;
+        meshVm.SectionOffsetPercent = 0.0;
+        Assert.True(meshVm.IsAxisX);
+        Assert.NotNull(meshVm.WpfMesh);
+        Assert.NotNull(meshVm.WpfSectionPlaneMesh);
+        Assert.NotNull(meshVm.WpfSectionCutMesh);
+        int clippedTrianglesX = meshVm.WpfMesh!.TriangleIndices.Count / 3;
+        Assert.True(clippedTrianglesX > 0);
+
+        // 3. 切 Y 轴并反向
+        meshVm.SectionAxis = SectionAxis.Y;
+        Assert.True(meshVm.IsAxisY);
+        meshVm.ToggleSectionInvertCommand.Execute(null);
+        Assert.True(meshVm.IsSectionInverted);
+        Assert.NotNull(meshVm.WpfMesh);
+        Assert.NotNull(meshVm.WpfSectionManipulatorMesh);
+
+        // 4. 切 Z 轴并复位
+        meshVm.SectionAxis = SectionAxis.Z;
+        Assert.True(meshVm.IsAxisZ);
+        meshVm.SectionOffsetPercent = 50.0;
+        meshVm.ResetSectionOffsetCommand.Execute(null);
+        Assert.Equal(0.0, meshVm.SectionOffsetPercent);
+
+        // 5. 关闭剖视图，网格恢复且视觉辅助元素清空
+        meshVm.IsSectionViewEnabled = false;
+        Assert.NotNull(meshVm.WpfMesh);
+        Assert.Null(meshVm.WpfSectionPlaneMesh);
+        Assert.Null(meshVm.WpfSectionPlaneBorderMesh);
+        Assert.Null(meshVm.WpfSectionCutMesh);
+        Assert.Null(meshVm.WpfSectionManipulatorMesh);
+        Assert.Equal(originalTriangles, meshVm.WpfMesh!.TriangleIndices.Count / 3);
+
+        docService.Close();
+    }
+
+    [Fact]
+    public async Task MeshViewer_ConfigurationExportParasolid()
+    {
+        var docService = new SwDocumentService();
+        var dialogService = new MockDialogService();
+        var exportService = new ExportService();
+
+        var treeVm = new DocumentTreeViewModel(docService);
+        var sketchVm = new SketchCanvasViewModel();
+        var propsVm = new CustomPropsViewModel(docService, dialogService);
+        var eqVm = new EquationsViewModel(docService);
+        var bomVm = new BomViewModel(docService, exportService, dialogService);
+        var meshVm = new MeshViewerViewModel(docService, exportService, dialogService);
+        var imgVm = new ImagePreviewViewModel(docService);
+        var featVm = new FeatureDetailViewModel();
+
+        var mainVm = new MainViewModel(docService, dialogService, treeVm, sketchVm, propsVm, eqVm, bomVm, meshVm, imgVm, featVm);
+
+        await mainVm.LoadDocumentAsync(_cubePart);
+
+        Assert.True(meshVm.HasParasolid);
+        string tempXb = Path.Combine(Path.GetTempPath(), "test_parasolid_" + Guid.NewGuid().ToString("N") + ".x_b");
+        try
+        {
+            exportService.ExportParasolid(docService.CurrentFile!, tempXb, meshVm.CurrentConfigIndex);
+            Assert.True(File.Exists(tempXb));
+            Assert.True(new FileInfo(tempXb).Length > 0);
+        }
+        finally
+        {
+            if (File.Exists(tempXb)) File.Delete(tempXb);
+        }
+
+        mainVm.CloseFileCommand.Execute(null);
     }
 }

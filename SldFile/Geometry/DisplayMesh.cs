@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -120,6 +120,15 @@ public sealed class DisplayMesh
 
             writer.Write((ushort)0); // Attribute byte count
         }
+    }
+
+    /// <summary>
+    /// Writes this mesh as a binary glTF 2.0 (.glb) container to the specified stream.
+    /// Default scale is 0.001f (converting SolidWorks millimeters to glTF standard meters).
+    /// </summary>
+    public void WriteGlb(Stream stream, float scale = 0.001f)
+    {
+        Geometry.GlbWriter.Write(this, stream, scale);
     }
 }
 

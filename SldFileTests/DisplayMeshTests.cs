@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Text;
 using SldFile;
 using Xunit;
@@ -119,5 +119,46 @@ public class DisplayMeshTests
         // Verify header and triangle count
         uint triCount = System.BitConverter.ToUInt32(stlBytes, 80);
         Assert.Equal(12u, triCount);
+    }
+
+    [Fact]
+    public void DisplayMesh_WriteGlb_GeneratesValidGlbFormat()
+    {
+        using var file = SwFile.Open(TestFileProvider.CubePart, readOnly: true);
+        var mesh = file.GetDisplayMesh();
+        Assert.NotNull(mesh);
+
+        using var ms = new MemoryStream();
+        mesh!.WriteGlb(ms);
+
+        byte[] glbBytes = ms.ToArray();
+        Assert.True(glbBytes.Length >= 20);
+
+        // 1. 验证 GLB 头部 (12 字节)
+        uint magic = System.BitConverter.ToUInt32(glbBytes, 0);
+        uint version = System.BitConverter.ToUInt32(glbBytes, 4);
+        uint totalLength = System.BitConverter.ToUInt32(glbBytes, 8);
+
+        Assert.Equal(0x46546C67u, magic); // glTF
+        Assert.Equal(2u, version);
+        Assert.Equal((uint)glbBytes.Length, totalLength);
+
+        // 2. 验证 JSON Chunk
+        uint jsonChunkLength = System.BitConverter.ToUInt32(glbBytes, 12);
+        uint jsonChunkType = System.BitConverter.ToUInt32(glbBytes, 16);
+        Assert.Equal(0x4E4F534Au, jsonChunkType); // JSON
+
+        string json = Encoding.UTF8.GetString(glbBytes, 20, (int)jsonChunkLength);
+        Assert.Contains("\"asset\"", json);
+        Assert.Contains("\"version\":\"2.0\"", json);
+        Assert.Contains("\"POSITION\"", json);
+        Assert.Contains("\"NORMAL\"", json);
+
+        // 3. 验证 BIN Chunk
+        int binChunkHeaderOffset = 20 + (int)jsonChunkLength;
+        uint binChunkLength = System.BitConverter.ToUInt32(glbBytes, binChunkHeaderOffset);
+        uint binChunkType = System.BitConverter.ToUInt32(glbBytes, binChunkHeaderOffset + 4);
+        Assert.Equal(0x004E4942u, binChunkType); // BIN\0
+        Assert.True(binChunkLength > 0);
     }
 }
