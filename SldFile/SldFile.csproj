@@ -29,6 +29,7 @@
         <InternalsVisibleTo Include="SldFileViewer" />
         <InternalsVisibleTo Include="SldFileViewerTests" />
         <InternalsVisibleTo Include="SldFile.Tests.Integration" />
+        <InternalsVisibleTo Include="FeatureLab" />
     </ItemGroup>
 
     <ItemGroup>

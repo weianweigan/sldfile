@@ -210,13 +210,37 @@ public abstract partial class SwFile
                 ? DateTimeOffset.FromUnixTimeSeconds(timestamp!.Value) : (DateTimeOffset?)null);
         }).ToArray());
         References = Array.AsReadOnly(Header2.ExternalReferences.Select(e => new DocumentReference(e.FullPath, e.ShortName)).ToArray());
+        if (!string.IsNullOrEmpty(SolidWorksInformation.ConfigurationName) && Configurations != null && Configurations.Count > 0)
+        {
+            for (int i = 0; i < Configurations.Count; i++)
+            {
+                if (string.Equals(Configurations[i].Name, SolidWorksInformation.ConfigurationName, StringComparison.OrdinalIgnoreCase))
+                {
+                    ActiveConfigurationIndex = i;
+                    break;
+                }
+            }
+        }
+        RefreshFeaturesFromFolders(streams);
+    }
+
+    internal void ReParseResolvedFeatures(byte[] newStream)
+    {
+        var reader = new SldFile.Binary.ResolvedFeaturesStreamReader();
+        reader.Parse(newStream, ResolvedFeatures);
+        RefreshFeaturesFromFolders(RawStreams);
+    }
+
+    internal void RefreshFeaturesFromFolders(Dictionary<string, byte[]> streams)
+    {
         var features = new List<Feature>();
         Feature MapFolder(FeatureFolder folder)
         {
             var name = folder.ClassName;
             var kind = name.StartsWith("moRefPlane", StringComparison.Ordinal) ? FeatureKind.ReferencePlane
                 : name.StartsWith("moProfileFeature", StringComparison.Ordinal) ? FeatureKind.Sketch
-                : name.StartsWith("moExtrusion", StringComparison.Ordinal) ? FeatureKind.Extrusion
+                : (name.StartsWith("moExtrusion", StringComparison.Ordinal) || name == "moICE_c") ? (folder.DisplayName.Contains("切除") || name == "moICE_c" ? FeatureKind.Cut : FeatureKind.Extrusion)
+                : name.StartsWith("moSMBaseFlange", StringComparison.Ordinal) ? FeatureKind.Extrusion
                 : name.StartsWith("moLengthParameter", StringComparison.Ordinal) ? FeatureKind.Dimension
                 : name.Contains("Folder") ? FeatureKind.Folder : FeatureKind.Other;
 
@@ -224,6 +248,15 @@ public abstract partial class SwFile
             if (folder.FeatureData is LengthParameterData lpd)
             {
                 dims.Add(new FeatureDimension(folder.DisplayName, lpd.ParamValue.ToString("F3")));
+            }
+            else if (folder.FeatureData is ExtrudeFeatureDefinitionData extDef)
+            {
+                dims.Add(new FeatureDimension("Depth", (extDef.Depth * 1000).ToString("F2") + "mm"));
+            }
+            else if (folder.FeatureData is SheetMetalBaseFlangeDefinitionData smDef)
+            {
+                dims.Add(new FeatureDimension("Thickness", (smDef.Thickness * 1000).ToString("F2") + "mm"));
+                dims.Add(new FeatureDimension("BendRadius", (smDef.BendRadius * 1000).ToString("F2") + "mm"));
             }
             if (folder.ChildFeatureData != null)
             {
@@ -249,7 +282,7 @@ public abstract partial class SwFile
                 ["TagOffset"] = $"0x{folder.TagOffset:X}"
             };
 
-            return new Feature(folder.DisplayName, kind, folder.ClassName, (int)folder.Header.TypeId, attrs, dims.AsReadOnly(), children.AsReadOnly());
+            return new Feature(folder.DisplayName, kind, folder.ClassName, (int)folder.Header.TypeId, attrs, dims.AsReadOnly(), children.AsReadOnly(), isSuppressed: false, isVisible: true, definition: folder.FeatureData);
         }
 
         void Visit(IEnumerable<FeatureFolder> folders)

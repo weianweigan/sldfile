@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using SldFile.Binary.Topology;
 using SldFile.Mfc;
 
 namespace SldFile.Binary;
@@ -73,6 +75,9 @@ internal static class ResolvedFeaturesSchemaMapper
         // Second pass: parse non-folder named elements and attach to parent folders.
         // Find the nearest preceding folder by TagOffset for each non-folder element.
         AttachChildFeatureData(doc, folderByTagOffset);
+
+        // Synthesize ExtrudeFeatureDefinitionData and SheetMetalBaseFlangeDefinitionData
+        SynthesizeFeatureDefinitions(doc, folderByTagOffset);
 
         // Freeze all folder children
         FreezeFolders(model.FoldersBuilder);
@@ -318,5 +323,158 @@ internal static class ResolvedFeaturesSchemaMapper
     private static bool IsFolderClass(string className)
     {
         return className.EndsWith("_ct") || className.EndsWith("_cM") || ModernFolderClasses.Contains(className);
+    }
+
+    private static readonly byte[] ParamSignature = new byte[] {
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x40,
+        0xFF, 0xFF, 0xFF, 0xFF,
+        0x00, 0x00, 0x00, 0x00,
+        0xFF, 0xFE, 0xFF,
+        0x00, 0x00, 0x00
+    };
+
+    private static double FindFirstParameterValue(byte[] raw, int start, int end)
+    {
+        if (raw == null || raw.Length < ParamSignature.Length + 8) return 0;
+        int max = Math.Min(end, raw.Length) - (ParamSignature.Length + 8);
+        for (int i = start; i <= max; i++)
+        {
+            if (raw[i] != 0x00) continue;
+            bool match = true;
+            for (int j = 1; j < ParamSignature.Length; j++)
+            {
+                if (raw[i + j] != ParamSignature[j])
+                {
+                    match = false;
+                    break;
+                }
+            }
+            if (match)
+            {
+                double val = BitConverter.ToDouble(raw, i + ParamSignature.Length);
+                if (val > 0)
+                    return val;
+            }
+        }
+        return 0;
+    }
+
+    private static void SynthesizeFeatureDefinitions(MfcDocument doc, Dictionary<int, FeatureFolder> folderByTagOffset)
+    {
+        var raw = doc.SourceData;
+        var sortedFolders = folderByTagOffset.Values.OrderBy(f => f.TagOffset).ToList();
+
+        for (int i = 0; i < sortedFolders.Count; i++)
+        {
+            var folder = sortedFolders[i];
+            int start = folder.TagOffset;
+            int end = (i + 1 < sortedFolders.Count) ? sortedFolders[i + 1].TagOffset : raw.Length;
+
+            // Find parent or preceding sketch folder for contour/region selection
+            var parentSketchFolder = sortedFolders.Take(i).LastOrDefault(f => f.ClassName.StartsWith("moProfileFeature_"));
+            string? sketchName = parentSketchFolder?.DisplayName;
+            var chain = parentSketchFolder?.ChildFeatureDataBuilder.OfType<SketchChainData>().FirstOrDefault()
+                ?? parentSketchFolder?.ChildFeatureData.OfType<SketchChainData>().FirstOrDefault();
+            var regions = (parentSketchFolder?.ChildFeatureDataBuilder.OfType<SketchRegionData>() ?? Enumerable.Empty<SketchRegionData>())
+                .Concat(parentSketchFolder?.ChildFeatureData.OfType<SketchRegionData>() ?? Enumerable.Empty<SketchRegionData>());
+
+            // Topology / selection sub-objects within the feature folder
+            var fromSkt = folder.ChildFeatureDataBuilder.OfType<FromSktEntSurfIdRepData>().FirstOrDefault()
+                ?? folder.ChildFeatureData.OfType<FromSktEntSurfIdRepData>().FirstOrDefault();
+            var fromSkt3Int = folder.ChildFeatureDataBuilder.OfType<FromSktEnt3IntSurfIdRepData>().FirstOrDefault()
+                ?? folder.ChildFeatureData.OfType<FromSktEnt3IntSurfIdRepData>().FirstOrDefault();
+            var faceRef = folder.ChildFeatureDataBuilder.OfType<FaceRefData>().FirstOrDefault()
+                ?? folder.ChildFeatureData.OfType<FaceRefData>().FirstOrDefault();
+            var endFace = folder.ChildFeatureDataBuilder.OfType<EndFaceSurfIdRepData>().FirstOrDefault()
+                ?? folder.ChildFeatureData.OfType<EndFaceSurfIdRepData>().FirstOrDefault();
+            var endFace3Int = folder.ChildFeatureDataBuilder.OfType<EndFace3IntSurfIdRepData>().FirstOrDefault()
+                ?? folder.ChildFeatureData.OfType<EndFace3IntSurfIdRepData>().FirstOrDefault();
+            var compFace = folder.ChildFeatureDataBuilder.OfType<CompFaceData>().FirstOrDefault()
+                ?? folder.ChildFeatureData.OfType<CompFaceData>().FirstOrDefault();
+            var edgeRef = folder.ChildFeatureDataBuilder.OfType<EdgeRefData>().FirstOrDefault()
+                ?? folder.ChildFeatureData.OfType<EdgeRefData>().FirstOrDefault();
+            var compEdge = folder.ChildFeatureDataBuilder.OfType<CompEdgeData>().FirstOrDefault()
+                ?? folder.ChildFeatureData.OfType<CompEdgeData>().FirstOrDefault();
+            var compRefPlane = folder.ChildFeatureDataBuilder.OfType<CompRefPlaneData>().FirstOrDefault()
+                ?? folder.ChildFeatureData.OfType<CompRefPlaneData>().FirstOrDefault();
+            var faceRefPln = folder.ChildFeatureDataBuilder.OfType<FaceRefPlnData>().FirstOrDefault()
+                ?? folder.ChildFeatureData.OfType<FaceRefPlnData>().FirstOrDefault();
+            var chooser = folder.ChildFeatureDataBuilder.OfType<PerBodyChooserData>().FirstOrDefault()
+                ?? folder.ChildFeatureData.OfType<PerBodyChooserData>().FirstOrDefault();
+            var compBodies = folder.ChildFeatureDataBuilder.OfType<CompSolidBodyData>()
+                .Concat(folder.ChildFeatureData.OfType<CompSolidBodyData>());
+
+            if ((folder.ClassName == "moExtrusion_c" || folder.ClassName == "moExtrusion_ct" || folder.ClassName == "moICE_c") && folder.FeatureData == null)
+            {
+                var extData = new ExtrudeFeatureDefinitionData();
+                extData.IsCut = folder.ClassName == "moICE_c" || folder.DisplayName.Contains("切除") || folder.DisplayName.IndexOf("cut", StringComparison.OrdinalIgnoreCase) >= 0;
+
+                var endSpec = folder.ChildFeatureDataBuilder.OfType<EndSpecData>().FirstOrDefault() ?? folder.ChildFeatureData.OfType<EndSpecData>().FirstOrDefault();
+                if (endSpec != null)
+                {
+                    extData.EndCondition = endSpec.EndCondition;
+                }
+
+                double depth = FindFirstParameterValue(raw, start, end);
+                if (depth > 0)
+                {
+                    extData.Depth = depth;
+                }
+                else
+                {
+                    var ppDim = folder.ChildFeatureData.OfType<ParallelPlaneDistanceDimData>().FirstOrDefault(d => d.DimValue > 0);
+                    if (ppDim != null) extData.Depth = ppDim.DimValue;
+                }
+
+                // Selection & Topology binding
+                extData.SketchName = sketchName;
+                extData.SelectedContours = TopologyDecoder.BuildContourReferences(chain, fromSkt, fromSkt3Int);
+                extData.SelectedRegions = TopologyDecoder.BuildRegionReferences(regions);
+                extData.DirectionReference = TopologyDecoder.BuildDirectionReference(edgeRef, compEdge, compRefPlane, faceRefPln);
+                extData.EndConditionEntity = TopologyDecoder.BuildEndConditionEntity(faceRef, endFace, compFace, endFace3Int);
+                extData.BodyScope = TopologyDecoder.BuildBodyScope(chooser, compBodies);
+                if (extData.BodyScope != null)
+                {
+                    extData.AutoSelect = extData.BodyScope.AutoSelect;
+                    extData.FeatureScope = !extData.BodyScope.AutoSelect;
+                }
+                extData.BothDirections = extData.EndCondition == 6;
+                extData.IsBaseExtrude = !sortedFolders.Take(i).Any(f => f.ClassName == "moExtrusion_c" || f.ClassName == "moSMBaseFlange_c");
+
+                folder.FeatureData = extData;
+            }
+            else if (folder.ClassName == "moSMBaseFlange_c" && folder.FeatureData == null)
+            {
+                var smData = new SheetMetalBaseFlangeDefinitionData();
+                smData.Depth = FindFirstParameterValue(raw, start, end);
+
+                var threeDRad = doc.AllElements.FirstOrDefault(e => e.ClassName == "ThreeDRadiusDim_c");
+                if (threeDRad != null && threeDRad.TagOffset + 0x3D + 8 <= raw.Length)
+                {
+                    double rad = BitConverter.ToDouble(raw, threeDRad.TagOffset + 0x3D);
+                    if (rad > 0) smData.BendRadius = rad;
+                }
+
+                var ppDim = doc.AllElements.FirstOrDefault(e => e.ClassName == "ParallelPlaneDistanceDim_c" && e.TagOffset > (threeDRad?.TagOffset ?? 0));
+                if (ppDim != null && ppDim.TagOffset + 0x1A3 + 8 <= raw.Length)
+                {
+                    double thick = BitConverter.ToDouble(raw, ppDim.TagOffset + 0x1A3);
+                    if (thick > 0) smData.Thickness = thick;
+                }
+
+                if (smData.Thickness <= 0) smData.Thickness = 0.001;
+                if (smData.BendRadius <= 0) smData.BendRadius = 0.002;
+
+                // Selection & Topology binding
+                smData.SketchName = sketchName;
+                smData.SelectedContours = TopologyDecoder.BuildContourReferences(chain, fromSkt);
+                smData.SelectedRegions = TopologyDecoder.BuildRegionReferences(regions);
+                smData.DirectionReference = TopologyDecoder.BuildDirectionReference(edgeRef, compEdge, compRefPlane, faceRefPln);
+                smData.BodyScope = TopologyDecoder.BuildBodyScope(chooser, compBodies);
+
+                folder.FeatureData = smData;
+            }
+        }
     }
 }
