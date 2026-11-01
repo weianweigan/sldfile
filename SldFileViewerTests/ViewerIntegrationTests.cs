@@ -11,7 +11,7 @@ namespace SldFileViewerTests;
 
 public class ViewerIntegrationTests
 {
-    private static string ResolveModelPath(string relativePath)
+    internal static string ResolveModelPath(string relativePath)
     {
         var rawName = Path.GetFileName(relativePath);
         string[] candidates =
