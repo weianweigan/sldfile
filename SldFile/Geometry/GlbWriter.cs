@@ -131,7 +131,7 @@ internal static class GlbWriter
         sb.Append("\"accessors\":[");
         // Accessor 0: POSITION
         sb.Append(string.Format(inv,
-            "{{\"bufferView\":0,\"byteOffset\":0,\"componentType\":{0},\"count\":{1},\"type\":\"VEC3\",\"min\":[{2:F6},{3:F6},{4:F6}],\"max\":[{5:F6},{6:F6},{7:F6}]}}",
+            "{{\"bufferView\":0,\"byteOffset\":0,\"componentType\":{0},\"count\":{1},\"type\":\"VEC3\",\"min\":[{2:R},{3:R},{4:R}],\"max\":[{5:R},{6:R},{7:R}]}}",
             ComponentTypeFloat, vertexCount, minX, minY, minZ, maxX, maxY, maxZ));
 
         int accessorIndex = 1;
