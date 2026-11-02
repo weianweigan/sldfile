@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using SldFile;
@@ -18,6 +18,12 @@ public sealed class ExportService : IExportService
     {
         using var stream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None);
         mesh.WriteStl(stream);
+    }
+
+    public void ExportMeshToGlb(DisplayMesh mesh, string filePath)
+    {
+        using var stream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None);
+        mesh.WriteGlb(stream);
     }
 
     public void ExportParasolid(SwFile file, string filePath, int configIndex = 0)

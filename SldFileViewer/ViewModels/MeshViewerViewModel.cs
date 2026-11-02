@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Windows.Media.Media3D;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -208,11 +208,25 @@ public partial class MeshViewerViewModel : ObservableObject
         WpfEdgeMesh = edgeGeo;
     }
 
+    private string GetDefaultFileName(string extension)
+    {
+        var currentPath = _docService.CurrentFilePath;
+        if (!string.IsNullOrWhiteSpace(currentPath))
+        {
+            var baseName = Path.GetFileNameWithoutExtension(currentPath);
+            if (!string.IsNullOrWhiteSpace(baseName))
+            {
+                return $"{baseName}{extension}";
+            }
+        }
+        return $"Model{extension}";
+    }
+
     [RelayCommand]
     private void ExportObj()
     {
         if (Mesh == null) return;
-        if (_dialogService.ShowSaveFileDialog("Model.obj", "Wavefront OBJ (*.obj)|*.obj", out var savePath))
+        if (_dialogService.ShowSaveFileDialog(GetDefaultFileName(".obj"), "Wavefront OBJ (*.obj)|*.obj", out var savePath))
         {
             try
             {
@@ -230,7 +244,7 @@ public partial class MeshViewerViewModel : ObservableObject
     private void ExportStl()
     {
         if (Mesh == null) return;
-        if (_dialogService.ShowSaveFileDialog("Model.stl", "STL 几何模型 (*.stl)|*.stl", out var savePath))
+        if (_dialogService.ShowSaveFileDialog(GetDefaultFileName(".stl"), "STL 几何模型 (*.stl)|*.stl", out var savePath))
         {
             try
             {
@@ -245,10 +259,28 @@ public partial class MeshViewerViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void ExportGlb()
+    {
+        if (Mesh == null) return;
+        if (_dialogService.ShowSaveFileDialog(GetDefaultFileName(".glb"), "glTF 2.0 二进制模型 (*.glb)|*.glb", out var savePath))
+        {
+            try
+            {
+                _exportService.ExportMeshToGlb(Mesh, savePath);
+                _dialogService.ShowInformation("导出成功", $"glTF 2.0 (GLB) 模型已导出至:\n{savePath}");
+            }
+            catch (Exception ex)
+            {
+                _dialogService.ShowError("导出失败", ex.Message);
+            }
+        }
+    }
+
+    [RelayCommand]
     private void ExportParasolid()
     {
         if (_docService.CurrentFile == null) return;
-        if (_dialogService.ShowSaveFileDialog("Model.x_b", "Parasolid Transmit 二进制 (*.x_b)|*.x_b", out var savePath))
+        if (_dialogService.ShowSaveFileDialog(GetDefaultFileName(".x_b"), "Parasolid Transmit 二进制 (*.x_b)|*.x_b", out var savePath))
         {
             try
             {

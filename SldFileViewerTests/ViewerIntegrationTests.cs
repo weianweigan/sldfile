@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -13,38 +13,46 @@ public class ViewerIntegrationTests
 {
     private static string ResolveModelPath(string relativePath)
     {
-        var rawName = Path.GetFileName(relativePath);
-        string[] candidates =
+        var candidates = new System.Collections.Generic.List<string> { relativePath };
+        var fileName = Path.GetFileName(relativePath);
+        if (!string.IsNullOrEmpty(fileName))
         {
-            Path.Combine("TestFiles", "Solidworks2012", rawName),
-            Path.Combine("..", "SldFileTests", "TestFiles", "Solidworks2012", rawName),
-            Path.Combine("SldFileTests", "TestFiles", "Solidworks2012", rawName),
-            Path.Combine("models", rawName),
-            relativePath
-        };
+            candidates.Add(Path.Combine("SldFileTests", "TestFiles", "Solidworks2026", fileName));
+            candidates.Add(Path.Combine("TestFiles", "Solidworks2026", fileName));
+            candidates.Add(Path.Combine("SldFileTests", "TestFiles", "Solidworks2012", fileName));
+            candidates.Add(Path.Combine("TestFiles", "Solidworks2012", fileName));
+        }
 
-        var searchDirs = new[] { AppContext.BaseDirectory, Directory.GetCurrentDirectory() };
-        foreach (var startDir in searchDirs)
+        var dir = AppContext.BaseDirectory;
+        for (int i = 0; i < 6; i++)
         {
-            var dir = startDir;
-            for (int i = 0; i < 6; i++)
+            foreach (var rel in candidates)
             {
-                foreach (var rel in candidates)
-                {
-                    var candidate = Path.Combine(dir, rel);
-                    if (File.Exists(candidate)) return Path.GetFullPath(candidate);
-                }
-                var parent = Path.GetDirectoryName(dir);
-                if (parent == null) break;
-                dir = parent;
+                var candidate = Path.Combine(dir, rel);
+                if (File.Exists(candidate)) return Path.GetFullPath(candidate);
             }
+            var parent = Path.GetDirectoryName(dir);
+            if (parent == null) break;
+            dir = parent;
+        }
+        dir = Directory.GetCurrentDirectory();
+        for (int i = 0; i < 6; i++)
+        {
+            foreach (var rel in candidates)
+            {
+                var candidate = Path.Combine(dir, rel);
+                if (File.Exists(candidate)) return Path.GetFullPath(candidate);
+            }
+            var parent = Path.GetDirectoryName(dir);
+            if (parent == null) break;
+            dir = parent;
         }
         return Path.GetFullPath(relativePath);
     }
 
-    private readonly string _cubePart = ResolveModelPath("cube.SLDPRT");
-    private readonly string _assembly = ResolveModelPath("assembly.SLDASM");
-    private readonly string _cubeDrawing = ResolveModelPath("cube.SLDDRW");
+    private readonly string _cubePart = ResolveModelPath(@"SldFileTests/TestFiles/Solidworks2026/cube.SLDPRT");
+    private readonly string _assembly = ResolveModelPath(@"SldFileTests/TestFiles/Solidworks2026/assembly.SLDASM");
+    private readonly string _cubeDrawing = ResolveModelPath(@"SldFileTests/TestFiles/Solidworks2026/cube.SLDDRW");
 
     private class MockDialogService : IDialogService
     {
@@ -281,7 +289,7 @@ public class ViewerIntegrationTests
     }
 
     [Fact]
-    public void ExportMeshService_ExportsObjAndStlSuccessfully()
+    public void ExportMeshService_ExportsObjStlAndGlbSuccessfully()
     {
         var docService = new SwDocumentService();
         var dialogService = new MockDialogService();
@@ -293,6 +301,7 @@ public class ViewerIntegrationTests
 
         string tempObj = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid():N}.obj");
         string tempStl = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid():N}.stl");
+        string tempGlb = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid():N}.glb");
 
         try
         {
@@ -303,11 +312,16 @@ public class ViewerIntegrationTests
             exportService.ExportMeshToStl(mesh!, tempStl);
             Assert.True(File.Exists(tempStl));
             Assert.True(new FileInfo(tempStl).Length > 0);
+
+            exportService.ExportMeshToGlb(mesh!, tempGlb);
+            Assert.True(File.Exists(tempGlb));
+            Assert.True(new FileInfo(tempGlb).Length > 0);
         }
         finally
         {
             if (File.Exists(tempObj)) File.Delete(tempObj);
             if (File.Exists(tempStl)) File.Delete(tempStl);
+            if (File.Exists(tempGlb)) File.Delete(tempGlb);
         }
     }
 

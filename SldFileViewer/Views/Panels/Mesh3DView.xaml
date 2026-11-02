@@ -1,4 +1,4 @@
-<UserControl x:Class="SldFileViewer.Views.Panels.Mesh3DView"
+﻿<UserControl x:Class="SldFileViewer.Views.Panels.Mesh3DView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -107,6 +107,17 @@
                         <StackPanel Orientation="Horizontal">
                             <iconPacks:PackIconMaterial Kind="Printer3d" Foreground="{StaticResource Brush.Figma.Ink}" Width="12" Height="12" Margin="0,0,4,0" VerticalAlignment="Center"/>
                             <TextBlock Text="导出 STL" FontSize="11"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button Command="{Binding ExportGlbCommand}"
+                            Style="{StaticResource Style.Button.Secondary}"
+                            Padding="12,4"
+                            Margin="6,0,0,0"
+                            ToolTip="导出为 glTF 2.0 二进制模型 (.glb，适用 Web 3D / Three.js / Windows 3D 查看器)">
+                        <StackPanel Orientation="Horizontal">
+                            <iconPacks:PackIconMaterial Kind="Earth" Foreground="{StaticResource Brush.Figma.Ink}" Width="12" Height="12" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="导出 GLB" FontSize="11"/>
                         </StackPanel>
                     </Button>
 

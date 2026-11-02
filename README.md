@@ -1,4 +1,4 @@
-![SldFile — Read SolidWorks files directly from code](Assets/banner.png)
+﻿![SldFile — Read SolidWorks files directly from code](Assets/banner.png)
 
 # SldFile
 
@@ -101,7 +101,7 @@ For comprehensive code examples and in-depth usage, please refer to the **[Detai
 - **[2. Custom Properties and Configuration Properties](USAGE.md#2-custom-properties-and-configuration-properties)**: Typed property values (`string`, `int`, `double`, `bool`, `DateTime`) across configurations.
 - **[3. Extracting Preview Images](USAGE.md#3-extracting-preview-images)**: High-resolution PNG and standard BMP thumbnails.
 - **[4. Assembly Hierarchy and Bill of Materials (BOM)](USAGE.md#4-assembly-hierarchy-and-bill-of-materials-bom)**: Component trees, transforms, virtual components, and aggregated BOM lists.
-- **[5. 3D Geometry: Parasolid and Mesh Export](USAGE.md#5-3d-geometry-parasolid-and-mesh-export)**: Export Parasolid (`.x_b`) and 3D display meshes to OBJ and STL.
+- **[5. 3D Geometry: Parasolid and Mesh Export](USAGE.md#5-3d-geometry-parasolid-and-mesh-export)**: Export Parasolid (`.x_b`) and 3D display meshes to GLB, OBJ, and STL.
 - **[6. 2D Drawing Inspection](USAGE.md#6-2d-drawing-inspection)**: Drawing sheets, views, referenced models, and per-sheet preview PNGs.
 - **[7. Inspecting Sketches](USAGE.md#7-inspecting-sketches)**: 3D/2D sketch points, lines, arcs, splines, relations, and dimensions.
 - **[8. Working with Sketch Templates (.ske)](USAGE.md#8-working-with-sketch-templates-ske)**: Read and rename dimensions/parameters in feature templates.
