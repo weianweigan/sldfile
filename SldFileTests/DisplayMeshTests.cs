@@ -8,6 +8,36 @@ namespace SldFileTests;
 public class DisplayMeshTests
 {
     [Fact]
+    public void DisplayMesh_WriteGlb_BoundsMatchBinaryPositionsWithoutRounding()
+    {
+        var mesh = new DisplayMesh
+        {
+            Positions = new[]
+            {
+                new System.Numerics.Vector3(0.0001234567f, -1.234567f, 2.345678f),
+                new System.Numerics.Vector3(0.0002345678f, -0.1234567f, 3.456789f),
+                new System.Numerics.Vector3(0.0003456789f, -0.2345678f, 4.567891f)
+            },
+            TriangleIndices = new[] { 0, 1, 2 }
+        };
+        using var output = new MemoryStream();
+        mesh.WriteGlb(output);
+        byte[] bytes = output.ToArray();
+        int jsonLength = System.BitConverter.ToInt32(bytes, 12);
+        using var json = System.Text.Json.JsonDocument.Parse(Encoding.UTF8.GetString(bytes, 20, jsonLength));
+        var positionAccessor = json.RootElement.GetProperty("accessors")[0];
+        int positionOffset = 20 + jsonLength + 8;
+        for (int axis = 0; axis < 3; axis++)
+        {
+            var values = Enumerable.Range(0, 3)
+                .Select(i => System.BitConverter.ToSingle(bytes, positionOffset + i * 12 + axis * 4)).ToArray();
+            Assert.Equal(values.Min(), positionAccessor.GetProperty("min")[axis].GetSingle());
+            Assert.Equal(values.Max(), positionAccessor.GetProperty("max")[axis].GetSingle());
+        }
+        Assert.True(output.CanWrite);
+    }
+
+    [Fact]
     public void DisplayMesh_2012CubePart_DecodesCorrectly()
     {
         using var file = SwFile.Open(TestFileProvider.CubePart, readOnly: true);
