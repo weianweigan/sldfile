@@ -76,7 +76,7 @@ internal sealed class SectionArchiveDirectory
                 var strictUtf8 = new System.Text.UTF8Encoding(false, true);
                 streamName = strictUtf8.GetString(rawName);
             }
-            catch (Exception)
+            catch (System.Text.DecoderFallbackException)
             {
                 throw new InvalidDataException("Stream name contains invalid UTF-8 byte sequence.");
             }
