@@ -1,0 +1,374 @@
+{
+  "Key": "sm_l_r3",
+  "path": "D:\\weigan\\repos\\sldfile\\reverse_workspace\\experiments\\sheet-metal-open-l-v2-20261030\\sm_l_r3.SLDPRT",
+  "createPid": 39972,
+  "verifyPid": 18168,
+  "independentProcess": true,
+  "before": {
+    "volume": 3.4497787143782145E-07,
+    "surfaceArea": 0.0007789513171632071,
+    "centerOfMass": [
+      0.014386305785618538,
+      0.0030048312277530173,
+      0.005
+    ],
+    "massStatus": 0,
+    "features": [
+      {
+        "Name": "\u6536\u85CF",
+        "type": "FavoriteFolder",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u5386\u53F2\u8BB0\u5F55",
+        "type": "HistoryFolder",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u9009\u62E9\u96C6",
+        "type": "SelectionSetFolder",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u4F20\u611F\u5668",
+        "type": "SensorFolder",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u8BBE\u8BA1\u6D3B\u9875\u5939",
+        "type": "DocsFolder",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u6CE8\u89E3",
+        "type": "DetailCabinet",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u6807\u6CE8",
+        "type": "InkMarkupFolder",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u5149\u6E90\u4E0E\u76F8\u673A",
+        "type": "EnvFolder",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u5B9E\u4F53",
+        "type": "SolidBodyFolder",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u66F2\u9762\u5B9E\u4F53",
+        "type": "SurfaceBodyFolder",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u5907\u6CE8",
+        "type": "CommentsFolder",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u65B9\u7A0B\u5F0F",
+        "type": "EqnFolder",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u6750\u8D28 \u003C\u672A\u6307\u5B9A\u003E",
+        "type": "MaterialFolder",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u524D\u89C6\u57FA\u51C6\u9762",
+        "type": "RefPlane",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u4E0A\u89C6\u57FA\u51C6\u9762",
+        "type": "RefPlane",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u53F3\u89C6\u57FA\u51C6\u9762",
+        "type": "RefPlane",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u539F\u70B9",
+        "type": "OriginProfileFeature",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "Tables",
+        "type": "ConfigTableFolder",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u8349\u56FE1",
+        "type": "ProfileFeature",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u94A3\u91D16",
+        "type": "SheetMetal",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u57FA\u4F53-\u6CD5\u51701",
+        "type": "SMBaseFlange",
+        "code": 0,
+        "warning": false,
+        "definition": {
+          "Thickness": 0.001,
+          "BendRadius": 0.003,
+          "KFactor": 0.5,
+          "D1EndConditionDistance": 0.01,
+          "D2EndConditionDistance": 0.001,
+          "D1EndConditionType": 1,
+          "D2EndConditionType": 1,
+          "OffsetDirections": 1,
+          "ReverseDirection": false,
+          "ReverseThickness": false,
+          "UseDefaultBendAllowance": false,
+          "UseDefaultBendRelief": true,
+          "ReliefType": 1,
+          "ReliefRatio": 0.5,
+          "ReliefWidth": 0.0005,
+          "ReliefDepth": 0.0005
+        }
+      },
+      {
+        "Name": "\u5E73\u677F\u578B\u5F0F6",
+        "type": "FlatPattern",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      }
+    ]
+  },
+  "after": {
+    "volume": 3.449778714378215E-07,
+    "surfaceArea": 0.0007789513171632071,
+    "centerOfMass": [
+      0.01438630578561854,
+      0.003004831227753019,
+      0.005
+    ],
+    "massStatus": 0,
+    "features": [
+      {
+        "Name": "\u6536\u85CF",
+        "type": "FavoriteFolder",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u5386\u53F2\u8BB0\u5F55",
+        "type": "HistoryFolder",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u9009\u62E9\u96C6",
+        "type": "SelectionSetFolder",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u4F20\u611F\u5668",
+        "type": "SensorFolder",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u8BBE\u8BA1\u6D3B\u9875\u5939",
+        "type": "DocsFolder",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u6CE8\u89E3",
+        "type": "DetailCabinet",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u6807\u6CE8",
+        "type": "InkMarkupFolder",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u5149\u6E90\u4E0E\u76F8\u673A",
+        "type": "EnvFolder",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u5B9E\u4F53",
+        "type": "SolidBodyFolder",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u66F2\u9762\u5B9E\u4F53",
+        "type": "SurfaceBodyFolder",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u5907\u6CE8",
+        "type": "CommentsFolder",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u65B9\u7A0B\u5F0F",
+        "type": "EqnFolder",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u6750\u8D28 \u003C\u672A\u6307\u5B9A\u003E",
+        "type": "MaterialFolder",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u524D\u89C6\u57FA\u51C6\u9762",
+        "type": "RefPlane",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u4E0A\u89C6\u57FA\u51C6\u9762",
+        "type": "RefPlane",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u53F3\u89C6\u57FA\u51C6\u9762",
+        "type": "RefPlane",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u539F\u70B9",
+        "type": "OriginProfileFeature",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "Tables",
+        "type": "ConfigTableFolder",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u8349\u56FE1",
+        "type": "ProfileFeature",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u94A3\u91D16",
+        "type": "SheetMetal",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      },
+      {
+        "Name": "\u57FA\u4F53-\u6CD5\u51701",
+        "type": "SMBaseFlange",
+        "code": 0,
+        "warning": false,
+        "definition": {
+          "Thickness": 0.001,
+          "BendRadius": 0.003,
+          "KFactor": 0.5,
+          "D1EndConditionDistance": 0.01,
+          "D2EndConditionDistance": 0.001,
+          "D1EndConditionType": 1,
+          "D2EndConditionType": 1,
+          "OffsetDirections": 1,
+          "ReverseDirection": false,
+          "ReverseThickness": false,
+          "UseDefaultBendAllowance": false,
+          "UseDefaultBendRelief": true,
+          "ReliefType": 1,
+          "ReliefRatio": 0.5,
+          "ReliefWidth": 0.0005,
+          "ReliefDepth": 0.0005
+        }
+      },
+      {
+        "Name": "\u5E73\u677F\u578B\u5F0F6",
+        "type": "FlatPattern",
+        "code": 0,
+        "warning": false,
+        "definition": null
+      }
+    ]
+  },
+  "sha256": "92CA56C765D57D801056BD76D657DAFC75E89D39CB946B34047EC5ABCAD96533"
+}

@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
+             xmlns:vm="clr-namespace:SldFileViewer.ViewModels"
              mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="800">
 
@@ -87,6 +88,184 @@
                         <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SourceStream}" FontFamily="Consolas, Cascadia Code, Segoe UI" Foreground="{StaticResource Brush.Figma.Ink}" Margin="0,5"/>
                     </Grid>
                 </Border>
+
+                <!-- Typed FeatureData (IFeature.GetDefinition() offline model) -->
+                <StackPanel DataContext="{Binding FeatureData}"
+                            Visibility="{Binding IsVisible, Converter={StaticResource BoolToVisibilityConverter}}"
+                            Margin="0,0,0,24">
+                    <DockPanel LastChildFill="False" Margin="0,0,0,8">
+                        <TextBlock DockPanel.Dock="Left"
+                                   Text="特征数据 (FeatureData / GetDefinition)" FontWeight="Bold" FontSize="13"
+                                   Foreground="{StaticResource Brush.Figma.Ink}" VerticalAlignment="Center" />
+                        <Border DockPanel.Dock="Right" CornerRadius="10" Padding="10,3">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Background" Value="{StaticResource Brush.Figma.SurfaceSoft}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Status}" Value="{x:Static vm:FeatureDataStatus.Resolved}">
+                                            <Setter Property="Background" Value="{StaticResource Brush.Figma.BlockMint}" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding Status}" Value="{x:Static vm:FeatureDataStatus.Unparsed}">
+                                            <Setter Property="Background" Value="{StaticResource Brush.Figma.BlockCoral}" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding Status}" Value="{x:Static vm:FeatureDataStatus.Unsupported}">
+                                            <Setter Property="Background" Value="{StaticResource Brush.Figma.BlockPink}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <TextBlock Text="{Binding StatusText}" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{StaticResource Brush.Figma.Ink}" />
+                        </Border>
+                    </DockPanel>
+
+                    <Border Background="{StaticResource Brush.Figma.Canvas}"
+                            BorderBrush="{StaticResource Brush.Figma.Hairline}"
+                            BorderThickness="1" CornerRadius="8"
+                            Padding="16" Margin="0,0,0,10">
+                        <StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="190" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="序列化类名 (MFC Class):"
+                                           Foreground="{StaticResource Brush.Figma.Ink}" Opacity="0.65" Margin="0,4"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding ClassName}"
+                                           FontFamily="Consolas, Cascadia Code, Segoe UI" Foreground="{StaticResource Brush.Figma.Ink}" Margin="0,4"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="类型标识 (TypeId):"
+                                           Foreground="{StaticResource Brush.Figma.Ink}" Opacity="0.65" Margin="0,4"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding TypeIdText}"
+                                           FontFamily="Consolas, Cascadia Code, Segoe UI" Foreground="{StaticResource Brush.Figma.Ink}" Margin="0,4"/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="模型类型 (Model):"
+                                           Foreground="{StaticResource Brush.Figma.Ink}" Opacity="0.65" Margin="0,4"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ModelType}"
+                                           FontFamily="Consolas, Cascadia Code, Segoe UI" Foreground="{StaticResource Brush.Figma.Ink}" Margin="0,4"/>
+
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="解析摘要 (Summary):"
+                                           Foreground="{StaticResource Brush.Figma.Ink}" Opacity="0.65" Margin="0,4"/>
+                                <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Summary}"
+                                           FontWeight="SemiBold" Foreground="{StaticResource Brush.Figma.Ink}" Margin="0,4"/>
+                            </Grid>
+                            <TextBlock Text="{Binding StatusDescription}" FontSize="11" TextWrapping="Wrap"
+                                       Foreground="{StaticResource Brush.Text.Muted}" Margin="0,8,0,0" />
+                            <TextBlock Text="状态含义：已解析 = 受控解析器结构化读取；未标记 = 模型默认值，非文件证据；未解析 = 文件未存储/null；未支持 = 该类尚无解析器。"
+                                       FontSize="10" TextWrapping="Wrap"
+                                       Foreground="{StaticResource Brush.Text.Muted}" Opacity="0.8" Margin="0,4,0,0" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Parameter groups (one DataGrid per API group) -->
+                    <ItemsControl ItemsSource="{Binding Sections}"
+                                  Visibility="{Binding HasSections, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Margin="0,0,0,10">
+                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12"
+                                               Foreground="{StaticResource Brush.Figma.Ink}" Margin="0,0,0,6" />
+                                    <Border Background="{StaticResource Brush.Figma.Canvas}"
+                                            BorderBrush="{StaticResource Brush.Figma.Hairline}"
+                                            BorderThickness="1" CornerRadius="8">
+                                        <DataGrid ItemsSource="{Binding Items}"
+                                                  AutoGenerateColumns="False"
+                                                  CanUserAddRows="False"
+                                                  CanUserResizeRows="False"
+                                                  HeadersVisibility="Column"
+                                                  IsReadOnly="True"
+                                                  GridLinesVisibility="Horizontal">
+                                            <DataGrid.Columns>
+                                                <DataGridTemplateColumn Header="属性名称 (API Property)" Width="230" SortMemberPath="Name">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate>
+                                                            <TextBlock Text="{Binding Name}" ToolTip="{Binding Name}"
+                                                                       FontFamily="Consolas, Cascadia Code, Segoe UI"
+                                                                       VerticalAlignment="Center" />
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
+                                                <DataGridTemplateColumn Header="参数值" Width="*" SortMemberPath="Value">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate>
+                                                            <TextBlock Text="{Binding Value}" ToolTip="{Binding Value}"
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       VerticalAlignment="Center">
+                                                                <TextBlock.Style>
+                                                                    <Style TargetType="TextBlock">
+                                                                        <Setter Property="Foreground" Value="{StaticResource Brush.Figma.Ink}" />
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding IsUnresolved}" Value="True">
+                                                                                <Setter Property="Foreground" Value="{StaticResource Brush.Text.Muted}" />
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </TextBlock.Style>
+                                                            </TextBlock>
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
+                                                <DataGridTemplateColumn Header="解析状态" Width="110" SortMemberPath="Status">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate>
+                                                            <Border CornerRadius="8" Padding="8,2" HorizontalAlignment="Left">
+                                                                <Border.Style>
+                                                                    <Style TargetType="Border">
+                                                                        <Setter Property="Background" Value="{StaticResource Brush.Figma.SurfaceSoft}" />
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding IsResolved}" Value="True">
+                                                                                <Setter Property="Background" Value="{StaticResource Brush.Figma.BlockMint}" />
+                                                                            </DataTrigger>
+                                                                            <DataTrigger Binding="{Binding IsUnresolved}" Value="True">
+                                                                                <Setter Property="Background" Value="{StaticResource Brush.Figma.BlockPink}" />
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </Border.Style>
+                                                                <TextBlock Text="{Binding Status}" FontSize="10" FontWeight="SemiBold"
+                                                                           Foreground="{StaticResource Brush.Figma.Ink}" />
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                    </Border>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- Selection / persistent topology references -->
+                    <StackPanel Visibility="{Binding HasReferences, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <TextBlock Text="选择项与持久拓扑引用 (Selection References)" FontWeight="SemiBold" FontSize="12"
+                                   Foreground="{StaticResource Brush.Figma.Ink}" Margin="0,0,0,6" />
+                        <Border Background="{StaticResource Brush.Figma.Canvas}"
+                                BorderBrush="{StaticResource Brush.Figma.Hairline}"
+                                BorderThickness="1" CornerRadius="8">
+                            <DataGrid ItemsSource="{Binding References}"
+                                      AutoGenerateColumns="False"
+                                      CanUserAddRows="False"
+                                      HeadersVisibility="Column"
+                                      IsReadOnly="True"
+                                      GridLinesVisibility="Horizontal">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="类别" Binding="{Binding Category}" Width="150" />
+                                    <DataGridTextColumn Header="实体类型" Binding="{Binding EntityType}" Width="110" />
+                                    <DataGridTextColumn Header="实体 ID" Binding="{Binding EntityId}" Width="110" />
+                                    <DataGridTextColumn Header="明细" Binding="{Binding Details}" Width="*" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
 
                 <!-- Dimensions Table (when feature has dimensions) -->
                 <StackPanel Visibility="{Binding HasDimensions, Converter={StaticResource BoolToVisibilityConverter}}"

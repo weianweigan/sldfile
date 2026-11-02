@@ -3,6 +3,17 @@ using System.Collections.Generic;
 
 namespace SldFile;
 
+/// <summary>Observed sketch selection strategy; does not imply resolved persistent contour handles.</summary>
+public enum SketchSelectionMode
+{
+    /// <summary>The observed stream header, feature class or sketch association is not established.</summary>
+    Unknown = 0,
+    /// <summary>The supported feature uses its whole sketch without an explicit contour chooser.</summary>
+    WholeSketch = 1,
+    /// <summary>An explicit chooser selects contours or regions; individual handles may remain unresolved.</summary>
+    ExplicitSelection = 2
+}
+
 /// <summary>
 /// Entity type classification for SolidWorks persistent topology and selection references.
 /// </summary>
@@ -71,11 +82,19 @@ public sealed class SketchContourReference : ISelectionReference
     /// <summary>Whether this contour forms a closed loop.</summary>
     public bool IsClosed { get; set; } = true;
 
+    /// <summary>
+    /// True when <see cref="EntityIndices"/> was produced by a byte-pattern scan
+    /// (candidate data) instead of a structurally decoded chain record. Candidate
+    /// contours are never written to a feature's selected-contour collection.
+    /// </summary>
+    public bool IsCandidateOnly { get; set; }
+
     /// <inheritdoc />
     public bool IsValid => EntityIndices.Count > 0;
 
     public override string ToString() =>
-        $"Contour #{EntityId} (Chain {ChainId}, Entities: [{string.Join(", ", EntityIndices)}], Closed={IsClosed})";
+        $"Contour #{EntityId} (Chain {ChainId}, Entities: [{string.Join(", ", EntityIndices)}], Closed={IsClosed}" +
+        (IsCandidateOnly ? ", Candidate=True)" : ")");
 }
 
 /// <summary>
@@ -95,11 +114,85 @@ public sealed class SketchRegionReference : ISelectionReference
     /// <summary>Number of loops bounding this region.</summary>
     public uint LoopCount { get; set; }
 
+    /// <summary>
+    /// Sketch chain entity identifiers forming the selected region boundary.
+    /// Decoded from the region chooser (<c>moContourChooser_c</c>) unit records
+    /// and reported in ascending order (the chooser's intra-group ordering is not
+    /// established). The persistent region handle/index itself is not stored
+    /// there and remains 0.
+    /// </summary>
+    public IReadOnlyList<uint> EdgeIds { get; set; } = Array.Empty<uint>();
+
     /// <inheritdoc />
-    public bool IsValid => RegionIndex > 0 || EntityId > 0;
+    public bool IsValid => RegionIndex > 0 || EntityId > 0 || EdgeIds.Count > 0;
 
     public override string ToString() =>
-        $"Region #{RegionIndex} (EntityId={EntityId}, Loops={LoopCount})";
+        $"Region #{RegionIndex} (EntityId={EntityId}, Loops={LoopCount}" +
+        (EdgeIds.Count > 0 ? $", Edges=[{string.Join(", ", EdgeIds)}])" : ")");
+}
+
+/// <summary>
+/// Role of a sketch reference inside a sweep or loft feature. Established by the
+/// selection wrapper containers: <c>moCompProfile_c</c> holds profiles (or the
+/// path of a circular-profile sweep), <c>moWireContact_c</c> holds the sweep path
+/// followed by guides, or the loft guides.
+/// </summary>
+public enum SketchCurveRole
+{
+    /// <summary>Role could not be established.</summary>
+    Unknown = 0,
+
+    /// <summary>Profile/section sketch (loft sections, sweep profile).</summary>
+    Profile = 1,
+
+    /// <summary>Sweep path.</summary>
+    Path = 2,
+
+    /// <summary>Guide curve.</summary>
+    Guide = 3,
+
+    /// <summary>Centerline (not present in the 2026 controlled samples).</summary>
+    Centerline = 4
+}
+
+/// <summary>
+/// Persistent sketch reference decoded from a sweep/loft selection wrapper
+/// (<c>moCompProfile_c</c> / <c>moWireContact_c</c>). The 52-byte record starts
+/// with <c>38 4A 00 00</c> (19000) followed by the sketch persistent id.
+/// </summary>
+public sealed class SketchCurveReference : ISelectionReference
+{
+    /// <inheritdoc />
+    public string ReferenceType => "SketchCurve";
+
+    /// <summary>Role of the sketch in the feature.</summary>
+    public SketchCurveRole Role { get; set; }
+
+    /// <summary>Sketch persistent id stored at record offset +4.</summary>
+    public uint EntityId { get; set; }
+
+    /// <summary>Archive serial stored at record offset +8 (per-feature creation serial).</summary>
+    public uint ArchiveSerial { get; set; }
+
+    /// <summary>
+    /// Opaque selection id from the folder-header list, assigned by list position
+    /// (wrapper order) when <see cref="IsHeaderSelectionIdPositional"/> is true.
+    /// </summary>
+    public ushort HeaderSelectionId { get; set; }
+
+    /// <summary>
+    /// True when <see cref="HeaderSelectionId"/> was correlated by position only;
+    /// no direct byte-level link between the header ids and the sketch ids exists
+    /// in the observed samples.
+    /// </summary>
+    public bool IsHeaderSelectionIdPositional { get; set; }
+
+    /// <inheritdoc />
+    public bool IsValid => EntityId > 0;
+
+    public override string ToString() =>
+        $"SketchCurve ({Role}, SketchId={EntityId}, Serial=0x{ArchiveSerial:X8}, HeaderId=0x{HeaderSelectionId:X4}" +
+        (IsHeaderSelectionIdPositional ? ", Positional=True)" : ")");
 }
 
 /// <summary>
@@ -123,11 +216,17 @@ public sealed class DirectionReference : ISelectionReference
     public double[]? Vector { get; set; }
 
     /// <inheritdoc />
-    public bool IsValid => EntityId > 0 || !string.IsNullOrEmpty(ReferenceName) || Vector != null;
+    public bool IsValid => EntityId > 0 || !string.IsNullOrEmpty(ReferenceName) || HasDirectionVector;
+
+    private bool HasDirectionVector => Vector != null && Vector.Length == 3 &&
+        !double.IsNaN(Vector[0]) && !double.IsInfinity(Vector[0]) &&
+        !double.IsNaN(Vector[1]) && !double.IsInfinity(Vector[1]) &&
+        !double.IsNaN(Vector[2]) && !double.IsInfinity(Vector[2]) &&
+        (Vector[0] != 0 || Vector[1] != 0 || Vector[2] != 0);
 
     public override string ToString() =>
         $"Direction ({EntityType}, EntityId={EntityId}, Name='{ReferenceName}'" +
-        (Vector != null ? $", Vec=[{Vector[0]:F3}, {Vector[1]:F3}, {Vector[2]:F3}])" : ")");
+        (HasDirectionVector ? $", Vec=[{Vector![0]:F3}, {Vector[1]:F3}, {Vector[2]:F3}])" : ")");
 }
 
 /// <summary>
@@ -172,10 +271,10 @@ public sealed class EndConditionEntityReference : ISelectionReference
     public string SurfaceName { get; set; } = string.Empty;
 
     /// <summary>Number of referenced faces in this terminating reference.</summary>
-    public uint FaceCount { get; set; } = 1;
+    public uint FaceCount { get; set; }
 
     /// <inheritdoc />
-    public bool IsValid => EntityId > 0 || !string.IsNullOrEmpty(SurfaceName) || FaceCount > 0;
+    public bool IsValid => EntityId > 0 || !string.IsNullOrEmpty(SurfaceName);
 
     public override string ToString() =>
         $"EndConditionEntity ({EntityType}, Id={EntityId}, Surface='{SurfaceName}', Faces={FaceCount})";

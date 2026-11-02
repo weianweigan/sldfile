@@ -186,7 +186,7 @@ internal sealed class MfcReader
     {
         if (Offset >= End) return null;
         int cur = Offset;
-        string? result = MfcPrimitives.ReadWChar(Data, ref cur);
+        string? result = MfcPrimitives.ReadWChar(Data, ref cur, End);
         if (result != null)
         {
             Offset = cur;
@@ -194,7 +194,11 @@ internal sealed class MfcReader
         return result;
     }
 
-    public string? PeekWChar() => MfcPrimitives.PeekWChar(Data, Offset);
+    public string? PeekWChar()
+    {
+        int cursor = Offset;
+        return MfcPrimitives.ReadWChar(Data, ref cursor, End);
+    }
 
     public void SkipCStringArrayTerminator()
     {

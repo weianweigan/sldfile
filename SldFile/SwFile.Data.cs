@@ -239,8 +239,46 @@ public abstract partial class SwFile
             var name = folder.ClassName;
             var kind = name.StartsWith("moRefPlane", StringComparison.Ordinal) ? FeatureKind.ReferencePlane
                 : name.StartsWith("moProfileFeature", StringComparison.Ordinal) ? FeatureKind.Sketch
-                : (name.StartsWith("moExtrusion", StringComparison.Ordinal) || name == "moICE_c") ? (folder.DisplayName.Contains("切除") || name == "moICE_c" ? FeatureKind.Cut : FeatureKind.Extrusion)
+                : name.StartsWith("moExtruRefSurface", StringComparison.Ordinal) ? FeatureKind.SurfaceExtrude
+                : name.StartsWith("moRevolvRefSurf", StringComparison.Ordinal) ? FeatureKind.SurfaceRevolve
+                : name.StartsWith("moPlanarSurface", StringComparison.Ordinal) ? FeatureKind.PlanarSurface
+                : name.StartsWith("moSewRefSurface", StringComparison.Ordinal) ? FeatureKind.SurfaceKnit
+                : name.StartsWith("moExtendRefSurface", StringComparison.Ordinal) ? FeatureKind.SurfaceExtend
+                : name.StartsWith("moOffsetRefSurface", StringComparison.Ordinal) ? FeatureKind.SurfaceOffset
+                : name.StartsWith("moFillRefSurface", StringComparison.Ordinal) ? FeatureKind.FillSurface
+                : name.StartsWith("moSweepRefSurface", StringComparison.Ordinal) ? FeatureKind.SurfaceSweep
+                : name.StartsWith("moBlendRefSurface", StringComparison.Ordinal) ? FeatureKind.SurfaceLoft
+                : name.StartsWith("moWeldMemberFeat", StringComparison.Ordinal) ? FeatureKind.StructuralMember
+                : name.StartsWith("moEndCap", StringComparison.Ordinal) ? FeatureKind.EndCap
+                : name.StartsWith("moCosmeticWeldBead", StringComparison.Ordinal) ? FeatureKind.WeldBead
+                : (name.StartsWith("moExtrusion", StringComparison.Ordinal) || name == "moICE_c" ||
+                   name.StartsWith("moExtruThin", StringComparison.Ordinal)) ? (folder.DisplayName.Contains("切除") || name == "moICE_c" ? FeatureKind.Cut : FeatureKind.Extrusion)
+                : name.StartsWith("moRevolution", StringComparison.Ordinal) ? FeatureKind.Revolve
+                : name.StartsWith("moRevCut", StringComparison.Ordinal) ? FeatureKind.Cut
+                : name.StartsWith("moSweep", StringComparison.Ordinal) ? FeatureKind.Sweep
+                : name.StartsWith("moLoftedBend_", StringComparison.Ordinal) ? FeatureKind.LoftedBend
+                : name.StartsWith("moJog_", StringComparison.Ordinal) ? FeatureKind.Jog
+                : name.StartsWith("moFold_", StringComparison.Ordinal) ? FeatureKind.Fold
+                : name.StartsWith("moUnFold_", StringComparison.Ordinal) ? FeatureKind.UnFold
+                : name.StartsWith("moShell", StringComparison.Ordinal) ? FeatureKind.Shell
+                : name.StartsWith("moDeleteBody", StringComparison.Ordinal) ? FeatureKind.DeleteBody
+                : name.StartsWith("moDraft", StringComparison.Ordinal) ? FeatureKind.Draft
+                : name.StartsWith("moRib", StringComparison.Ordinal) ? FeatureKind.Rib
+                : name.StartsWith("moGusset", StringComparison.Ordinal) ? FeatureKind.Gusset
+                : name.StartsWith("moCombineBodies", StringComparison.Ordinal) ? FeatureKind.CombineBodies
+                : name.StartsWith("moSplit", StringComparison.Ordinal) ? FeatureKind.SplitBody
+                : name.StartsWith("moTrimRefSurface", StringComparison.Ordinal) ? FeatureKind.SurfaceTrim
+                : (name.StartsWith("moBlend", StringComparison.Ordinal) || name.StartsWith("moLoft", StringComparison.Ordinal)) ? FeatureKind.Loft
+                : name.StartsWith("VarFillet", StringComparison.Ordinal) ? FeatureKind.Fillet
+                : name.StartsWith("Fillet_", StringComparison.Ordinal) ? FeatureKind.Fillet
+                : name.StartsWith("Chamfer_", StringComparison.Ordinal) ? FeatureKind.Chamfer
+                : (name.StartsWith("moLPattern_", StringComparison.Ordinal) ||
+                   name.StartsWith("moCirPattern_", StringComparison.Ordinal)) ? FeatureKind.Pattern
+                : name.StartsWith("moMirrorPattern_", StringComparison.Ordinal) ? FeatureKind.Mirror
+                : name.StartsWith("moHoleWzd", StringComparison.Ordinal) ? FeatureKind.HoleWizard
                 : name.StartsWith("moSMBaseFlange", StringComparison.Ordinal) ? FeatureKind.Extrusion
+                : name.StartsWith("moHem_", StringComparison.Ordinal) ? FeatureKind.Hem
+                : name.StartsWith("moFlatPattern_", StringComparison.Ordinal) ? FeatureKind.FlatPattern
                 : name.StartsWith("moLengthParameter", StringComparison.Ordinal) ? FeatureKind.Dimension
                 : name.Contains("Folder") ? FeatureKind.Folder : FeatureKind.Other;
 

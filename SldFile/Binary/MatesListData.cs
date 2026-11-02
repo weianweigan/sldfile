@@ -46,5 +46,33 @@ internal sealed class MateEntry
     /// <summary>Gap value (for coordinate mates).</summary>
     public double GapValue { get; set; }
 
+    /// <summary>
+    /// Direct reference-wrapper children observed in the serialized mate object
+    /// (e.g., moPlaneRef_w / moPointRef_w). Only structurally scanned class names;
+    /// the referenced topology is not decoded.
+    /// </summary>
+    public IReadOnlyList<MateReferenceEntry> References { get; internal set; } = Array.Empty<MateReferenceEntry>();
+
+    /// <summary>
+    /// Structural decode of the mate object (header candidates, reference chains,
+    /// deferred 2026 texts). Mate type/alignment/parameters remain unresolved.
+    /// Null when the layout is not recognized.
+    /// </summary>
+    public MateStructureData? Structure { get; internal set; }
+
     internal byte[]? RawData;
+}
+
+/// <summary>
+/// One entity-reference wrapper attached to a serialized mate.
+/// Observed layouts (SolidWorks 2012 and 2026 assemblies):
+/// moPlaneRef_w -> moCompFace_c, moPointRef_w -> moCompSketchEntHandle_c.
+/// </summary>
+internal sealed class MateReferenceEntry
+{
+    /// <summary>Wrapper MFC class name (e.g., moPlaneRef_w).</summary>
+    public string WrapperClassName { get; set; } = string.Empty;
+
+    /// <summary>Direct MFC child class names of the wrapper (raw, undecoded).</summary>
+    public IReadOnlyList<string> EntityClassNames { get; set; } = Array.Empty<string>();
 }

@@ -70,8 +70,8 @@ public class FeatureInspectionTests
     [Fact]
     public void VerifyEndSpecInExtrusions()
     {
-        var samplesDir = @"D:\weigan\repos\sldfile\reverse_workspace\experiments\feature-matrix-20261028\samples";
-        if (!Directory.Exists(samplesDir)) return;
+        var samplesDir = Path.Combine(AppContext.BaseDirectory, "TestFiles", "Features2026");
+        Assert.True(Directory.Exists(samplesDir), "Missing TestFiles/Features2026: " + samplesDir);
         foreach (var (fileName, expectedDepth) in new[] { ("extrude_10mm.SLDPRT", 0.010), ("extrude_20mm.SLDPRT", 0.020), ("extrude_30mm.SLDPRT", 0.030) })
         {
             var path = Path.Combine(samplesDir, fileName);

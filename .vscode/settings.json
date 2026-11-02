@@ -1,1 +1,26 @@
-{}
+{
+    "files.encoding": "utf8",
+    "files.autoGuessEncoding": true,
+    "files.eol": "\r\n",
+    "[powershell]": {
+        "files.encoding": "utf8BOM"
+    },
+    "terminal.integrated.defaultProfile.windows": "PowerShell 7",
+    "terminal.integrated.profiles.windows": {
+        "PowerShell 7": {
+            "path": "pwsh.exe",
+            "args": [
+                "-NoLogo"
+            ]
+        },
+        "Windows PowerShell 5.1": {
+            "path": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+            "args": [
+                "-NoLogo",
+                "-ExecutionPolicy",
+                "Bypass"
+            ]
+        }
+    },
+    "dotnet.defaultSolution": "SldFile.sln"
+}

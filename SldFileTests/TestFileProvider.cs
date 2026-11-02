@@ -24,9 +24,6 @@ internal static class TestFileProvider
     private static readonly string TestFilesRoot =
         Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TestFiles");
 
-    private static readonly string ModelsRoot =
-        Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "models");
-
     // ── Solidworks 2012 ────────────────────────────────────────────
 
     public static string CubePart       => Resolve("Solidworks2012", "cube.SLDPRT");
@@ -54,16 +51,6 @@ internal static class TestFileProvider
                 $"Test file not found at '{path}'. " +
                 $"Ensure the file exists under SldFileTests/TestFiles/{versionFolder}/ " +
                 "and the csproj copies it to the output directory.", path);
-        return path;
-    }
-
-    public static string ResolveModel(string fileName)
-    {
-        var path = Path.Combine(ModelsRoot, fileName);
-        if (!File.Exists(path))
-            throw new FileNotFoundException(
-                $"Model file not found at '{path}'. " +
-                "Ensure the file exists under models/ and the csproj copies it to the output directory.", path);
         return path;
     }
 

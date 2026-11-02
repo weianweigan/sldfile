@@ -1,0 +1,402 @@
+{
+  "name": "extrude_two_direction_3mm_resave",
+  "template": "C:\\ProgramData\\SOLIDWORKS\\SOLIDWORKS 2026\\templates\\gb_part.prtdot",
+  "revision": "34.0.0",
+  "source": "SolidWorks COM native SaveAs3",
+  "lengthUnit": "m",
+  "angleUnit": "rad",
+  "operations": [
+    "OpenDoc6(extrude_two_direction_3mm.SLDPRT)"
+  ],
+  "beforeSave": {
+    "configuration": "\u9ED8\u8BA4",
+    "solidBodyCount": 1,
+    "massProperties": {
+      "status": 0,
+      "volumeM3": 1.3000000000000003E-06,
+      "surfaceAreaM2": 0.0007200000000000002,
+      "centerOfMass": [
+        0.005,
+        0.005,
+        0.0035000000000000005
+      ]
+    },
+    "features": [
+      {
+        "name": "\u6536\u85CF",
+        "type": "FavoriteFolder",
+        "typeName": "FavoriteFolder",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u5386\u53F2\u8BB0\u5F55",
+        "type": "HistoryFolder",
+        "typeName": "HistoryFolder",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u9009\u62E9\u96C6",
+        "type": "SelectionSetFolder",
+        "typeName": "SelectionSetFolder",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u4F20\u611F\u5668",
+        "type": "SensorFolder",
+        "typeName": "SensorFolder",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u8BBE\u8BA1\u6D3B\u9875\u5939",
+        "type": "DocsFolder",
+        "typeName": "DocsFolder",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u6CE8\u89E3",
+        "type": "DetailCabinet",
+        "typeName": "DetailCabinet",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u6807\u6CE8",
+        "type": "InkMarkupFolder",
+        "typeName": "InkMarkupFolder",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u5149\u6E90\u4E0E\u76F8\u673A",
+        "type": "EnvFolder",
+        "typeName": "EnvFolder",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u5B9E\u4F53",
+        "type": "SolidBodyFolder",
+        "typeName": "SolidBodyFolder",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u66F2\u9762\u5B9E\u4F53",
+        "type": "SurfaceBodyFolder",
+        "typeName": "SurfaceBodyFolder",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u5907\u6CE8",
+        "type": "CommentsFolder",
+        "typeName": "CommentsFolder",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u65B9\u7A0B\u5F0F",
+        "type": "EqnFolder",
+        "typeName": "EqnFolder",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u6750\u8D28 \u003C\u672A\u6307\u5B9A\u003E",
+        "type": "MaterialFolder",
+        "typeName": "MaterialFolder",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u524D\u89C6\u57FA\u51C6\u9762",
+        "type": "RefPlane",
+        "typeName": "RefPlane",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u4E0A\u89C6\u57FA\u51C6\u9762",
+        "type": "RefPlane",
+        "typeName": "RefPlane",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u53F3\u89C6\u57FA\u51C6\u9762",
+        "type": "RefPlane",
+        "typeName": "RefPlane",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u539F\u70B9",
+        "type": "OriginProfileFeature",
+        "typeName": "OriginProfileFeature",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "Tables",
+        "type": "ConfigTableFolder",
+        "typeName": "ConfigTableFolder",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u8349\u56FE1",
+        "type": "ProfileFeature",
+        "typeName": "ProfileFeature",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u51F8\u53F0-\u62C9\u4F381",
+        "type": "Extrusion",
+        "typeName": "Extrusion",
+        "isSuppressed": false,
+        "extrusion": {
+          "selectionAccess": true,
+          "depthDirection1": 0.01,
+          "depthDirection2": 0.003,
+          "endConditionDirection1": 0,
+          "endConditionDirection2": 0,
+          "bothDirections": true,
+          "reverseDirection": false
+        },
+        "dimensions": [
+          {
+            "name": "D1@\u51F8\u53F0-\u62C9\u4F381",
+            "value": 0.01
+          },
+          {
+            "name": "D2@\u51F8\u53F0-\u62C9\u4F381",
+            "value": 0.003
+          }
+        ]
+      }
+    ]
+  },
+  "afterReopen": {
+    "configuration": "\u9ED8\u8BA4",
+    "solidBodyCount": 1,
+    "massProperties": {
+      "status": 0,
+      "volumeM3": 1.3000000000000003E-06,
+      "surfaceAreaM2": 0.0007200000000000002,
+      "centerOfMass": [
+        0.005,
+        0.005,
+        0.0035000000000000005
+      ]
+    },
+    "features": [
+      {
+        "name": "\u6536\u85CF",
+        "type": "FavoriteFolder",
+        "typeName": "FavoriteFolder",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u5386\u53F2\u8BB0\u5F55",
+        "type": "HistoryFolder",
+        "typeName": "HistoryFolder",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u9009\u62E9\u96C6",
+        "type": "SelectionSetFolder",
+        "typeName": "SelectionSetFolder",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u4F20\u611F\u5668",
+        "type": "SensorFolder",
+        "typeName": "SensorFolder",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u8BBE\u8BA1\u6D3B\u9875\u5939",
+        "type": "DocsFolder",
+        "typeName": "DocsFolder",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u6CE8\u89E3",
+        "type": "DetailCabinet",
+        "typeName": "DetailCabinet",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u6807\u6CE8",
+        "type": "InkMarkupFolder",
+        "typeName": "InkMarkupFolder",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u5149\u6E90\u4E0E\u76F8\u673A",
+        "type": "EnvFolder",
+        "typeName": "EnvFolder",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u5B9E\u4F53",
+        "type": "SolidBodyFolder",
+        "typeName": "SolidBodyFolder",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u66F2\u9762\u5B9E\u4F53",
+        "type": "SurfaceBodyFolder",
+        "typeName": "SurfaceBodyFolder",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u5907\u6CE8",
+        "type": "CommentsFolder",
+        "typeName": "CommentsFolder",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u65B9\u7A0B\u5F0F",
+        "type": "EqnFolder",
+        "typeName": "EqnFolder",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u6750\u8D28 \u003C\u672A\u6307\u5B9A\u003E",
+        "type": "MaterialFolder",
+        "typeName": "MaterialFolder",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u524D\u89C6\u57FA\u51C6\u9762",
+        "type": "RefPlane",
+        "typeName": "RefPlane",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u4E0A\u89C6\u57FA\u51C6\u9762",
+        "type": "RefPlane",
+        "typeName": "RefPlane",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u53F3\u89C6\u57FA\u51C6\u9762",
+        "type": "RefPlane",
+        "typeName": "RefPlane",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u539F\u70B9",
+        "type": "OriginProfileFeature",
+        "typeName": "OriginProfileFeature",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "Tables",
+        "type": "ConfigTableFolder",
+        "typeName": "ConfigTableFolder",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u8349\u56FE1",
+        "type": "ProfileFeature",
+        "typeName": "ProfileFeature",
+        "isSuppressed": false,
+        "extrusion": null,
+        "dimensions": []
+      },
+      {
+        "name": "\u51F8\u53F0-\u62C9\u4F381",
+        "type": "Extrusion",
+        "typeName": "Extrusion",
+        "isSuppressed": false,
+        "extrusion": {
+          "selectionAccess": true,
+          "depthDirection1": 0.01,
+          "depthDirection2": 0.003,
+          "endConditionDirection1": 0,
+          "endConditionDirection2": 0,
+          "bothDirections": true,
+          "reverseDirection": false
+        },
+        "dimensions": [
+          {
+            "name": "D1@\u51F8\u53F0-\u62C9\u4F381",
+            "value": 0.01
+          },
+          {
+            "name": "D2@\u51F8\u53F0-\u62C9\u4F381",
+            "value": 0.003
+          }
+        ]
+      }
+    ]
+  },
+  "reopened": true,
+  "rebuild": true,
+  "sha256": "3661370016E76A47917C44FCAF75AB26C5BB07176587C87C5EF380D8634ABFA3",
+  "bytes": 68383,
+  "status": "verified"
+}

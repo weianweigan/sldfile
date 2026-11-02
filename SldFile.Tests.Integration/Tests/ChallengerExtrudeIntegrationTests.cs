@@ -30,8 +30,7 @@ public class ChallengerExtrudeIntegrationTests
         {
             Path.Combine(AppContext.BaseDirectory, relativeOrName),
             Path.Combine(AppContext.BaseDirectory, "TestFiles", relativeOrName),
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SldFileTests", "TestFiles", relativeOrName),
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "models", relativeOrName)
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SldFileTests", "TestFiles", relativeOrName)
         };
 
         foreach (var c in candidates)
@@ -81,7 +80,7 @@ public class ChallengerExtrudeIntegrationTests
             }
 
             // 2. Open in native SolidWorks
-            IModelDoc2? swDoc = _fixture.OpenDocument(tempPath, readOnly: true);
+            IModelDoc2? swDoc = _fixture.OpenDocumentVerified(tempPath, readOnly: true);
             Assert.NotNull(swDoc);
 
             try
@@ -89,6 +88,7 @@ public class ChallengerExtrudeIntegrationTests
                 // Verify ForceRebuild3 succeeds
                 bool rebuildSuccess = swDoc!.ForceRebuild3(false);
                 Assert.True(rebuildSuccess, $"ForceRebuild3 should succeed for depth {depth}m");
+                SolidWorksApplicationFixture.VerifyExtrusionFeatureStatus(swDoc);
 
                 // Verify feature exists and depth is recognized by SolidWorks API
                 IFeature? swFeat = null;
@@ -178,13 +178,14 @@ public class ChallengerExtrudeIntegrationTests
                 part.Save();
             }
 
-            IModelDoc2? swDoc = _fixture.OpenDocument(tempPath, readOnly: true);
+            IModelDoc2? swDoc = _fixture.OpenDocumentVerified(tempPath, readOnly: true);
             Assert.NotNull(swDoc);
 
             try
             {
                 bool rebuildSuccess = swDoc!.ForceRebuild3(false);
                 Assert.True(rebuildSuccess, "ForceRebuild3 should succeed for MidPlane extrusion");
+                SolidWorksApplicationFixture.VerifyExtrusionFeatureStatus(swDoc);
 
                 // Verify solid body volume = 10mm x 10mm x 20mm = 2.0e-6 m^3
                 var partDoc = swDoc as IPartDoc;
@@ -220,13 +221,14 @@ public class ChallengerExtrudeIntegrationTests
         string? samplePath = LocateTestFile(Path.Combine("Features2026", "extrude_cut_5mm.SLDPRT"));
         Assert.NotNull(samplePath);
 
-        IModelDoc2? swDoc = _fixture.OpenDocument(samplePath!, readOnly: true);
+        IModelDoc2? swDoc = _fixture.OpenDocumentVerified(samplePath!, readOnly: true);
         Assert.NotNull(swDoc);
 
         try
         {
             bool rebuildSuccess = swDoc!.ForceRebuild3(false);
             Assert.True(rebuildSuccess, "ForceRebuild3 should succeed on native cut sample");
+            SolidWorksApplicationFixture.VerifyExtrusionFeatureStatus(swDoc);
 
             IFeature? bossFeat = null;
             IFeature? cutFeat = null;
@@ -342,13 +344,14 @@ public class ChallengerExtrudeIntegrationTests
             }
 
             // Open via real SOLIDWORKS application
-            IModelDoc2? swDoc = _fixture.OpenDocument(tempPath, readOnly: true);
+            IModelDoc2? swDoc = _fixture.OpenDocumentVerified(tempPath, readOnly: true);
             Assert.NotNull(swDoc);
 
             try
             {
                 bool rebuildSuccess = swDoc!.ForceRebuild3(false);
                 Assert.True(rebuildSuccess, "ForceRebuild3 should succeed on modified cut file");
+                SolidWorksApplicationFixture.VerifyExtrusionFeatureStatus(swDoc);
 
                 IFeature? cutFeat = null;
                 for (var f = (IFeature?)swDoc.FirstFeature(); f != null; f = (IFeature?)f.GetNextFeature())
@@ -401,7 +404,7 @@ public class ChallengerExtrudeIntegrationTests
     }
 
     [SolidWorksFact]
-    public void InjectCutExtrudeOntoSketch_BuildsCutFeatureInSolidWorks()
+    public void InjectCutExtrudeOntoUnchainedSketch_IsRejectedWithoutStreamChange()
     {
         string? samplePath = LocateTestFile(Path.Combine("Features2026", "extrude_cut_5mm.SLDPRT"));
         Assert.NotNull(samplePath);
@@ -451,69 +454,21 @@ public class ChallengerExtrudeIntegrationTests
                 Assert.DoesNotContain(swCheck.Features, f => f.Kind == FeatureKind.Cut || f.Name.Contains("切除"));
             }
 
-            // Add new 7mm Cut using SldPart.AddExtrude API
-            double newCutDepth = 0.007; // 7mm cut
+            // The remaining Sketch2 has no parseable moSketchChain_c. Authoring must be
+            // rejected before any stream change instead of producing an unloadable file.
             using (var swPart = SwFile.Open(tempPath, readOnly: false))
             {
                 var part = Assert.IsType<SldPart>(swPart);
-                var feat = part.AddExtrude(newCutDepth, isCut: true);
-                Assert.NotNull(feat);
-                Assert.Equal(FeatureKind.Cut, feat.Kind);
-                Assert.Equal("切除-拉伸1", feat.Name);
+                var original = (byte[])part.RawStreams[streamName].Clone();
+                var error = Assert.Throws<NotSupportedException>(() =>
+                    part.AddExtrude(new ExtrudeFeatureDefinitionData { Depth = 0.007, IsCut = true }));
+                Assert.Contains("moSketchChain_c", error.Message);
                 part.Save();
-            }
-
-            // Open in native SOLIDWORKS and call ForceRebuild3
-            IModelDoc2? swDoc = _fixture.OpenDocument(tempPath, readOnly: true);
-            Assert.NotNull(swDoc);
-
-            try
-            {
-                bool rebuildSuccess = swDoc!.ForceRebuild3(false);
-                Assert.True(rebuildSuccess, "ForceRebuild3 should succeed for injected cut feature");
-
-                IFeature? cutFeat = null;
-                for (var f = (IFeature?)swDoc.FirstFeature(); f != null; f = (IFeature?)f.GetNextFeature())
+                using (var reopened = SwFile.Open(tempPath, readOnly: true))
                 {
-                    if (f.GetTypeName2() == "Cut" || f.GetTypeName2() == "ICE")
-                    {
-                        cutFeat = f;
-                        break;
-                    }
+                    Assert.Equal(original, reopened.RawStreams[streamName]);
+                    Assert.DoesNotContain(reopened.Features, f => f.Kind == FeatureKind.Cut);
                 }
-
-                Assert.NotNull(cutFeat);
-                Assert.Equal("切除-拉伸1", cutFeat!.Name);
-                Assert.Equal("ICE", cutFeat!.GetTypeName2());
-                var cutData = cutFeat.GetDefinition() as IExtrudeFeatureData2;
-                Assert.NotNull(cutData);
-                cutData!.AccessSelections(swDoc, null);
-                try
-                {
-                    double depth = cutData.GetDepth(true);
-                    Assert.Equal(newCutDepth, depth, precision: 4);
-                }
-                finally
-                {
-                    cutData.ReleaseSelectionAccess();
-                }
-
-                // Verify updated geometry volume: 1000 - pi * 3^2 * 7 = 1000 - 197.9203 = 802.08 mm^3 = 8.0208e-7 m^3
-                var part = swDoc as IPartDoc;
-                Assert.NotNull(part);
-                var bodies = part!.GetBodies2((int)swBodyType_e.swSolidBody, true) as object[];
-                Assert.NotNull(bodies);
-                Assert.Single(bodies!);
-                var body = bodies![0] as IBody2;
-                Assert.NotNull(body);
-
-                var massProps = (double[])body!.GetMassProperties(0);
-                double volume = massProps[3];
-                Assert.Equal(8.0208e-7, volume, precision: 6);
-            }
-            finally
-            {
-                _fixture.CloseDocument(tempPath);
             }
         }
         finally
@@ -561,13 +516,14 @@ public class ChallengerExtrudeIntegrationTests
             }
 
             // 3. Open in native SOLIDWORKS and verify ForceRebuild3
-            IModelDoc2? swDoc = _fixture.OpenDocument(tempPath, readOnly: true);
+            IModelDoc2? swDoc = _fixture.OpenDocumentVerified(tempPath, readOnly: true);
             Assert.NotNull(swDoc);
 
             try
             {
                 bool rebuildSuccess = swDoc!.ForceRebuild3(false);
                 Assert.True(rebuildSuccess, "ForceRebuild3 should rebuild the injected Boss feature cleanly without errors");
+                SolidWorksApplicationFixture.VerifyExtrusionFeatureStatus(swDoc);
 
                 IFeature? swFeat = null;
                 for (var f = (IFeature?)swDoc.FirstFeature(); f != null; f = (IFeature?)f.GetNextFeature())
@@ -625,7 +581,7 @@ public class ChallengerExtrudeIntegrationTests
     }
 
     [SolidWorksFact]
-    public void MultiFeatureCompounding_SequentialBossAndCut_SolidWorksRebuildsWithNetVolume()
+    public void MultiFeatureCompounding_UnchainedCutSketch_IsRejectedWithoutStreamChange()
     {
         string? samplePath = LocateTestFile(Path.Combine("Features2026", "extrude_cut_5mm.SLDPRT"));
         Assert.NotNull(samplePath);
@@ -695,87 +651,21 @@ public class ChallengerExtrudeIntegrationTests
                 swFile.Save();
             }
 
-            // 2. Inject Cut Extrude onto Sketch 2 with depth 8mm (0.008m) using SldPart.AddExtrude API
-            double injectedCutDepth = 0.008; // 8mm cut
+            // 2. The remaining Sketch2 has no parseable moSketchChain_c. Authoring must be
+            // rejected before any stream change instead of producing an unloadable file.
             using (var swPart = SwFile.Open(tempPath, readOnly: false))
             {
                 var part = Assert.IsType<SldPart>(swPart);
-                var cutFeat = part.AddExtrude(injectedCutDepth, isCut: true);
-                Assert.NotNull(cutFeat);
-                Assert.Equal(FeatureKind.Cut, cutFeat.Kind);
+                var original = (byte[])part.RawStreams[streamName].Clone();
+                var error = Assert.Throws<NotSupportedException>(() =>
+                    part.AddExtrude(new ExtrudeFeatureDefinitionData { Depth = 0.008, IsCut = true }));
+                Assert.Contains("moSketchChain_c", error.Message);
                 part.Save();
-            }
-
-            // 3. Open in native SOLIDWORKS and verify clean ForceRebuild3
-            IModelDoc2? swDoc = _fixture.OpenDocument(tempPath, readOnly: true);
-            Assert.NotNull(swDoc);
-
-            try
-            {
-                bool rebuildSuccess = swDoc!.ForceRebuild3(false);
-                Assert.True(rebuildSuccess, "ForceRebuild3 should succeed for multi-feature compounded part");
-
-                // Locate both Boss and Cut features
-                IFeature? bossFeat = null;
-                IFeature? cutFeat = null;
-                for (var f = (IFeature?)swDoc.FirstFeature(); f != null; f = (IFeature?)f.GetNextFeature())
+                using (var reopened = SwFile.Open(tempPath, readOnly: true))
                 {
-                    string typeName = f.GetTypeName2();
-                    if (typeName == "Extrusion" || typeName == "Boss")
-                        bossFeat = f;
-                    else if (typeName == "Cut" || typeName == "ICE")
-                        cutFeat = f;
+                    Assert.Equal(original, reopened.RawStreams[streamName]);
+                    Assert.DoesNotContain(reopened.Features, f => f.Kind == FeatureKind.Cut);
                 }
-
-                Assert.NotNull(bossFeat);
-                Assert.NotNull(cutFeat);
-
-                // Verify Boss depth is 20mm
-                var bossData = bossFeat!.GetDefinition() as IExtrudeFeatureData2;
-                Assert.NotNull(bossData);
-                bossData!.AccessSelections(swDoc, null);
-                try
-                {
-                    Assert.Equal(0.020, bossData.GetDepth(true), precision: 4);
-                }
-                finally
-                {
-                    bossData.ReleaseSelectionAccess();
-                }
-
-                // Verify Cut depth is 8mm
-                var cutData = cutFeat!.GetDefinition() as IExtrudeFeatureData2;
-                Assert.NotNull(cutData);
-                cutData!.AccessSelections(swDoc, null);
-                try
-                {
-                    Assert.Equal(injectedCutDepth, cutData.GetDepth(true), precision: 4);
-                }
-                finally
-                {
-                    cutData.ReleaseSelectionAccess();
-                }
-
-                // Verify net volume:
-                // Boss: 10mm x 10mm x 20mm = 2000 mm^3 = 2.0e-6 m^3
-                // Cut: pi * (3mm)^2 * 8mm = 72 * pi = 226.19467 mm^3 = 2.261947e-7 m^3
-                // Net: 2000 - 226.19467 = 1773.80533 mm^3 = 1.773805e-6 m^3
-                var partDoc = swDoc as IPartDoc;
-                Assert.NotNull(partDoc);
-                var bodies = partDoc!.GetBodies2((int)swBodyType_e.swSolidBody, true) as object[];
-                Assert.NotNull(bodies);
-                Assert.Single(bodies!);
-                var body = bodies![0] as IBody2;
-                Assert.NotNull(body);
-
-                var massProps = (double[])body!.GetMassProperties(0);
-                double volume = massProps[3];
-                double expectedNetVolume = (10.0 * 10.0 * 20.0 - Math.PI * 3.0 * 3.0 * 8.0) * 1e-9;
-                Assert.Equal(expectedNetVolume, volume, precision: 8);
-            }
-            finally
-            {
-                _fixture.CloseDocument(tempPath);
             }
         }
         finally

@@ -22,7 +22,6 @@ public class ViewerIntegrationTests
             Path.Combine("TestFiles", "Solidworks2012", rawName),
             Path.Combine("..", "SldFileTests", "TestFiles", "Solidworks2012", rawName),
             Path.Combine("SldFileTests", "TestFiles", "Solidworks2012", rawName),
-            Path.Combine("models", rawName),
             relativePath
         };
 

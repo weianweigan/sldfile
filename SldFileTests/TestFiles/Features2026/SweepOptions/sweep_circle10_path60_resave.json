@@ -1,0 +1,60 @@
+{
+  "file": "D:\\weigan\\repos\\sldfile\\SldFileTests\\TestFiles\\Features2026\\SweepOptions\\sweep_circle10_path60_resave.SLDPRT",
+  "sourceFile": "D:\\weigan\\repos\\sldfile\\reverse_workspace\\validation\\agent5-sweep-loft-20261030\\samples3\\sweep_circle10_path60_resave.SLDPRT",
+  "control": "A_resave",
+  "api": {
+    "accessSelections": true,
+    "sweepType": 17,
+    "profile": "ProfileFeature:Profile1",
+    "path": "ProfileFeature:Path1",
+    "guideCurves": [],
+    "guideCurveCount": 0,
+    "sweepTypeApi": 9,
+    "direction": -1,
+    "twistControlType": 0,
+    "twistAngleRad": 0,
+    "d1ReverseTwistDir": false,
+    "d2ReverseTwistDir": false,
+    "maintainTangency": true,
+    "advancedSmoothing": false,
+    "alignWithEndFaces": false,
+    "tangentPropagation": false,
+    "mergeSmoothFaces": false,
+    "circularProfile": false,
+    "circularProfileDiameter": 0,
+    "startTangencyType": 0,
+    "endTangencyType": 0,
+    "pathAlignmentType": 0,
+    "pathType": 9,
+    "thinFeature": false,
+    "isThinFeature": false,
+    "thinWallType": 0,
+    "wallThickness1": 0,
+    "wallThickness2": 0,
+    "merge": true,
+    "featureScope": true,
+    "autoSelect": false,
+    "featureScopeBodyCount": 0,
+    "isBossFeature": true,
+    "cutSweepOption": 1
+  },
+  "physical": {
+    "volume": 4.7123889803846896E-06,
+    "surfaceArea": 0.0020420352248333652,
+    "centroid": [
+      -2.6596614645950757E-19,
+      0,
+      0.030000000000000002
+    ]
+  },
+  "openDoc6": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "rebuild": {
+    "result": true,
+    "featureErrors": 0
+  },
+  "sha256": "D08E4B09210FB51DF859DA58401269D8A0552FACCE7D8175E2268B16B27F8B92",
+  "hashUnchanged": true
+}

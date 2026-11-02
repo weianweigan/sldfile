@@ -8,6 +8,41 @@ namespace SldFileTests;
 
 public class MfcReaderTests
 {
+    [Theory]
+    [InlineData(254, 4)]
+    [InlineData(255, 6)]
+    [InlineData(300, 6)]
+    [InlineData(65535, 10)]
+    public void ArchiveWideNamesPreserveExtendedLengths(int count, int headerLength)
+    {
+        string name = new string('中', count);
+        using var writer = new MfcStreamWriter();
+        writer.WriteWChar(name);
+        byte[] bytes = writer.ToArray();
+        Assert.Equal(headerLength + 2 * count, bytes.Length);
+        if (count >= 255) Assert.Equal(255, bytes[3]);
+        int cursor = 0;
+        Assert.Equal(name, MfcPrimitives.ReadWChar(bytes, ref cursor));
+        Assert.Equal(bytes.Length, cursor);
+        cursor = 0;
+        Assert.Null(MfcPrimitives.ReadWChar(bytes, ref cursor, bytes.Length - 1));
+        Assert.Equal(0, cursor);
+    }
+
+    [Fact]
+    public void WideNameCannotConsumeBytesOutsideItsObject()
+    {
+        byte[] bytes = { 255, 254, 255, 1, 65, 0 };
+        var reader = new MfcReader(bytes, 0, 5);
+        Assert.Null(reader.ReadWChar());
+        Assert.Null(reader.PeekWChar());
+        Assert.Equal(0, reader.Offset);
+        int cursor = 0;
+        byte[] malformed = { 255, 254, 255, 255, 255, 255, 255, 255, 255, 255 };
+        Assert.Null(MfcPrimitives.ReadWChar(malformed, ref cursor));
+        Assert.Equal(0, cursor);
+    }
+
     [Fact]
     public void MfcReader_ReadPrimitives_ParsesCorrectly()
     {

@@ -31,7 +31,7 @@ public class TopologySelectionTests
     [InlineData("extrude_20mm.SLDPRT")]
     [InlineData("extrude_30mm.SLDPRT")]
     [InlineData("extrude_midplane.SLDPRT")]
-    public void Extrude_ShouldExtractSelectedContoursAndSketchName(string fileName)
+    public void Extrude_ShouldExtractAvailableContoursAndCandidateSketchName(string fileName)
     {
         var path = GetSamplePath(fileName);
         using var sw = SwFile.Open(path, readOnly: true);
@@ -40,9 +40,9 @@ public class TopologySelectionTests
 
         var extData = Assert.IsType<ExtrudeFeatureDefinitionData>(extFolder!.FeatureData);
         Assert.Equal("草图1", extData.SketchName);
-        Assert.NotEmpty(extData.SelectedContours);
+        Assert.NotEmpty(extData.AvailableSketchContours);
 
-        var contour = extData.SelectedContours[0];
+        var contour = extData.AvailableSketchContours[0];
         Assert.True(contour.IsValid);
         Assert.True(contour.IsClosed);
         Assert.Equal("Contour", contour.ReferenceType);
@@ -57,7 +57,7 @@ public class TopologySelectionTests
     }
 
     [Fact]
-    public void Extrude_ShouldExtractSketchRegion()
+    public void Extrude_ShouldExtractAvailableSketchRegion()
     {
         var path = GetSamplePath("extrude_10mm.SLDPRT");
         using var sw = SwFile.Open(path, readOnly: true);
@@ -65,9 +65,9 @@ public class TopologySelectionTests
         Assert.NotNull(extFolder);
 
         var extData = Assert.IsType<ExtrudeFeatureDefinitionData>(extFolder!.FeatureData);
-        Assert.NotEmpty(extData.SelectedRegions);
+        Assert.NotEmpty(extData.AvailableSketchRegions);
 
-        var region = extData.SelectedRegions[0];
+        var region = extData.AvailableSketchRegions[0];
         Assert.True(region.IsValid);
         Assert.Equal("Region", region.ReferenceType);
         Assert.Equal(2u, region.RegionIndex);
@@ -76,7 +76,7 @@ public class TopologySelectionTests
     }
 
     [Fact]
-    public void ExtrudeCut_ShouldExtractEndConditionEntityAndBodyScope()
+    public void ExtrudeCut_BlindCutDoesNotRequireTerminatingEntity()
     {
         var path = GetSamplePath("extrude_cut_5mm.SLDPRT");
         using var sw = SwFile.Open(path, readOnly: true);
@@ -86,12 +86,9 @@ public class TopologySelectionTests
         var cutData = Assert.IsType<ExtrudeFeatureDefinitionData>(cutFolder!.FeatureData);
         Assert.True(cutData.IsCut);
         Assert.Equal("草图1", cutData.SketchName);
-        Assert.NotEmpty(cutData.SelectedContours);
+        Assert.NotEmpty(cutData.AvailableSketchContours);
 
-        Assert.NotNull(cutData.EndConditionEntity);
-        Assert.True(cutData.EndConditionEntity!.IsValid);
-        Assert.Equal(SelectionEntityType.Face, cutData.EndConditionEntity.EntityType);
-        Assert.True(cutData.EndConditionEntity.FaceCount >= 1);
+        Assert.Null(cutData.EndConditionEntity);
 
         Assert.NotNull(cutData.BodyScope);
         Assert.True(cutData.BodyScope.AutoSelect);
@@ -113,8 +110,11 @@ public class TopologySelectionTests
         var edgeRefData = TopologyParsers.ParseEdgeRef(edgeRefElem!);
         Assert.NotNull(edgeRefData);
         Assert.True(edgeRefData.EdgeCount >= 1);
-        Assert.NotEmpty(edgeRefData.EdgeIndices);
-        Assert.Contains(1u, edgeRefData.EdgeIndices);
+        // Candidate-only byte-pattern scan results; not a structurally decoded
+        // persistent topology path, so they never enter selection references.
+        Assert.NotEmpty(edgeRefData.CandidateEdgeIndices);
+        Assert.Contains(1u, edgeRefData.CandidateEdgeIndices);
+        Assert.Empty(edgeRefData.EdgeIndices);
 
         var compEdgeElem = doc.AllElements.FirstOrDefault(e => e.ClassName == "moCompEdge_c");
         Assert.NotNull(compEdgeElem);
@@ -196,6 +196,73 @@ public class TopologySelectionTests
         Assert.Equal(0x0002, defaultScope.Flags);
         Assert.Empty(defaultScope.BodyIds);
         Assert.Empty(defaultScope.Bodies);
+    }
+
+    [Fact]
+    public void UnresolvedTopology_DoesNotInventFaceIdentifiers()
+    {
+        byte[] raw = new byte[28];
+        BitConverter.GetBytes(1u).CopyTo(raw, 0);
+        BitConverter.GetBytes(2u).CopyTo(raw, 12);
+        var face = new FaceRefData();
+        TopologyParsers.ParseEnrichedFaceRef(face, raw);
+        Assert.Empty(face.FaceIds);
+        Assert.Equal(raw, face.RawData);
+        Assert.Equal(raw.Skip(4).ToArray(), face.TopologyData);
+        var unresolved = TopologyDecoder.BuildEndConditionEntity(face, null, null);
+        Assert.NotNull(unresolved);
+        Assert.Equal(0u, unresolved!.EntityId);
+        Assert.False(unresolved.IsValid);
+
+        var element = new SldFile.Mfc.MfcElement("moEndFace3IntSurfIdRep_c", 1, 0, 0, raw)
+        { DataEnd = raw.Length };
+        var endFace = TopologyParsers.ParseEndFace3IntSurfIdRep(element);
+        Assert.Equal(raw, endFace.RawData);
+        Assert.Equal(0u, endFace.FaceIndex);
+        Assert.False(TopologyDecoder.BuildEndConditionEntity(null, null, null, endFace)!.IsValid);
+        Assert.False(new EndConditionEntityReference { FaceCount = 1 }.IsValid);
+    }
+
+    [Fact]
+    public void EmptyDirectionObjects_DoNotProduceValidTargets()
+    {
+        Assert.False(TopologyDecoder.BuildDirectionReference(null, new CompEdgeData(), null, null)?.IsValid ?? false);
+        Assert.False(TopologyDecoder.BuildDirectionReference(null, null, new CompRefPlaneData(), null)!.IsValid);
+        Assert.Null(TopologyDecoder.BuildDirectionReference(null, null, null, new FaceRefPlnData()));
+        foreach (var vector in new[] { Array.Empty<double>(), new[] { 1.0 }, new[] { 0.0, 0.0, 0.0 }, new[] { double.NaN, 0.0, 1.0 } })
+        {
+            var direction = new DirectionReference { Vector = vector };
+            Assert.False(direction.IsValid);
+            Assert.NotNull(direction.ToString());
+        }
+    }
+
+    [Fact]
+    public void InvalidDirectionPlane_FallsBackToValidReferencePlane()
+    {
+        var direction = TopologyDecoder.BuildDirectionReference(null, null,
+            new CompRefPlaneData { RefPlaneId = 3 }, new FaceRefPlnData());
+        Assert.NotNull(direction);
+        Assert.True(direction!.IsValid);
+        Assert.Equal(3u, direction.EntityId);
+        Assert.Equal("Plane_3", direction.ReferenceName);
+    }
+
+    [Fact]
+    public void EmptyComponentFace_DoesNotHideOtherResolvedFaceIdentifiers()
+    {
+        var face = new FaceRefData();
+        face.FaceIds.AddRange(new uint[] { 0, 10 });
+        var target = TopologyDecoder.BuildEndConditionEntity(face, null,
+            new CompFaceData(), new EndFace3IntSurfIdRepData { FaceIndex = 77 });
+        Assert.Equal(10u, target!.EntityId);
+        Assert.Equal("EndFace_10", target.SurfaceName);
+
+        target = TopologyDecoder.BuildEndConditionEntity(null, null,
+            new CompFaceData(), new EndFace3IntSurfIdRepData { FaceIndex = 77 });
+        Assert.True(target!.IsValid);
+        Assert.Equal(77u, target.EntityId);
+        Assert.Equal("EndFace_77", target.SurfaceName);
     }
 
     [Fact]

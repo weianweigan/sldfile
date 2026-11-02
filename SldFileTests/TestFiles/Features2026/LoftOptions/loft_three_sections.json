@@ -1,0 +1,105 @@
+{
+  "file": "D:\\weigan\\repos\\sldfile\\SldFileTests\\TestFiles\\Features2026\\LoftOptions\\loft_three_sections.SLDPRT",
+  "sourceFile": "D:\\weigan\\repos\\sldfile\\reverse_workspace\\validation\\agent5-sweep-loft-20261030\\samples3\\loft_three_sections.SLDPRT",
+  "createPid": 33432,
+  "verifyPid": 29196,
+  "independentProcess": true,
+  "solidWorksRevision": "34.0.0",
+  "featureName": "loft_three_sections",
+  "typeName2": "Blend",
+  "classNameExpected": "moLoft_c",
+  "description": "L2 three sections d10/d15/d20 ordered by Z",
+  "api": {
+    "accessSelections": true,
+    "profileCount": 3,
+    "numberOfSections": 1,
+    "profiles": [
+      "ProfileFeature:Profile1",
+      "ProfileFeature:Profile2",
+      "ProfileFeature:Profile3"
+    ],
+    "guideCurves": [],
+    "guideCurveCount": 0,
+    "guideCurveInfluence": 0,
+    "centerline": "null",
+    "startTangencyType": 0,
+    "endTangencyType": 0,
+    "startTangentLength": 0.1,
+    "endTangentLength": 0.1,
+    "startConstraintDraftAngle": 0,
+    "endConstraintDraftAngle": 0,
+    "endConstraintApplyToAll": false,
+    "reverseStartTangentDirection": false,
+    "reverseEndTangentDirection": false,
+    "close": false,
+    "thinFeature": 0,
+    "isThinFeature": false,
+    "wallThickness1": 0,
+    "wallThickness2": 0,
+    "merge": true,
+    "featureScope": true,
+    "autoSelect": false,
+    "featureScopeBodyCount": 0,
+    "isBossFeature": true,
+    "guideTangencyType0": 0,
+    "guideTangencyType1": 0
+  },
+  "selectionPersistRefs": {
+    "Profile1": {
+      "length": 20,
+      "base64": "OEoAAAEAAAD//v8AAAAAAEkAAAA="
+    },
+    "Profile2": {
+      "length": 20,
+      "base64": "OEoAAAEAAAD//v8AAAAAAEwAAAA="
+    },
+    "Profile3": {
+      "length": 20,
+      "base64": "OEoAAAEAAAD//v8AAAAAAE8AAAA="
+    },
+    "Guide1": null
+  },
+  "physical": {
+    "volume": 5.497602298814183E-06,
+    "surfaceArea": 0.0018258526097730706,
+    "centroid": [
+      3.052966149092568E-08,
+      7.03605149460773E-08,
+      0.018214296956952734
+    ],
+    "bodyBox": [
+      -0.010261867352229772,
+      -0.010261809036598521,
+      -5.8662386691273635E-06,
+      0.01026186735222977,
+      0.010005893308679624,
+      0.030005866238669125
+    ],
+    "bodyMass": [
+      3.0529661490925676E-08,
+      7.03605149460773E-08,
+      0.018214296956952734,
+      5.497602298814183E-06,
+      0.0018258526097730706,
+      5.497602298814183E-06,
+      4.585962329680043E-10,
+      4.5859918297468124E-10,
+      1.825910410860934E-10,
+      1.8567100558172876E-15,
+      8.712640044486311E-16,
+      3.9878735950772003E-16
+    ]
+  },
+  "openDoc6": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "rebuild": {
+    "result": true,
+    "featureErrors": 0,
+    "featureErrorDetails": []
+  },
+  "sha256": "3F4B768FEC78BEFB2C0ACB0B63BBE2A59EC37CE58E50842CA697AB668474C31F",
+  "hashUnchanged": true,
+  "status": "verified"
+}

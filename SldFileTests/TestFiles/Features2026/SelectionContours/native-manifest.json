@@ -1,0 +1,779 @@
+{
+  "processId": 32236,
+  "observations": [
+    {
+      "observation": {
+        "file": "contour_second.SLDPRT",
+        "rebuilt": true,
+        "error": 0,
+        "warning": false,
+        "selectedCount": 1,
+        "selectedTypes": [
+          "SketchContour"
+        ],
+        "selectedDetails": [
+          {
+            "type": "SketchContour",
+            "closed": true,
+            "segmentIds": [
+              [
+                6,
+                5
+              ],
+              [
+                9,
+                8
+              ],
+              [
+                8,
+                7
+              ],
+              [
+                7,
+                6
+              ]
+            ]
+          }
+        ],
+        "bodies": 1,
+        "volume": 2.0000000000000003E-06,
+        "surfaceArea": 0.001,
+        "centerOfMass": [
+          0.03,
+          0.005,
+          0.005
+        ],
+        "featureTree": [
+          {
+            "Name": "\u6536\u85CF",
+            "type": "FavoriteFolder"
+          },
+          {
+            "Name": "\u5386\u53F2\u8BB0\u5F55",
+            "type": "HistoryFolder"
+          },
+          {
+            "Name": "\u9009\u62E9\u96C6",
+            "type": "SelectionSetFolder"
+          },
+          {
+            "Name": "\u4F20\u611F\u5668",
+            "type": "SensorFolder"
+          },
+          {
+            "Name": "\u8BBE\u8BA1\u6D3B\u9875\u5939",
+            "type": "DocsFolder"
+          },
+          {
+            "Name": "\u6CE8\u89E3",
+            "type": "DetailCabinet"
+          },
+          {
+            "Name": "\u6807\u6CE8",
+            "type": "InkMarkupFolder"
+          },
+          {
+            "Name": "\u5149\u6E90\u4E0E\u76F8\u673A",
+            "type": "EnvFolder"
+          },
+          {
+            "Name": "\u5B9E\u4F53",
+            "type": "SolidBodyFolder"
+          },
+          {
+            "Name": "\u66F2\u9762\u5B9E\u4F53",
+            "type": "SurfaceBodyFolder"
+          },
+          {
+            "Name": "\u5907\u6CE8",
+            "type": "CommentsFolder"
+          },
+          {
+            "Name": "\u65B9\u7A0B\u5F0F",
+            "type": "EqnFolder"
+          },
+          {
+            "Name": "\u6750\u8D28 \u003C\u672A\u6307\u5B9A\u003E",
+            "type": "MaterialFolder"
+          },
+          {
+            "Name": "\u524D\u89C6\u57FA\u51C6\u9762",
+            "type": "RefPlane"
+          },
+          {
+            "Name": "\u4E0A\u89C6\u57FA\u51C6\u9762",
+            "type": "RefPlane"
+          },
+          {
+            "Name": "\u53F3\u89C6\u57FA\u51C6\u9762",
+            "type": "RefPlane"
+          },
+          {
+            "Name": "\u539F\u70B9",
+            "type": "OriginProfileFeature"
+          },
+          {
+            "Name": "Tables",
+            "type": "ConfigTableFolder"
+          },
+          {
+            "Name": "SelectionSeed",
+            "type": "ProfileFeature"
+          },
+          {
+            "Name": "SelectionExtrude",
+            "type": "Extrusion"
+          }
+        ]
+      },
+      "sha256": "3F70BC963E2CE7D3D22F2F946676D6EE378ED1743E16DDAC95976A38974A3D81"
+    },
+    {
+      "observation": {
+        "file": "contour.SLDPRT",
+        "rebuilt": true,
+        "error": 0,
+        "warning": false,
+        "selectedCount": 1,
+        "selectedTypes": [
+          "SketchContour"
+        ],
+        "selectedDetails": [
+          {
+            "type": "SketchContour",
+            "closed": true,
+            "segmentIds": [
+              [
+                1,
+                1
+              ],
+              [
+                4,
+                4
+              ],
+              [
+                3,
+                3
+              ],
+              [
+                2,
+                2
+              ]
+            ]
+          }
+        ],
+        "bodies": 1,
+        "volume": 1.0000000000000002E-06,
+        "surfaceArea": 0.0006000000000000001,
+        "centerOfMass": [
+          0.005,
+          0.005,
+          0.005
+        ],
+        "featureTree": [
+          {
+            "Name": "\u6536\u85CF",
+            "type": "FavoriteFolder"
+          },
+          {
+            "Name": "\u5386\u53F2\u8BB0\u5F55",
+            "type": "HistoryFolder"
+          },
+          {
+            "Name": "\u9009\u62E9\u96C6",
+            "type": "SelectionSetFolder"
+          },
+          {
+            "Name": "\u4F20\u611F\u5668",
+            "type": "SensorFolder"
+          },
+          {
+            "Name": "\u8BBE\u8BA1\u6D3B\u9875\u5939",
+            "type": "DocsFolder"
+          },
+          {
+            "Name": "\u6CE8\u89E3",
+            "type": "DetailCabinet"
+          },
+          {
+            "Name": "\u6807\u6CE8",
+            "type": "InkMarkupFolder"
+          },
+          {
+            "Name": "\u5149\u6E90\u4E0E\u76F8\u673A",
+            "type": "EnvFolder"
+          },
+          {
+            "Name": "\u5B9E\u4F53",
+            "type": "SolidBodyFolder"
+          },
+          {
+            "Name": "\u66F2\u9762\u5B9E\u4F53",
+            "type": "SurfaceBodyFolder"
+          },
+          {
+            "Name": "\u5907\u6CE8",
+            "type": "CommentsFolder"
+          },
+          {
+            "Name": "\u65B9\u7A0B\u5F0F",
+            "type": "EqnFolder"
+          },
+          {
+            "Name": "\u6750\u8D28 \u003C\u672A\u6307\u5B9A\u003E",
+            "type": "MaterialFolder"
+          },
+          {
+            "Name": "\u524D\u89C6\u57FA\u51C6\u9762",
+            "type": "RefPlane"
+          },
+          {
+            "Name": "\u4E0A\u89C6\u57FA\u51C6\u9762",
+            "type": "RefPlane"
+          },
+          {
+            "Name": "\u53F3\u89C6\u57FA\u51C6\u9762",
+            "type": "RefPlane"
+          },
+          {
+            "Name": "\u539F\u70B9",
+            "type": "OriginProfileFeature"
+          },
+          {
+            "Name": "Tables",
+            "type": "ConfigTableFolder"
+          },
+          {
+            "Name": "SelectionSeed",
+            "type": "ProfileFeature"
+          },
+          {
+            "Name": "SelectionExtrude",
+            "type": "Extrusion"
+          }
+        ]
+      },
+      "sha256": "3E8EFAE093467CF85C44227A0021FA7BC0E8BDD145351D3F51E5A993F0DEA23A"
+    },
+    {
+      "observation": {
+        "file": "region_second.SLDPRT",
+        "rebuilt": true,
+        "error": 0,
+        "warning": false,
+        "selectedCount": 1,
+        "selectedTypes": [
+          "SketchRegion"
+        ],
+        "selectedDetails": [
+          {
+            "type": "SketchRegion",
+            "edgeEndpoints": [
+              {
+                "start": [
+                  0,
+                  0,
+                  6.2831853071796E-07
+                ],
+                "end": [
+                  0,
+                  0.01,
+                  6.2831853071796E-07
+                ]
+              },
+              {
+                "start": [
+                  0,
+                  0.01,
+                  6.2831853071796E-07
+                ],
+                "end": [
+                  0.01,
+                  0.01,
+                  6.2831853071796E-07
+                ]
+              },
+              {
+                "start": [
+                  0.01,
+                  0,
+                  6.2831853071796E-07
+                ],
+                "end": [
+                  0.01,
+                  0.01,
+                  6.2831853071796E-07
+                ]
+              },
+              {
+                "start": [
+                  0,
+                  0,
+                  6.2831853071796E-07
+                ],
+                "end": [
+                  0.01,
+                  0,
+                  6.2831853071796E-07
+                ]
+              }
+            ]
+          }
+        ],
+        "bodies": 1,
+        "volume": 1.0000000000000002E-06,
+        "surfaceArea": 0.0006000000000000001,
+        "centerOfMass": [
+          0.005,
+          0.005,
+          0.005
+        ],
+        "featureTree": [
+          {
+            "Name": "\u6536\u85CF",
+            "type": "FavoriteFolder"
+          },
+          {
+            "Name": "\u5386\u53F2\u8BB0\u5F55",
+            "type": "HistoryFolder"
+          },
+          {
+            "Name": "\u9009\u62E9\u96C6",
+            "type": "SelectionSetFolder"
+          },
+          {
+            "Name": "\u4F20\u611F\u5668",
+            "type": "SensorFolder"
+          },
+          {
+            "Name": "\u8BBE\u8BA1\u6D3B\u9875\u5939",
+            "type": "DocsFolder"
+          },
+          {
+            "Name": "\u6CE8\u89E3",
+            "type": "DetailCabinet"
+          },
+          {
+            "Name": "\u6807\u6CE8",
+            "type": "InkMarkupFolder"
+          },
+          {
+            "Name": "\u5149\u6E90\u4E0E\u76F8\u673A",
+            "type": "EnvFolder"
+          },
+          {
+            "Name": "\u5B9E\u4F53",
+            "type": "SolidBodyFolder"
+          },
+          {
+            "Name": "\u66F2\u9762\u5B9E\u4F53",
+            "type": "SurfaceBodyFolder"
+          },
+          {
+            "Name": "\u5907\u6CE8",
+            "type": "CommentsFolder"
+          },
+          {
+            "Name": "\u65B9\u7A0B\u5F0F",
+            "type": "EqnFolder"
+          },
+          {
+            "Name": "\u6750\u8D28 \u003C\u672A\u6307\u5B9A\u003E",
+            "type": "MaterialFolder"
+          },
+          {
+            "Name": "\u524D\u89C6\u57FA\u51C6\u9762",
+            "type": "RefPlane"
+          },
+          {
+            "Name": "\u4E0A\u89C6\u57FA\u51C6\u9762",
+            "type": "RefPlane"
+          },
+          {
+            "Name": "\u53F3\u89C6\u57FA\u51C6\u9762",
+            "type": "RefPlane"
+          },
+          {
+            "Name": "\u539F\u70B9",
+            "type": "OriginProfileFeature"
+          },
+          {
+            "Name": "Tables",
+            "type": "ConfigTableFolder"
+          },
+          {
+            "Name": "SelectionSeed",
+            "type": "ProfileFeature"
+          },
+          {
+            "Name": "SelectionExtrude",
+            "type": "Extrusion"
+          }
+        ]
+      },
+      "sha256": "EE942E5070F7F0EC7AF8659DCA2B7B95C19FD9DAB1A5755FEBC0B78CF985459B"
+    },
+    {
+      "observation": {
+        "file": "region.SLDPRT",
+        "rebuilt": true,
+        "error": 0,
+        "warning": false,
+        "selectedCount": 1,
+        "selectedTypes": [
+          "SketchRegion"
+        ],
+        "selectedDetails": [
+          {
+            "type": "SketchRegion",
+            "edgeEndpoints": [
+              {
+                "start": [
+                  0.02,
+                  0,
+                  6.2831853071796E-07
+                ],
+                "end": [
+                  0.02,
+                  0.01,
+                  6.2831853071796E-07
+                ]
+              },
+              {
+                "start": [
+                  0.02,
+                  0.01,
+                  6.2831853071796E-07
+                ],
+                "end": [
+                  0.04,
+                  0.01,
+                  6.2831853071796E-07
+                ]
+              },
+              {
+                "start": [
+                  0.04,
+                  0,
+                  6.2831853071796E-07
+                ],
+                "end": [
+                  0.04,
+                  0.01,
+                  6.2831853071796E-07
+                ]
+              },
+              {
+                "start": [
+                  0.02,
+                  0,
+                  6.2831853071796E-07
+                ],
+                "end": [
+                  0.04,
+                  0,
+                  6.2831853071796E-07
+                ]
+              }
+            ]
+          }
+        ],
+        "bodies": 1,
+        "volume": 2.0000000000000003E-06,
+        "surfaceArea": 0.001,
+        "centerOfMass": [
+          0.03,
+          0.005,
+          0.005
+        ],
+        "featureTree": [
+          {
+            "Name": "\u6536\u85CF",
+            "type": "FavoriteFolder"
+          },
+          {
+            "Name": "\u5386\u53F2\u8BB0\u5F55",
+            "type": "HistoryFolder"
+          },
+          {
+            "Name": "\u9009\u62E9\u96C6",
+            "type": "SelectionSetFolder"
+          },
+          {
+            "Name": "\u4F20\u611F\u5668",
+            "type": "SensorFolder"
+          },
+          {
+            "Name": "\u8BBE\u8BA1\u6D3B\u9875\u5939",
+            "type": "DocsFolder"
+          },
+          {
+            "Name": "\u6CE8\u89E3",
+            "type": "DetailCabinet"
+          },
+          {
+            "Name": "\u6807\u6CE8",
+            "type": "InkMarkupFolder"
+          },
+          {
+            "Name": "\u5149\u6E90\u4E0E\u76F8\u673A",
+            "type": "EnvFolder"
+          },
+          {
+            "Name": "\u5B9E\u4F53",
+            "type": "SolidBodyFolder"
+          },
+          {
+            "Name": "\u66F2\u9762\u5B9E\u4F53",
+            "type": "SurfaceBodyFolder"
+          },
+          {
+            "Name": "\u5907\u6CE8",
+            "type": "CommentsFolder"
+          },
+          {
+            "Name": "\u65B9\u7A0B\u5F0F",
+            "type": "EqnFolder"
+          },
+          {
+            "Name": "\u6750\u8D28 \u003C\u672A\u6307\u5B9A\u003E",
+            "type": "MaterialFolder"
+          },
+          {
+            "Name": "\u524D\u89C6\u57FA\u51C6\u9762",
+            "type": "RefPlane"
+          },
+          {
+            "Name": "\u4E0A\u89C6\u57FA\u51C6\u9762",
+            "type": "RefPlane"
+          },
+          {
+            "Name": "\u53F3\u89C6\u57FA\u51C6\u9762",
+            "type": "RefPlane"
+          },
+          {
+            "Name": "\u539F\u70B9",
+            "type": "OriginProfileFeature"
+          },
+          {
+            "Name": "Tables",
+            "type": "ConfigTableFolder"
+          },
+          {
+            "Name": "SelectionSeed",
+            "type": "ProfileFeature"
+          },
+          {
+            "Name": "SelectionExtrude",
+            "type": "Extrusion"
+          }
+        ]
+      },
+      "sha256": "103C876444F95684611F30632D715EC7BE70F2AF4E2619A4364D4666078E6DCA"
+    },
+    {
+      "observation": {
+        "file": "whole_resave.SLDPRT",
+        "rebuilt": true,
+        "error": 0,
+        "warning": false,
+        "selectedCount": 0,
+        "selectedTypes": [],
+        "selectedDetails": [],
+        "bodies": 2,
+        "volume": 3.0000000000000005E-06,
+        "surfaceArea": 0.0016,
+        "centerOfMass": [
+          0.021666666666666667,
+          0.005,
+          0.005
+        ],
+        "featureTree": [
+          {
+            "Name": "\u6536\u85CF",
+            "type": "FavoriteFolder"
+          },
+          {
+            "Name": "\u5386\u53F2\u8BB0\u5F55",
+            "type": "HistoryFolder"
+          },
+          {
+            "Name": "\u9009\u62E9\u96C6",
+            "type": "SelectionSetFolder"
+          },
+          {
+            "Name": "\u4F20\u611F\u5668",
+            "type": "SensorFolder"
+          },
+          {
+            "Name": "\u8BBE\u8BA1\u6D3B\u9875\u5939",
+            "type": "DocsFolder"
+          },
+          {
+            "Name": "\u6CE8\u89E3",
+            "type": "DetailCabinet"
+          },
+          {
+            "Name": "\u6807\u6CE8",
+            "type": "InkMarkupFolder"
+          },
+          {
+            "Name": "\u5149\u6E90\u4E0E\u76F8\u673A",
+            "type": "EnvFolder"
+          },
+          {
+            "Name": "\u5B9E\u4F53",
+            "type": "SolidBodyFolder"
+          },
+          {
+            "Name": "\u66F2\u9762\u5B9E\u4F53",
+            "type": "SurfaceBodyFolder"
+          },
+          {
+            "Name": "\u5907\u6CE8",
+            "type": "CommentsFolder"
+          },
+          {
+            "Name": "\u65B9\u7A0B\u5F0F",
+            "type": "EqnFolder"
+          },
+          {
+            "Name": "\u6750\u8D28 \u003C\u672A\u6307\u5B9A\u003E",
+            "type": "MaterialFolder"
+          },
+          {
+            "Name": "\u524D\u89C6\u57FA\u51C6\u9762",
+            "type": "RefPlane"
+          },
+          {
+            "Name": "\u4E0A\u89C6\u57FA\u51C6\u9762",
+            "type": "RefPlane"
+          },
+          {
+            "Name": "\u53F3\u89C6\u57FA\u51C6\u9762",
+            "type": "RefPlane"
+          },
+          {
+            "Name": "\u539F\u70B9",
+            "type": "OriginProfileFeature"
+          },
+          {
+            "Name": "Tables",
+            "type": "ConfigTableFolder"
+          },
+          {
+            "Name": "SelectionSeed",
+            "type": "ProfileFeature"
+          },
+          {
+            "Name": "SelectionExtrude",
+            "type": "Extrusion"
+          }
+        ]
+      },
+      "sha256": "C9DFCF916010EA980BB703F7B98994F37F2E3FB754BF4876960B1ACDFF5A204B"
+    },
+    {
+      "observation": {
+        "file": "whole.SLDPRT",
+        "rebuilt": true,
+        "error": 0,
+        "warning": false,
+        "selectedCount": 0,
+        "selectedTypes": [],
+        "selectedDetails": [],
+        "bodies": 2,
+        "volume": 3.0000000000000005E-06,
+        "surfaceArea": 0.0016,
+        "centerOfMass": [
+          0.021666666666666667,
+          0.005,
+          0.005
+        ],
+        "featureTree": [
+          {
+            "Name": "\u6536\u85CF",
+            "type": "FavoriteFolder"
+          },
+          {
+            "Name": "\u5386\u53F2\u8BB0\u5F55",
+            "type": "HistoryFolder"
+          },
+          {
+            "Name": "\u9009\u62E9\u96C6",
+            "type": "SelectionSetFolder"
+          },
+          {
+            "Name": "\u4F20\u611F\u5668",
+            "type": "SensorFolder"
+          },
+          {
+            "Name": "\u8BBE\u8BA1\u6D3B\u9875\u5939",
+            "type": "DocsFolder"
+          },
+          {
+            "Name": "\u6CE8\u89E3",
+            "type": "DetailCabinet"
+          },
+          {
+            "Name": "\u6807\u6CE8",
+            "type": "InkMarkupFolder"
+          },
+          {
+            "Name": "\u5149\u6E90\u4E0E\u76F8\u673A",
+            "type": "EnvFolder"
+          },
+          {
+            "Name": "\u5B9E\u4F53",
+            "type": "SolidBodyFolder"
+          },
+          {
+            "Name": "\u66F2\u9762\u5B9E\u4F53",
+            "type": "SurfaceBodyFolder"
+          },
+          {
+            "Name": "\u5907\u6CE8",
+            "type": "CommentsFolder"
+          },
+          {
+            "Name": "\u65B9\u7A0B\u5F0F",
+            "type": "EqnFolder"
+          },
+          {
+            "Name": "\u6750\u8D28 \u003C\u672A\u6307\u5B9A\u003E",
+            "type": "MaterialFolder"
+          },
+          {
+            "Name": "\u524D\u89C6\u57FA\u51C6\u9762",
+            "type": "RefPlane"
+          },
+          {
+            "Name": "\u4E0A\u89C6\u57FA\u51C6\u9762",
+            "type": "RefPlane"
+          },
+          {
+            "Name": "\u53F3\u89C6\u57FA\u51C6\u9762",
+            "type": "RefPlane"
+          },
+          {
+            "Name": "\u539F\u70B9",
+            "type": "OriginProfileFeature"
+          },
+          {
+            "Name": "Tables",
+            "type": "ConfigTableFolder"
+          },
+          {
+            "Name": "SelectionSeed",
+            "type": "ProfileFeature"
+          },
+          {
+            "Name": "SelectionExtrude",
+            "type": "Extrusion"
+          }
+        ]
+      },
+      "sha256": "626D555C9B8C9F65EC36F00438D3F9FE9DBAB2856EEA7DDFE87C97D8B2B727F7"
+    }
+  ]
+}

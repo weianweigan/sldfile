@@ -1,0 +1,113 @@
+{
+  "file": "D:\\weigan\\repos\\sldfile\\SldFileTests\\TestFiles\\Features2026\\SelectionAuthoring\\select_two_contours_resave.SLDPRT",
+  "sourceFile": "D:\\weigan\\repos\\sldfile\\reverse_workspace\\validation\\agent5-selection-20261030\\samples2\\select_two_contours.SLDPRT",
+  "control": "A_resave",
+  "sha256": "01C31515A638B1B536671F56D7B4932BBFD38CD889CF39F18CD084F5D6C8EB4A",
+  "openDoc6": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "rebuild": {
+    "result": true
+  },
+  "physical": {
+    "volume": 3.0000000000000005E-06,
+    "surfaceArea": 0.0016,
+    "centroid": [
+      0.021666666666666667,
+      0.005,
+      0.005
+    ],
+    "bodyCount": 2
+  },
+  "sldfile": {
+    "features": [
+      {
+        "Name": "收藏",
+        "kind": "Folder"
+      },
+      {
+        "Name": "历史记录",
+        "kind": "Folder"
+      },
+      {
+        "Name": "选择集",
+        "kind": "Folder"
+      },
+      {
+        "Name": "传感器",
+        "kind": "Folder"
+      },
+      {
+        "Name": "设计活页夹",
+        "kind": "Folder"
+      },
+      {
+        "Name": "注解",
+        "kind": "Other"
+      },
+      {
+        "Name": "注释",
+        "kind": "Folder"
+      },
+      {
+        "Name": "注释1___EndTag___",
+        "kind": "Folder"
+      },
+      {
+        "Name": "标注",
+        "kind": "Folder"
+      },
+      {
+        "Name": "实体",
+        "kind": "Folder"
+      },
+      {
+        "Name": "曲面实体",
+        "kind": "Folder"
+      },
+      {
+        "Name": "备注",
+        "kind": "Folder"
+      },
+      {
+        "Name": "方程式",
+        "kind": "Folder"
+      },
+      {
+        "Name": "材质 <未指定>",
+        "kind": "Folder"
+      },
+      {
+        "Name": "前视基准面",
+        "kind": "ReferencePlane"
+      },
+      {
+        "Name": "原点",
+        "kind": "Other"
+      },
+      {
+        "Name": "Tables",
+        "kind": "Folder"
+      },
+      {
+        "Name": "Configuration Table",
+        "kind": "Other"
+      },
+      {
+        "Name": "SelectionSeed",
+        "kind": "Sketch"
+      },
+      {
+        "Name": "SelectionExtrude",
+        "kind": "Extrusion"
+      }
+    ],
+    "extrusionCount": 1,
+    "depth": 0.01,
+    "sketchSelectionMode": "Unknown",
+    "selectedContours": [],
+    "selectedRegions": []
+  },
+  "hashUnchanged": true
+}
