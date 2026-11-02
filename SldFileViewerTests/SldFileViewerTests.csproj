@@ -19,4 +19,9 @@
     <ProjectReference Include="..\SldFileViewer\SldFileViewer.csproj" />
   </ItemGroup>
 
+  <!-- Copy TestFiles/ into build output for offline tests -->
+  <ItemGroup>
+    <None Include="..\SldFileTests\TestFiles\**\*" CopyToOutputDirectory="PreserveNewest" LinkBase="TestFiles" />
+  </ItemGroup>
+
 </Project>

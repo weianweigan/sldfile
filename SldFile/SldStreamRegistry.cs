@@ -120,6 +120,7 @@ internal sealed class SldStreamRegistry
             // ResolvedFeatures
             else if (name.EndsWith("-ResolvedFeatures"))
             {
+                model.ResolvedFeaturesStreamPath = name;
                 _resolvedFeaturesReader.Parse(data, model.ResolvedFeatures);
             }
         }

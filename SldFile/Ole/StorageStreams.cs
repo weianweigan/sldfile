@@ -63,4 +63,11 @@ internal static class StorageStreams
         }
         WriteAt(root, 0);
     }
+
+    internal static void WriteFile(string filePath, string path, byte[] bytes)
+    {
+        using var root = RootStorage.Open(filePath, FileMode.Open, FileAccess.ReadWrite, StorageModeFlags.Transacted);
+        Write(root, path, bytes);
+        root.Commit();
+    }
 }

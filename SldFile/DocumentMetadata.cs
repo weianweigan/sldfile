@@ -205,12 +205,25 @@ public sealed class Feature
     public FeatureKind Kind { get; }
     public string TypeName { get; }
     public int? Id { get; }
+
+    /// <summary>Whether this feature is suppressed in the active configuration.</summary>
+    public bool IsSuppressed { get; }
+
+    /// <summary>Whether this feature is visible in the viewport.</summary>
+    public bool IsVisible { get; }
+
+    /// <summary>
+    /// Typed feature definition data (equivalent to SolidWorks API feature.GetDefinition()),
+    /// e.g. ExtrudeFeatureDefinitionData or SheetMetalBaseFlangeDefinitionData.
+    /// </summary>
+    public IFeatureData? Definition { get; }
+
     public IReadOnlyDictionary<string, string> Attributes { get; }
     public IReadOnlyList<FeatureDimension> Dimensions { get; }
     public IReadOnlyList<Feature> Children { get; }
 
     internal Feature(string name, FeatureKind kind)
-        : this(name, kind, null, null, null, null, null) { }
+        : this(name, kind, null, null, null, null, null, false, true, null) { }
 
     internal Feature(
         string name,
@@ -219,7 +232,10 @@ public sealed class Feature
         int? id = null,
         IReadOnlyDictionary<string, string>? attributes = null,
         IReadOnlyList<FeatureDimension>? dimensions = null,
-        IReadOnlyList<Feature>? children = null)
+        IReadOnlyList<Feature>? children = null,
+        bool isSuppressed = false,
+        bool isVisible = true,
+        IFeatureData? definition = null)
     {
         Name = name ?? string.Empty;
         Kind = kind;
@@ -228,5 +244,8 @@ public sealed class Feature
         Attributes = attributes ?? new Dictionary<string, string>();
         Dimensions = dimensions ?? Array.Empty<FeatureDimension>();
         Children = children ?? Array.Empty<Feature>();
+        IsSuppressed = isSuppressed;
+        IsVisible = isVisible;
+        Definition = definition;
     }
 }

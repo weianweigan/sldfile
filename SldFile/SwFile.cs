@@ -19,6 +19,24 @@ public abstract partial class SwFile : IDisposable
     // Original section container state, retained for incremental saves.
     private byte[]? _originalFileData;
     private byte _fileKey;
+    private readonly Dictionary<string, byte[]> _pendingStreamChanges = new(StringComparer.OrdinalIgnoreCase);
+
+    internal void SetPendingStream(string streamPath, byte[] data)
+    {
+        _pendingStreamChanges[streamPath] = data;
+    }
+
+    internal int ActiveConfigurationIndex { get; set; }
+    internal string? ResolvedFeaturesStreamPath { get; set; }
+
+    internal byte[]? GetStreamBytes(string streamPath)
+    {
+        if (_pendingStreamChanges.TryGetValue(streamPath, out var pending))
+            return pending;
+        if (RawStreams.TryGetValue(streamPath, out var raw))
+            return raw;
+        return null;
+    }
 
     public string FilePath { get; }
 
@@ -181,6 +199,10 @@ public abstract partial class SwFile : IDisposable
             throw new SldFileException("File is opened in read-only mode.");
 
         var updatedStreams = _metadataStore.PrepareChanges(Metadata, CustomProperties, Configurations);
+        foreach (var pair in _pendingStreamChanges)
+        {
+            updatedStreams[pair.Key] = pair.Value;
+        }
         if (updatedStreams.Count == 0) return;
 
         if (_isSectionContainer)
@@ -214,6 +236,11 @@ public abstract partial class SwFile : IDisposable
             _root!.Commit();
         }
         _metadataStore.AcceptChanges(updatedStreams, Metadata, CustomProperties, Configurations);
+        foreach (var pair in updatedStreams)
+        {
+            RawStreams[pair.Key] = pair.Value;
+        }
+        _pendingStreamChanges.Clear();
     }
 
     public void Dispose()
