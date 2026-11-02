@@ -274,14 +274,31 @@ public sealed class MeasureResult
 
             double r1 = elem1.Radius;
             double r2 = elem2.Radius;
-            MinDistance = Math.Max(0, centerDist - r1 - r2);
-            MaxDistance = centerDist + r1 + r2;
+            // Exact circumference distances for parallel circles, including nested
+            // circles and circles on separate planes. Cylinder extents and skew
+            // circle distances cannot be inferred from radii and centers alone.
+            bool parallelCircles = elem1.Type == MeasureElementType.Circle &&
+                elem2.Type == MeasureElementType.Circle &&
+                elem1.AxisDirection.LengthSquared > 0.99 &&
+                Math.Abs(Vector3D.DotProduct(elem1.AxisDirection, elem2.AxisDirection)) > 1 - 1e-8;
+            if (parallelCircles)
+            {
+                Vector3D offset = c2 - c1;
+                double axial = Vector3D.DotProduct(offset, elem1.AxisDirection);
+                double radial = (offset - elem1.AxisDirection * axial).Length;
+                double gap = Math.Max(0, Math.Max(radial - r1 - r2, Math.Abs(r1 - r2) - radial));
+                MinDistance = Math.Sqrt(gap * gap + axial * axial);
+                double span = radial + r1 + r2;
+                MaxDistance = Math.Sqrt(span * span + axial * axial);
+            }
 
             DimensionLineStart = c1;
             DimensionLineEnd = c2;
             CalloutAnchorPoint = new Point3D((c1.X + c2.X) * 0.5, (c1.Y + c2.Y) * 0.5, (c1.Z + c2.Z) * 0.5);
             MainText = $"中心距: {centerDist:F2} mm";
-            SubText = $"最小间距: {MinDistance.Value:F2} mm | 最大间距: {MaxDistance.Value:F2} mm";
+            SubText = MinDistance.HasValue
+                ? $"最小间距: {MinDistance.Value:F2} mm | 最大间距: {MaxDistance!.Value:F2} mm"
+                : "显示所选元素的中心距";
         }
         // 2. 圆与点测距
         else if ((isCircle1 && elem2.Type == MeasureElementType.Point) ||
@@ -297,13 +314,23 @@ public sealed class MeasureResult
             double dist = Math.Sqrt(DeltaX * DeltaX + DeltaY * DeltaY + DeltaZ * DeltaZ);
             CenterDistance = dist;
             Value = dist;
-            MinDistance = Math.Max(0, dist - circleElem.Radius);
-            MaxDistance = dist + circleElem.Radius;
+            if (circleElem.Type == MeasureElementType.Circle && circleElem.AxisDirection.LengthSquared > 0.99)
+            {
+                Vector3D offset = p - c;
+                double axial = Vector3D.DotProduct(offset, circleElem.AxisDirection);
+                double radial = (offset - circleElem.AxisDirection * axial).Length;
+                double gap = radial - circleElem.Radius;
+                double span = radial + circleElem.Radius;
+                MinDistance = Math.Sqrt(gap * gap + axial * axial);
+                MaxDistance = Math.Sqrt(span * span + axial * axial);
+            }
             DimensionLineStart = c;
             DimensionLineEnd = p;
             CalloutAnchorPoint = new Point3D((c.X + p.X) * 0.5, (c.Y + p.Y) * 0.5, (c.Z + p.Z) * 0.5);
             MainText = $"中心距: {dist:F2} mm";
-            SubText = $"到圆边缘最小间距: {MinDistance.Value:F2} mm (最大跨距: {MaxDistance.Value:F2} mm)";
+            SubText = MinDistance.HasValue
+                ? $"到圆边缘最小间距: {MinDistance.Value:F2} mm (最大跨距: {MaxDistance!.Value:F2} mm)"
+                : "显示所选元素的中心距";
         }
         // 3. 圆与平面测距
         else if ((isCircle1 && elem2.Type == MeasureElementType.Face) ||
@@ -473,7 +500,8 @@ public sealed class MeasureResult
             }
         }
         // 9. 线与面测距
-        else
+        else if ((elem1.Type == MeasureElementType.Edge && elem2.Type == MeasureElementType.Face) ||
+                 (elem2.Type == MeasureElementType.Edge && elem1.Type == MeasureElementType.Face))
         {
             var edgeElem = elem1.Type == MeasureElementType.Edge ? elem1 : elem2;
             var faceElem = elem1.Type == MeasureElementType.Face ? elem1 : elem2;
@@ -493,6 +521,20 @@ public sealed class MeasureResult
             CalloutAnchorPoint = new Point3D((pt.X + proj.X) * 0.5, (pt.Y + proj.Y) * 0.5, (pt.Z + proj.Z) * 0.5);
             MainText = $"{Value:F2} mm (线到面法向距离)";
             SubText = $"ΔX: {DeltaX:F2}  ΔY: {DeltaY:F2}  ΔZ: {DeltaZ:F2} mm";
+        }
+        else
+        {
+            // Other pairs (such as circle/edge) have no planar projection model.
+            Vector3D offset = elem2.CenterPoint - elem1.CenterPoint;
+            Value = offset.Length;
+            DeltaX = Math.Abs(offset.X);
+            DeltaY = Math.Abs(offset.Y);
+            DeltaZ = Math.Abs(offset.Z);
+            DimensionLineStart = elem1.CenterPoint;
+            DimensionLineEnd = elem2.CenterPoint;
+            CalloutAnchorPoint = elem1.CenterPoint + offset * 0.5;
+            MainText = $"中心距: {Value:F2} mm";
+            SubText = "显示所选元素的中心距";
         }
     }
 }
