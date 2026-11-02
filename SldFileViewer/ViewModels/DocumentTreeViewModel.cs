@@ -1,4 +1,5 @@
-using System;
+﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -13,6 +14,9 @@ namespace SldFileViewer.ViewModels;
 public partial class DocumentTreeViewModel : ObservableObject
 {
     private readonly ISwDocumentService _docService;
+    private TreeNodeModel? _componentsFolder;
+    private TreeNodeModel? _featTreeFolder;
+    private SwFile? _currentSwFile;
 
     [ObservableProperty]
     private string _filterText = string.Empty;
@@ -37,6 +41,9 @@ public partial class DocumentTreeViewModel : ObservableObject
 
     public void BuildTree(SwFile swFile, string filePath)
     {
+        _currentSwFile = swFile;
+        _componentsFolder = null;
+        _featTreeFolder = null;
         RootNodes.Clear();
 
         string fileName = Path.GetFileName(filePath);
@@ -71,7 +78,7 @@ public partial class DocumentTreeViewModel : ObservableObject
         }
         else
         {
-            BuildPartBranches(rootNode, swFile);
+            BuildPartBranches(rootNode, swFile, 0);
         }
 
         RootNodes.Add(rootNode);
@@ -81,17 +88,18 @@ public partial class DocumentTreeViewModel : ObservableObject
         geoNode.IsSelected = true;
     }
 
-    private void BuildPartBranches(TreeNodeModel rootNode, SwFile swFile)
+    private void BuildPartBranches(TreeNodeModel rootNode, SwFile swFile, int configIndex)
     {
         var features = _docService.GetFeatures();
-        var sketches = _docService.GetSketches(0);
+        var sketches = _docService.GetSketches(configIndex);
         var sketchDict = sketches.ToDictionary(s => s.Name, StringComparer.OrdinalIgnoreCase);
 
         // FeatureManager Tree Branch
         var featTree = CreateNode("特征管理器 (FeatureManager)", TreeNodeKind.FeatureFolder, null, $"{features.Count} 个特征");
         featTree.IsExpanded = true;
+        _featTreeFolder = featTree;
 
-        // Match base planes & origin from features if present, so clicking them shows their details!
+        // Match base planes & origin from features if present
         var frontPlane = features.FirstOrDefault(f => f.Name.Contains("前视") || f.Name.Equals("Front Plane", StringComparison.OrdinalIgnoreCase));
         var topPlane = features.FirstOrDefault(f => f.Name.Contains("上视") || f.Name.Equals("Top Plane", StringComparison.OrdinalIgnoreCase));
         var rightPlane = features.FirstOrDefault(f => f.Name.Contains("右视") || f.Name.Equals("Right Plane", StringComparison.OrdinalIgnoreCase));
@@ -102,13 +110,12 @@ public partial class DocumentTreeViewModel : ObservableObject
         featTree.Children.Add(CreateNode("右视基准面 (Right Plane)", TreeNodeKind.FeaturePlane, rightPlane, "基准面"));
         featTree.Children.Add(CreateNode("原点 (Origin)", TreeNodeKind.FeatureOrigin, origin, "原点坐标"));
 
-        var addedFeatures = new System.Collections.Generic.HashSet<Feature>();
+        var addedFeatures = new HashSet<Feature>();
         if (frontPlane != null) addedFeatures.Add(frontPlane);
         if (topPlane != null) addedFeatures.Add(topPlane);
         if (rightPlane != null) addedFeatures.Add(rightPlane);
         if (origin != null) addedFeatures.Add(origin);
 
-        // Mark all children recursively so they are not duplicated as root items
         void MarkDescendants(Feature parent)
         {
             foreach (var ch in parent.Children)
@@ -162,7 +169,6 @@ public partial class DocumentTreeViewModel : ObservableObject
 
             var node = CreateNode(f.Name, kind, tag, sub);
 
-            // Add children hierarchically (Requirement 7)!
             foreach (var child in f.Children)
             {
                 node.Children.Add(CreateFeatureNode(child));
@@ -174,7 +180,7 @@ public partial class DocumentTreeViewModel : ObservableObject
         foreach (var f in features)
         {
             if (addedFeatures.Contains(f)) continue;
-            if (f.Kind == FeatureKind.Dimension) continue; // Dimensions are shown under their parent feature
+            if (f.Kind == FeatureKind.Dimension) continue;
 
             featTree.Children.Add(CreateFeatureNode(f));
         }
@@ -194,25 +200,62 @@ public partial class DocumentTreeViewModel : ObservableObject
     private void BuildAssemblyBranches(TreeNodeModel rootNode, SwFile swFile)
     {
         var components = _docService.GetAssemblyTree();
-        var compFolder = CreateNode("装配零部件 (Components)", TreeNodeKind.FeatureFolder, null, $"{components.Count} 个顶层组件");
-        compFolder.IsExpanded = true;
+        _componentsFolder = CreateNode("装配零部件 (Components)", TreeNodeKind.FeatureFolder, null, $"{components.Count} 个顶层组件");
+        _componentsFolder.IsExpanded = true;
 
-        void AddNodes(TreeNodeModel parent, System.Collections.Generic.IReadOnlyList<AssemblyComponentNode> nodes)
-        {
-            foreach (var node in nodes)
-            {
-                var item = CreateNode(node.Name, TreeNodeKind.AssemblyComponent, node,
-                    node.IsVirtual ? "[虚拟件]" : node.ConfigurationName);
-                AddNodes(item, node.Children);
-                parent.Children.Add(item);
-            }
-        }
-        AddNodes(compFolder, components);
-        rootNode.Children.Add(compFolder);
+        PopulateAssemblyComponentNodes(_componentsFolder, components);
+        rootNode.Children.Add(_componentsFolder);
 
         // Mates
         var matesFolder = CreateNode("配合约束 (Mates)", TreeNodeKind.AssemblyMate, null);
         rootNode.Children.Add(matesFolder);
+    }
+
+    private void PopulateAssemblyComponentNodes(TreeNodeModel parent, IReadOnlyList<AssemblyComponentNode> nodes)
+    {
+        foreach (var node in nodes)
+        {
+            var item = CreateNode(node.Name, TreeNodeKind.AssemblyComponent, node,
+                node.IsVirtual ? "[虚拟件]" : (node.ConfigurationName ?? "默认"));
+            PopulateAssemblyComponentNodes(item, node.Children);
+            parent.Children.Add(item);
+        }
+    }
+
+    /// <summary>
+    /// 当选中的配置改变时，按指定配置重新解析并刷新装配体零部件树
+    /// </summary>
+    public void UpdateAssemblyComponents(string? configName)
+    {
+        if (_componentsFolder == null) return;
+        var components = _docService.GetAssemblyTree(configName);
+        _componentsFolder.Children.Clear();
+        _componentsFolder.SubTitle = $"{components.Count} 个顶层组件";
+        PopulateAssemblyComponentNodes(_componentsFolder, components);
+    }
+
+    /// <summary>
+    /// 当选中的配置改变时，按指定配置索引刷新零件草图数据
+    /// </summary>
+    public void UpdatePartSketches(int configIndex)
+    {
+        if (_featTreeFolder == null || _currentSwFile == null) return;
+        var sketches = _docService.GetSketches(configIndex);
+        var sketchDict = sketches.ToDictionary(s => s.Name, StringComparer.OrdinalIgnoreCase);
+
+        void UpdateSketchTags(TreeNodeModel node)
+        {
+            if (node.Kind == TreeNodeKind.FeatureSketch && sketchDict.TryGetValue(node.Title, out var sk))
+            {
+                node.Tag = sk;
+            }
+            foreach (var child in node.Children)
+            {
+                UpdateSketchTags(child);
+            }
+        }
+
+        UpdateSketchTags(_featTreeFolder);
     }
 
     private void BuildDrawingBranches(TreeNodeModel rootNode, SwFile swFile)
@@ -239,7 +282,7 @@ public partial class DocumentTreeViewModel : ObservableObject
         FilterNodes(RootNodes, value);
     }
 
-    private bool FilterNodes(System.Collections.Generic.IEnumerable<TreeNodeModel> nodes, string filter)
+    private bool FilterNodes(IEnumerable<TreeNodeModel> nodes, string filter)
     {
         bool anyChildVisible = false;
         foreach (var node in nodes)
@@ -264,3 +307,5 @@ public partial class DocumentTreeViewModel : ObservableObject
         }
     }
 }
+
+

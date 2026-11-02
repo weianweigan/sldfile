@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Globalization;
 using System.Windows.Data;
 using MahApps.Metro.IconPacks;
@@ -41,6 +41,8 @@ public sealed class NodeTypeToMaterialIconConverter : IValueConverter
             TreeNodeKind.AssemblyComponent => PackIconMaterialKind.ToyBrickOutline,
             TreeNodeKind.AssemblyMate => PackIconMaterialKind.LinkVariant,
             TreeNodeKind.DrawingSheet => PackIconMaterialKind.FileDocumentOutline,
+            TreeNodeKind.ConfigurationFolder => PackIconMaterialKind.FolderCogOutline,
+            TreeNodeKind.Configuration => PackIconMaterialKind.TuneVariant,
             _ => PackIconMaterialKind.CogOutline
         };
     }

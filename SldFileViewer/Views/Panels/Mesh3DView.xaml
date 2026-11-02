@@ -67,6 +67,28 @@
 
                 <!-- Export & View Actions (Figma Pills) -->
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <!-- 3D Measure Mode Toggle Button (SolidWorks 经典测量工具) -->
+                    <ToggleButton IsChecked="{Binding IsMeasureModeEnabled}"
+                                  Style="{StaticResource Style.ToggleButton.Toolbar}"
+                                  ToolTip="开启/关闭 3D 尺寸测量工具 (Measure Tool)"
+                                  Margin="0,0,6,0">
+                        <StackPanel Orientation="Horizontal">
+                            <iconPacks:PackIconMaterial Kind="Ruler" Foreground="{StaticResource Brush.Accent.Orange}" Width="13" Height="13" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="测量" FontWeight="SemiBold" FontSize="11" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </ToggleButton>
+
+                    <!-- Section View Toggle Button -->
+                    <ToggleButton IsChecked="{Binding IsSectionViewEnabled}"
+                                  Style="{StaticResource Style.ToggleButton.Toolbar}"
+                                  ToolTip="开启/关闭 3D 剖视图 (Cross-Section View)"
+                                  Margin="0,0,6,0">
+                        <StackPanel Orientation="Horizontal">
+                            <iconPacks:PackIconMaterial Kind="ContentCut" Width="12" Height="12" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="剖视图" FontSize="11"/>
+                        </StackPanel>
+                    </ToggleButton>
+
                     <ToggleButton IsChecked="{Binding ShowEdges}"
                                   Style="{StaticResource Style.ToggleButton.Toolbar}"
                                   ToolTip="显示/隐藏模型边线 (Wireframe/Edges)"
@@ -161,8 +183,9 @@
                     <ModelVisual3D>
                         <ModelVisual3D.Content>
                             <Model3DGroup>
-                                <AmbientLight Color="#707070" />
-                                <DirectionalLight Color="#FFFFFF" Direction="-1,-2,-3" />
+                                <AmbientLight Color="#929298" />
+                                <DirectionalLight Color="#D8D8E0" Direction="-1,-2,-3" />
+                                <DirectionalLight Color="#505060" Direction="0,0,-1" />
                                 <DirectionalLight Color="#808090" Direction="1,2,3" />
                                 <DirectionalLight Color="#404050" Direction="0,-1,0" />
                             </Model3DGroup>
@@ -173,7 +196,339 @@
                     <ModelVisual3D x:Name="ModelVisual" />
                     <!-- Model Edge Lines Visual (OutlineEdges) -->
                     <ModelVisual3D x:Name="EdgeVisual" />
+                    <!-- Section Cut Outlines Visual (High-contrast Cut Lines) -->
+                    <ModelVisual3D x:Name="SectionCutVisual" />
+                    <!-- Section Cutting Plane Visual (Semi-transparent Plane) -->
+                    <ModelVisual3D x:Name="SectionPlaneVisual" />
+                    <!-- Section Cutting Plane Border Visual (Wireframe Line) -->
+                    <ModelVisual3D x:Name="SectionBorderVisual" />
+                    <!-- Section Manipulator Handle Visual -->
+                    <ModelVisual3D x:Name="SectionManipulatorVisual" />
+                    <!-- Measurement 3D Visuals -->
+                    <ModelVisual3D x:Name="BoundingBoxVisual" />
+                    <ModelVisual3D x:Name="MeasureLineVisual" />
+                    <ModelVisual3D x:Name="MeasureMarkersVisual" />
+                    <ModelVisual3D x:Name="MeasureXLineVisual" />
+                    <ModelVisual3D x:Name="MeasureYLineVisual" />
+                    <ModelVisual3D x:Name="MeasureZLineVisual" />
+                    <!-- 测量悬停与选区 Visuals -->
+                    <ModelVisual3D x:Name="HoverHighlightVisual" />
+                    <ModelVisual3D x:Name="Selection1Visual" />
+                    <ModelVisual3D x:Name="Selection2Visual" />
+                    <ModelVisual3D x:Name="SelectionHighlightVisual" />
                 </Viewport3D>
+                <!-- 2D In-Viewport Annotation & Tooltip Overlay (3D 视口原位就地尺寸显示画布，支持拖拽移动与防重叠) -->
+                <Canvas x:Name="OverlayCanvas" IsHitTestVisible="True" Background="{x:Null}">
+                    <!-- 动态尺寸拖拽引出虚线 (当用户拖离原点时清晰连接被测位置) -->
+                    <Line x:Name="CalloutLeaderLine" Stroke="#D97706" StrokeThickness="1.2" StrokeDashArray="3,2" Visibility="Collapsed"/>
+                    <Ellipse x:Name="CalloutLeaderAnchor" Width="5" Height="5" Fill="#D97706" Visibility="Collapsed"/>
+
+                    <!-- SolidWorks 风格透明工程主尺寸卡片 -->
+                    <Border x:Name="DimensionCallout"
+                            Background="#F8FFFFFF"
+                            BorderBrush="#60475569"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="10,6"
+                            Cursor="SizeAll"
+                            ToolTip="按住鼠标左键可拖动位置，双击复位"
+                            MouseLeftButtonDown="OnCalloutBadgeMouseDown"
+                            MouseMove="OnCalloutBadgeMouseMove"
+                            MouseLeftButtonUp="OnCalloutBadgeMouseUp"
+                            UseLayoutRounding="True"
+                            SnapsToDevicePixels="True"
+                            TextOptions.TextFormattingMode="Display"
+                            TextOptions.TextRenderingMode="ClearType"
+                            Visibility="Collapsed">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="8" ShadowDepth="1.5" Opacity="0.2" Direction="270" />
+                        </Border.Effect>
+                        <StackPanel Orientation="Vertical">
+                            <!-- 顶部主尺寸大字与图标 (纯黑加粗清晰利落) -->
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,0,0,5">
+                                <Border Background="#FEF08A" BorderBrush="#CA8A04" BorderThickness="1" CornerRadius="2" Padding="4,1" Margin="0,0,6,0">
+                                    <iconPacks:PackIconMaterial Kind="Ruler" Foreground="#854D0E" Width="12" Height="12" VerticalAlignment="Center"/>
+                                </Border>
+                                <TextBlock x:Name="CalloutMainText" Text="{Binding CalloutMainText}"
+                                           FontSize="15" FontWeight="Bold" FontFamily="Segoe UI, Microsoft YaHei UI, Consolas"
+                                           Foreground="#0F172A" VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- XYZ 三轴正交彩色工程分量微标 (紧凑 CAD 工程表) -->
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,0,0,2">
+                                <!-- X 轴 (工程红) -->
+                                <Border Background="#FEE2E2" BorderBrush="#DC2626" BorderThickness="1" CornerRadius="2" Padding="5,1" Margin="0,0,4,0">
+                                    <TextBlock Text="{Binding MeasureDeltaXText, StringFormat='X: {0}'}" FontSize="11" FontWeight="Bold"
+                                               FontFamily="Consolas, Segoe UI" Foreground="#DC2626"/>
+                                </Border>
+                                <!-- Y 轴 (工程绿) -->
+                                <Border Background="#DCFCE7" BorderBrush="#16A34A" BorderThickness="1" CornerRadius="2" Padding="5,1" Margin="0,0,4,0">
+                                    <TextBlock Text="{Binding MeasureDeltaYText, StringFormat='Y: {0}'}" FontSize="11" FontWeight="Bold"
+                                               FontFamily="Consolas, Segoe UI" Foreground="#16A34A"/>
+                                </Border>
+                                <!-- Z 轴 (工程蓝) -->
+                                <Border Background="#DBEAFE" BorderBrush="#2563EB" BorderThickness="1" CornerRadius="2" Padding="5,1">
+                                    <TextBlock Text="{Binding MeasureDeltaZText, StringFormat='Z: {0}'}" FontSize="11" FontWeight="Bold"
+                                               FontFamily="Consolas, Segoe UI" Foreground="#2563EB"/>
+                                </Border>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 主尺寸直线距离微型标牌 (SolidWorks 经典尺寸标牌：实体浅米黄高对比衬底 + 拖动把手，支持鼠标自由拖拽) -->
+                    <Border x:Name="CalloutBadgeMain" Background="#FCFFFFE6" BorderBrush="#D97706" BorderThickness="1.2"
+                            CornerRadius="3" Padding="6,2" Visibility="Collapsed"
+                            Cursor="SizeAll" ToolTip="按住鼠标左键可自由拖动位置，双击复位"
+                            MouseLeftButtonDown="OnCalloutBadgeMouseDown"
+                            MouseMove="OnCalloutBadgeMouseMove"
+                            MouseLeftButtonUp="OnCalloutBadgeMouseUp"
+                            UseLayoutRounding="True" SnapsToDevicePixels="True"
+                            TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType">
+                        <Border.Effect><DropShadowEffect BlurRadius="6" ShadowDepth="1.5" Opacity="0.25" Direction="270"/></Border.Effect>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="⋮" FontSize="11" Foreground="#B45309" Margin="0,0,3,0" VerticalAlignment="Center" FontWeight="Bold"/>
+                            <TextBlock x:Name="CalloutBadgeMainText" Text="{Binding MainLineDistanceText}" FontSize="11.5" FontWeight="Bold"
+                                       FontFamily="Consolas, Segoe UI, Microsoft YaHei UI" Foreground="#0F172A" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- X 轴正交尺寸线引线微型标牌 (高清晰实体浅粉红衬底 + 深红粗体，支持避让与拖拽) -->
+                    <Border x:Name="CalloutBadgeX" Background="#FCFDF2F2" BorderBrush="#DC2626" BorderThickness="1"
+                            CornerRadius="2" Padding="5,2" Visibility="Collapsed"
+                            Cursor="SizeAll" ToolTip="按住鼠标左键可自由拖动位置，双击复位"
+                            MouseLeftButtonDown="OnCalloutBadgeMouseDown"
+                            MouseMove="OnCalloutBadgeMouseMove"
+                            MouseLeftButtonUp="OnCalloutBadgeMouseUp"
+                            UseLayoutRounding="True" SnapsToDevicePixels="True"
+                            TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType">
+                        <Border.Effect><DropShadowEffect BlurRadius="4" ShadowDepth="1" Opacity="0.2" Direction="270"/></Border.Effect>
+                        <TextBlock x:Name="CalloutBadgeXText" Text="{Binding TextDeltaX}" FontSize="10.5" FontWeight="Bold"
+                                   FontFamily="Consolas, Segoe UI Mono" Foreground="#DC2626"/>
+                    </Border>
+
+                    <!-- Y 轴正交尺寸线引线微型标牌 (高清晰实体浅绿衬底 + 深绿粗体，支持避让与拖拽) -->
+                    <Border x:Name="CalloutBadgeY" Background="#FCF0FDF4" BorderBrush="#16A34A" BorderThickness="1"
+                            CornerRadius="2" Padding="5,2" Visibility="Collapsed"
+                            Cursor="SizeAll" ToolTip="按住鼠标左键可自由拖动位置，双击复位"
+                            MouseLeftButtonDown="OnCalloutBadgeMouseDown"
+                            MouseMove="OnCalloutBadgeMouseMove"
+                            MouseLeftButtonUp="OnCalloutBadgeMouseUp"
+                            UseLayoutRounding="True" SnapsToDevicePixels="True"
+                            TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType">
+                        <Border.Effect><DropShadowEffect BlurRadius="4" ShadowDepth="1" Opacity="0.2" Direction="270"/></Border.Effect>
+                        <TextBlock x:Name="CalloutBadgeYText" Text="{Binding TextDeltaY}" FontSize="10.5" FontWeight="Bold"
+                                   FontFamily="Consolas, Segoe UI Mono" Foreground="#16A34A"/>
+                    </Border>
+
+                    <!-- Z 轴正交尺寸线引线微型标牌 (高清晰实体浅蓝衬底 + 深蓝粗体，支持避让与拖拽) -->
+                    <Border x:Name="CalloutBadgeZ" Background="#FCEFF6FF" BorderBrush="#2563EB" BorderThickness="1"
+                            CornerRadius="2" Padding="5,2" Visibility="Collapsed"
+                            Cursor="SizeAll" ToolTip="按住鼠标左键可自由拖动位置，双击复位"
+                            MouseLeftButtonDown="OnCalloutBadgeMouseDown"
+                            MouseMove="OnCalloutBadgeMouseMove"
+                            MouseLeftButtonUp="OnCalloutBadgeMouseUp"
+                            UseLayoutRounding="True" SnapsToDevicePixels="True"
+                            TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType">
+                        <Border.Effect><DropShadowEffect BlurRadius="4" ShadowDepth="1" Opacity="0.2" Direction="270"/></Border.Effect>
+                        <TextBlock x:Name="CalloutBadgeZText" Text="{Binding TextDeltaZ}" FontSize="10.5" FontWeight="Bold"
+                                   FontFamily="Consolas, Segoe UI Mono" Foreground="#2563EB"/>
+                    </Border>
+
+                    <!-- 鼠标悬停几何实体微型指示标签 (SolidWorks 经典米黄底清晰卡片) -->
+                    <Border x:Name="HoverTooltip"
+                            Background="#F0F9FF"
+                            BorderBrush="#38BDF8"
+                            BorderThickness="1"
+                            CornerRadius="2"
+                            Padding="8,3"
+                            UseLayoutRounding="True" SnapsToDevicePixels="True"
+                            TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType"
+                            Visibility="Collapsed">
+                        <Border.Effect><DropShadowEffect BlurRadius="6" ShadowDepth="1" Opacity="0.25" Direction="270"/></Border.Effect>
+                        <TextBlock x:Name="HoverTooltipText" Text="" FontSize="11" FontWeight="Bold"
+                                   Foreground="#000000" FontFamily="Segoe UI, Microsoft YaHei UI, Consolas"/>
+                    </Border>
+                </Canvas>
+
+                <!-- SolidWorks 原生 3D 测量控制浮动面板 -->
+                <Border Visibility="{Binding IsMeasureModeEnabled, Converter={StaticResource BoolToVisibilityConverter}}"
+                        HorizontalAlignment="Left" VerticalAlignment="Top"
+                        Margin="16,16,0,0"
+                        Background="#F8FFFFFF"
+                        BorderBrush="{StaticResource Brush.Figma.Hairline}"
+                        BorderThickness="1" CornerRadius="8"
+                        Padding="14,10"
+                        MaxWidth="320">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="16" ShadowDepth="3" Opacity="0.14" Direction="270"/>
+                    </Border.Effect>
+                    <StackPanel Orientation="Vertical">
+                        <!-- 面板标题与重置按钮 -->
+                        <DockPanel LastChildFill="False" Margin="0,0,0,8">
+                            <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
+                                <iconPacks:PackIconMaterial Kind="Ruler" Foreground="{StaticResource Brush.Accent.Orange}"
+                                                            Width="14" Height="14" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="测量 (Measure)" FontWeight="Bold" FontSize="13" Foreground="{StaticResource Brush.Figma.Ink}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <Button DockPanel.Dock="Right" Command="{Binding ClearMeasureCommand}"
+                                    Style="{StaticResource Style.Button.Secondary}"
+                                    Padding="6,2" Height="22" ToolTip="清空所有测量选定项">
+                                <TextBlock Text="清空" FontSize="10"/>
+                            </Button>
+                        </DockPanel>
+
+                        <!-- 实体选择与控制选项条 (SolidWorks 原生对话框风格) -->
+                        <Border Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="4" Padding="8,6" Margin="0,0,0,8">
+                            <StackPanel Orientation="Vertical">
+                                <DockPanel Margin="0,0,0,4">
+                                    <TextBlock Text="已选定项目:" FontSize="11" FontWeight="SemiBold" Foreground="#334155" VerticalAlignment="Center"/>
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                        <CheckBox IsChecked="{Binding IsShowXyzMeasurements}"
+                                                  Content="显示 XYZ 测量" FontSize="11" FontWeight="SemiBold" Foreground="#1E293B" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <CheckBox IsChecked="{Binding IsShowViewportCallout}"
+                                                  Content="视口悬浮卡片" FontSize="11" FontWeight="SemiBold" Foreground="#64748B" VerticalAlignment="Center"
+                                                  ToolTip="开启/关闭 3D 视口中央的悬浮尺寸卡片（默认关闭以保持模型全景无遮挡）"/>
+                                    </StackPanel>
+                                </DockPanel>
+
+                                <!-- 实体 1 标签 (SolidWorks 经典深蓝) -->
+                                <Border Background="#EFF6FF" BorderBrush="#0284C7" BorderThickness="1" CornerRadius="3" Padding="6,3" Margin="0,0,0,3">
+                                    <DockPanel LastChildFill="True">
+                                        <Button DockPanel.Dock="Right" Command="{Binding RemoveSelection1Command}"
+                                                Background="Transparent" BorderThickness="0" Padding="3,0" Margin="4,0,0,0"
+                                                Cursor="Hand" ToolTip="清除实体 1">
+                                            <TextBlock Text="✕" FontSize="10" Foreground="#0369A1" FontWeight="Bold"/>
+                                        </Button>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Border Width="8" Height="8" Background="#0284C7" CornerRadius="1" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding Element1Description}" FontSize="10.5" FontWeight="SemiBold"
+                                                       Foreground="#0369A1" TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+
+                                <!-- 实体 2 标签 (SolidWorks 经典翠绿) -->
+                                <Border Background="#F0FDF4" BorderBrush="#16A34A" BorderThickness="1" CornerRadius="3" Padding="6,3">
+                                    <DockPanel LastChildFill="True">
+                                        <Button DockPanel.Dock="Right" Command="{Binding RemoveSelection2Command}"
+                                                Background="Transparent" BorderThickness="0" Padding="3,0" Margin="4,0,0,0"
+                                                Cursor="Hand" ToolTip="清除实体 2">
+                                            <TextBlock Text="✕" FontSize="10" Foreground="#15803D" FontWeight="Bold"/>
+                                        </Button>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Border Width="8" Height="8" Background="#16A34A" CornerRadius="1" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding Element2Description}" FontSize="10.5" FontWeight="SemiBold"
+                                                       Foreground="#15803D" TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 测量状态引导条 -->
+                        <Border Background="#FEF3C7" BorderBrush="#FDE047" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,0,8">
+                            <TextBlock Text="{Binding MeasureStatusText}" FontSize="10.5" Foreground="#854D0E" TextWrapping="Wrap"/>
+                        </Border>
+
+                        <!-- 核心测量数值 (SolidWorks 经典工程测量值卡片) -->
+                        <Border Background="#FFFFE1" BorderBrush="#94A3B8" BorderThickness="1" CornerRadius="4" Padding="10,8" Margin="0,0,0,8">
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="测量数值 / 最小距离:" FontSize="10" Foreground="#475569" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding MeasureDistanceText}" FontSize="18" FontWeight="Bold" FontFamily="Consolas, Segoe UI" Foreground="#0F172A" Margin="0,2,0,2"/>
+                                <!-- 圆与圆柱专属测量详情卡片 (直径、半径、两圆中心距、最小边缘间距、最大边缘间距) -->
+                                <Border Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="3" Padding="6,3" Margin="0,0,0,5"
+                                        Visibility="{Binding HasCircleMeasurementDetails, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <TextBlock Text="{Binding CircleMeasurementDetailsText}" FontSize="10.5" FontWeight="SemiBold" Foreground="#0369A1"
+                                               FontFamily="Segoe UI, Microsoft YaHei UI, Consolas" TextWrapping="Wrap"/>
+                                </Border>
+                                <!-- XYZ 分量表格 -->
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="4" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="4" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Background="#FEE2E2" BorderBrush="#DC2626" BorderThickness="1" CornerRadius="2" Padding="4,2">
+                                        <StackPanel>
+                                            <TextBlock Text="ΔX" FontSize="9" FontWeight="Bold" Foreground="#DC2626"/>
+                                            <TextBlock Text="{Binding MeasureDeltaXText}" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#DC2626"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Column="2" Background="#DCFCE7" BorderBrush="#16A34A" BorderThickness="1" CornerRadius="2" Padding="4,2">
+                                        <StackPanel>
+                                            <TextBlock Text="ΔY" FontSize="9" FontWeight="Bold" Foreground="#16A34A"/>
+                                            <TextBlock Text="{Binding MeasureDeltaYText}" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#16A34A"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Column="4" Background="#DBEAFE" BorderBrush="#2563EB" BorderThickness="1" CornerRadius="2" Padding="4,2">
+                                        <StackPanel>
+                                            <TextBlock Text="ΔZ" FontSize="9" FontWeight="Bold" Foreground="#2563EB"/>
+                                            <TextBlock Text="{Binding MeasureDeltaZText}" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#2563EB"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 辅助控制选项 -->
+                        <DockPanel LastChildFill="False">
+                            <CheckBox DockPanel.Dock="Left" IsChecked="{Binding IsBoundingBoxVisible}" Content="显示模型包围盒线框" FontSize="11" VerticalAlignment="Center"/>
+                        </DockPanel>
+                    </StackPanel>
+                </Border>
+
+
+                <!-- Section View Floating Control Toolbar -->
+                <Border Visibility="{Binding IsSectionViewEnabled, Converter={StaticResource BoolToVisibilityConverter}}"
+                        HorizontalAlignment="Center" VerticalAlignment="Top"
+                        Margin="0,14,0,0"
+                        Background="#F0FFFFFF"
+                        BorderBrush="{StaticResource Brush.Figma.Hairline}"
+                        BorderThickness="1" CornerRadius="12"
+                        Padding="14,6">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <iconPacks:PackIconMaterial Kind="ContentCut" Foreground="{StaticResource Brush.Accent.Orange}"
+                                                    Width="13" Height="13" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="剖切方向:" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource Brush.Figma.Ink}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+
+                        <RadioButton Content="X 轴 (YZ面)" IsChecked="{Binding IsAxisX}"
+                                     FontSize="11" VerticalAlignment="Center" Margin="0,0,8,0" Cursor="Hand"/>
+                        <RadioButton Content="Y 轴 (XZ面)" IsChecked="{Binding IsAxisY}"
+                                     FontSize="11" VerticalAlignment="Center" Margin="0,0,8,0" Cursor="Hand"/>
+                        <RadioButton Content="Z 轴 (XY面)" IsChecked="{Binding IsAxisZ}"
+                                     FontSize="11" VerticalAlignment="Center" Margin="0,0,12,0" Cursor="Hand"/>
+
+                        <Rectangle Width="1" Height="16" Fill="{StaticResource Brush.Figma.Hairline}" Margin="0,0,12,0"/>
+
+                        <TextBlock Text="位置:" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource Brush.Figma.Ink}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <Slider Minimum="-100" Maximum="100" Value="{Binding SectionOffsetPercent}"
+                                Width="130" VerticalAlignment="Center" Cursor="Hand" />
+                        <TextBlock Text="{Binding SectionOffsetDisplay}" FontSize="11" FontFamily="Consolas, Segoe UI Mono"
+                                   FontWeight="SemiBold" Foreground="{StaticResource Brush.Figma.Ink}" Width="65"
+                                   TextAlignment="Right" VerticalAlignment="Center" Margin="6,0,10,0"/>
+
+                        <Button Command="{Binding ToggleSectionInvertCommand}"
+                                Style="{StaticResource Style.Button.Secondary}"
+                                Padding="8,2" Height="24"
+                                ToolTip="反转剖切截面保留方向">
+                            <StackPanel Orientation="Horizontal">
+                                <iconPacks:PackIconMaterial Kind="FlipHorizontal" Width="10" Height="10" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="反向" FontSize="10"/>
+                            </StackPanel>
+                        </Button>
+
+                        <Button Command="{Binding ResetSectionOffsetCommand}"
+                                Style="{StaticResource Style.Button.Secondary}"
+                                Padding="8,2" Height="24" Margin="6,0,0,0"
+                                ToolTip="复位剖切平面至中心位置 (0 mm)">
+                            <TextBlock Text="居中" FontSize="10"/>
+                        </Button>
+                    </StackPanel>
+                </Border>
 
                 <!-- Floating Help Overlay (Figma Pill) -->
                 <Border HorizontalAlignment="Right" VerticalAlignment="Bottom"
@@ -183,7 +538,7 @@
                         BorderThickness="1"
                         CornerRadius="10"
                         Padding="14,5">
-                    <TextBlock Text="中键拖拽旋转 (或左键) | Ctrl+中键/右键平移 | 滚轮缩放 | 双击中键全图复位"
+                    <TextBlock Text="中键拖拽旋转 (或左键) | Ctrl+中键/右键平移 | 滚轮缩放 | 剖视图开启时鼠标可直接拖拽剖切面"
                                FontFamily="Consolas, Cascadia Code, Segoe UI"
                                FontSize="11" Foreground="{StaticResource Brush.Figma.Ink}" />
                 </Border>

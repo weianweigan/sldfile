@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -26,6 +26,9 @@ public partial class BomViewModel : ObservableObject
     [ObservableProperty]
     private string _filterText = string.Empty;
 
+    [ObservableProperty]
+    private string? _currentConfiguration;
+
     public ObservableCollection<BomDisplayItem> Items { get; } = new();
     public ObservableCollection<BomDisplayItem> FilteredItems { get; } = new();
 
@@ -36,10 +39,14 @@ public partial class BomViewModel : ObservableObject
         _dialogService = dialogService;
     }
 
-    public void LoadBom()
+    /// <summary>
+    /// 加载并计算指定配置（或默认活动配置）下的装配体 BOM 物料明细
+    /// </summary>
+    public void LoadBom(string? configName = null)
     {
+        CurrentConfiguration = configName;
         Items.Clear();
-        var rawBom = _docService.GetBom();
+        var rawBom = _docService.GetBom(configName);
         int itemNumber = 1;
 
         foreach (var bom in rawBom)

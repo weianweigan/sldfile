@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
@@ -42,6 +42,8 @@ public sealed class NodeTypeToBrushConverter : IValueConverter
             TreeNodeKind.AssemblyComponent => "Brush.Accent.Green",
             TreeNodeKind.AssemblyMate => "Brush.Accent.Orange",
             TreeNodeKind.DrawingSheet => "Brush.Accent.Blue",
+            TreeNodeKind.ConfigurationFolder => "Brush.Accent.Orange",
+            TreeNodeKind.Configuration => "Brush.Accent.Orange",
             _ => "Brush.Text.Secondary"
         };
 

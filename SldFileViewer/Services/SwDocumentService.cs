@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -242,8 +242,8 @@ public sealed class SwDocumentService : ISwDocumentService
         }
     }
 
-    public byte[]? GetPreviewPng() => _currentFile?.GetPreviewPng();
-    public byte[]? GetPreviewBitmap() => _currentFile?.GetPreviewBitmap();
+    public byte[]? GetPreviewPng(int configIndex = 0) => _currentFile?.GetPreviewPng(configIndex);
+    public byte[]? GetPreviewBitmap(int configIndex = 0) => _currentFile?.GetPreviewBitmap(configIndex);
 
     public IReadOnlyList<DrawingSheetInfo> GetDrawingSheets()
     {
