@@ -17,7 +17,7 @@ public class ExtrudeAndSheetMetalFeatureTests
         if (File.Exists(testFilesPath))
             return testFilesPath;
 
-        // 2. Search upwards for SldFileTests/TestFiles/Features2026 or reverse_workspace
+        // 2. Search upwards for SldFileTests/TestFiles/Features2026
         var dir = AppDomain.CurrentDomain.BaseDirectory;
         while (!string.IsNullOrEmpty(dir))
         {
@@ -25,16 +25,12 @@ public class ExtrudeAndSheetMetalFeatureTests
             if (File.Exists(candidate))
                 return candidate;
 
-            var revCandidate = Path.Combine(dir, "reverse_workspace", "experiments", "feature-matrix-20261028", "samples", fileName);
-            if (File.Exists(revCandidate))
-                return revCandidate;
-
             var parent = Path.GetDirectoryName(dir);
             if (parent == null || parent == dir) break;
             dir = parent;
         }
 
-        throw new FileNotFoundException($"Controlled sample file '{fileName}' not found in TestFiles/Features2026 or reverse_workspace.");
+        throw new FileNotFoundException($"Controlled sample file '{fileName}' not found in TestFiles/Features2026.");
     }
 
     private static List<FeatureFolder> FlattenFolders(IReadOnlyList<FeatureFolder> folders)

@@ -24,8 +24,7 @@ public class SketchIntegrationTests
         {
             Path.Combine(AppContext.BaseDirectory, relativeOrName),
             Path.Combine(AppContext.BaseDirectory, "TestFiles", relativeOrName),
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SldFileTests", "TestFiles", relativeOrName),
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "models", relativeOrName)
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SldFileTests", "TestFiles", relativeOrName)
         };
 
         foreach (var c in candidates)
@@ -39,7 +38,7 @@ public class SketchIntegrationTests
     public void NativeSketch_OpenedInSolidWorks_MatchesSldFileParsedFeature()
     {
         string? samplePath = LocateTestFile(Path.Combine("Sketches2026", "line10.SLDPRT"))
-                           ?? LocateTestFile("cube.SLDPRT");
+                           ?? LocateTestFile(Path.Combine("Solidworks2012", "cube.SLDPRT"));
 
         if (samplePath == null) return;
 

@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using SldFile;
+using SldFile.Binary;
 using SldFile.Sketches;
 using SldFileViewer.Models;
 using SldFileViewer.Services;
@@ -91,6 +92,19 @@ public partial class DocumentTreeViewModel : ObservableObject
         var featTree = CreateNode("特征管理器 (FeatureManager)", TreeNodeKind.FeatureFolder, null, $"{features.Count} 个特征");
         featTree.IsExpanded = true;
 
+        // Typed feature definitions decoded from the ResolvedFeatures stream
+        // (offline equivalent of IFeature.GetDefinition()).
+        var featureDataSummary = BuildFeatureDataSummary(features);
+        if (featureDataSummary.Total > 0)
+        {
+            var featureDataNode = CreateNode(
+                "特征数据 (FeatureData)",
+                TreeNodeKind.FeatureData,
+                features,
+                $"{featureDataSummary.Resolved} 已解析 · {featureDataSummary.Unverified} 未解析 · {featureDataSummary.Unsupported} 未支持");
+            featTree.Children.Add(featureDataNode);
+        }
+
         // Match base planes & origin from features if present, so clicking them shows their details!
         var frontPlane = features.FirstOrDefault(f => f.Name.Contains("前视") || f.Name.Equals("Front Plane", StringComparison.OrdinalIgnoreCase));
         var topPlane = features.FirstOrDefault(f => f.Name.Contains("上视") || f.Name.Equals("Top Plane", StringComparison.OrdinalIgnoreCase));
@@ -160,6 +174,17 @@ public partial class DocumentTreeViewModel : ObservableObject
                 sub = f.Dimensions.Count > 0 ? $"{f.Name} ({f.Dimensions[0].Name}={f.Dimensions[0].Value})" : f.Name;
             }
 
+            if (f.Definition != null)
+            {
+                sub = $"{sub} · FeatureData 已解析";
+            }
+            else
+            {
+                string folderClass = f.Attributes.TryGetValue("ClassName", out var cls) ? cls : f.TypeName;
+                if (FeatureDataRegistry.IsRegistered(folderClass) || FeatureDataRegistry.IsFeatureRegistered(folderClass))
+                    sub = $"{sub} · FeatureData 未解析";
+            }
+
             var node = CreateNode(f.Name, kind, tag, sub);
 
             // Add children hierarchically (Requirement 7)!
@@ -189,6 +214,39 @@ public partial class DocumentTreeViewModel : ObservableObject
         }
 
         rootNode.Children.Add(featTree);
+    }
+
+    private static (int Total, int Resolved, int Unverified, int Unsupported) BuildFeatureDataSummary(
+        System.Collections.Generic.IReadOnlyList<Feature> features)
+    {
+        int total = 0, resolved = 0, unverified = 0, unsupported = 0;
+
+        void Visit(Feature feature)
+        {
+            // Match the FeatureDetailViewModel classification so the tree badge and the
+            // detail panel always agree: parsed definition vs. registered parser vs. none.
+            total++;
+            if (feature.Definition != null)
+            {
+                resolved++;
+            }
+            else
+            {
+                var folderClass = feature.Attributes.TryGetValue("ClassName", out var cls) ? cls : feature.TypeName;
+                if (FeatureDataRegistry.IsRegistered(folderClass) || FeatureDataRegistry.IsFeatureRegistered(folderClass))
+                    unverified++;
+                else
+                    unsupported++;
+            }
+
+            foreach (var child in feature.Children)
+                Visit(child);
+        }
+
+        foreach (var feature in features)
+            Visit(feature);
+
+        return (total, resolved, unverified, unsupported);
     }
 
     private void BuildAssemblyBranches(TreeNodeModel rootNode, SwFile swFile)

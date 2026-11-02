@@ -1,0 +1,63 @@
+{
+  "file": "D:\\weigan\\repos\\sldfile\\SldFileTests\\TestFiles\\Features2026\\SheetMetalOptions\\sm_l_k03_fixed.SLDPRT",
+  "featureName": "SMBaseFlange",
+  "typeName2": "SMBaseFlange",
+  "classNameExpected": "moSMBaseFlange_c",
+  "native": {
+    "thickness": 0.001,
+    "bendRadius": 0.002,
+    "kFactor": 0.3,
+    "customBendAllowanceType": 2,
+    "customBendAllowanceKFactor": 0.3,
+    "customBendAllowanceBendAllowance": 0,
+    "customBendAllowanceBendDeduction": 0,
+    "useDefaultBendAllowance": false,
+    "useDefaultBendRelief": true,
+    "reliefType": 1,
+    "reliefWidth": 0.0005,
+    "reliefDepth": 0.0005,
+    "reliefRatio": 0.5,
+    "useReliefRatio": true,
+    "autoReliefType": 1,
+    "useAutoRelief": true,
+    "sheetMetalKFactor": 0.3,
+    "overrideBendAllowance": true,
+    "d1EndConditionDistance": 0.01,
+    "d2EndConditionDistance": 0.001,
+    "d1EndConditionType": 1,
+    "d2EndConditionType": 1,
+    "offsetDirections": 1,
+    "reverseThickness": false,
+    "reverseDirection": false,
+    "overrideDefaultSheetMetalParameters": false,
+    "overrideKFactor": false,
+    "overrideRadius": false,
+    "overrideThickness": false,
+    "useGaugeTable": false,
+    "gaugeTablePath": "",
+    "thicknessTableName": null
+  },
+  "physical": {
+    "volume": 3.4612831551628285E-07,
+    "surfaceArea": 0.0007814822941358218,
+    "centroid": [
+      0.01730641577581413,
+      -0.0005000000000000002,
+      0.004999999999999999
+    ]
+  },
+  "openDoc6": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "rebuild": {
+    "result": true
+  },
+  "sha256": "93C07014D6D3BB67B2730FDD924938C55C755DA5582909D01E08C5816F70AC64",
+  "hashUnchanged": true,
+  "resave": {
+    "path": "D:\\weigan\\repos\\sldfile\\SldFileTests\\TestFiles\\Features2026\\SheetMetalOptions\\sm_l_k03_fixed_resave.SLDPRT",
+    "sha256": "EDBC6A263CF83F562DDF45A7B2FD9F6455C8EA9A7E5B23D486FAB5FA45518021"
+  },
+  "status": "verified"
+}

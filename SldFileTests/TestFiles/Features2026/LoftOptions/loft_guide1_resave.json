@@ -1,0 +1,60 @@
+{
+  "file": "D:\\weigan\\repos\\sldfile\\SldFileTests\\TestFiles\\Features2026\\LoftOptions\\loft_guide1_resave.SLDPRT",
+  "sourceFile": "D:\\weigan\\repos\\sldfile\\reverse_workspace\\validation\\agent5-sweep-loft-20261030\\samples3\\loft_guide1_resave.SLDPRT",
+  "control": "A_resave",
+  "api": {
+    "accessSelections": true,
+    "profileCount": 2,
+    "numberOfSections": 1,
+    "profiles": [
+      "ProfileFeature:Profile1",
+      "ProfileFeature:Profile2"
+    ],
+    "guideCurves": [
+      "3DProfileFeature:Guide1"
+    ],
+    "guideCurveCount": 1,
+    "guideCurveInfluence": 1,
+    "centerline": "null",
+    "startTangencyType": 0,
+    "endTangencyType": 0,
+    "startTangentLength": 0.1,
+    "endTangentLength": 0.1,
+    "startConstraintDraftAngle": 0,
+    "endConstraintDraftAngle": 0,
+    "endConstraintApplyToAll": false,
+    "reverseStartTangentDirection": false,
+    "reverseEndTangentDirection": false,
+    "close": false,
+    "thinFeature": 0,
+    "isThinFeature": false,
+    "wallThickness1": 0,
+    "wallThickness2": 0,
+    "merge": true,
+    "featureScope": true,
+    "autoSelect": false,
+    "featureScopeBodyCount": 0,
+    "isBossFeature": true,
+    "guideTangencyType0": 0,
+    "guideTangencyType1": 0
+  },
+  "physical": {
+    "volume": 5.498251425249726E-06,
+    "surfaceArea": 0.001825987636144322,
+    "centroid": [
+      1.210088195925711E-07,
+      1.0683091782157954E-08,
+      0.01821443202922117
+    ]
+  },
+  "openDoc6": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "rebuild": {
+    "result": true,
+    "featureErrors": 0
+  },
+  "sha256": "34520262974E86F08D3750A4B8D88BAD0C8FB61CC3F3422E47979C6F5C5F1CEC",
+  "hashUnchanged": true
+}

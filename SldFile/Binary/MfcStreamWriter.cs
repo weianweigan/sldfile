@@ -59,10 +59,19 @@ internal sealed class MfcStreamWriter : IDisposable
 
         byte[] utf16 = Encoding.Unicode.GetBytes(s);
         int charCount = utf16.Length / 2;
-        if (charCount > 255)
-            charCount = 255;
-
-        _writer.Write((byte)charCount);
+        if (charCount < byte.MaxValue)
+            _writer.Write((byte)charCount);
+        else
+        {
+            _writer.Write(byte.MaxValue);
+            if (charCount < ushort.MaxValue)
+                _writer.Write((ushort)charCount);
+            else
+            {
+                _writer.Write(ushort.MaxValue);
+                _writer.Write((uint)charCount);
+            }
+        }
         if (charCount > 0)
             _writer.Write(utf16, 0, charCount * 2);
     }

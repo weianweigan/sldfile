@@ -38,6 +38,7 @@ public sealed class NodeTypeToMaterialIconConverter : IValueConverter
             TreeNodeKind.FeatureDraft => PackIconMaterialKind.SlopeUphill,
             TreeNodeKind.FeatureThread => PackIconMaterialKind.SineWave,
             TreeNodeKind.FeatureFolder => PackIconMaterialKind.FolderOutline,
+            TreeNodeKind.FeatureData => PackIconMaterialKind.DatabaseSearch,
             TreeNodeKind.AssemblyComponent => PackIconMaterialKind.ToyBrickOutline,
             TreeNodeKind.AssemblyMate => PackIconMaterialKind.LinkVariant,
             TreeNodeKind.DrawingSheet => PackIconMaterialKind.FileDocumentOutline,

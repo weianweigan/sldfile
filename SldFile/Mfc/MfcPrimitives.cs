@@ -142,30 +142,36 @@ internal static class MfcPrimitives
 
     /// <summary>
     /// Reads an MFC WChar (wide character) string. Format:
-    /// FF FE FF + u8 char_count + count*2 bytes UTF-16LE.
+    /// FF FE FF + archive length + count*2 bytes UTF-16LE.
+    /// Length 255 escapes to UInt16; 65535 escapes again to UInt32.
     /// Returns null if no WChar prefix is found. Advances offset.
     /// </summary>
     public static string? ReadWChar(byte[] data, ref int offset)
+        => ReadWChar(data, ref offset, data.Length);
+
+    internal static string? ReadWChar(byte[] data, ref int offset, int end)
     {
-        if (!IsWCharPrefix(data, offset))
+        int cursor = offset;
+        if (end < 0 || end > data.Length || cursor < 0 || cursor > end - 4 || !IsWCharPrefix(data, cursor))
             return null;
-
-        offset += 3;
-        if (offset >= data.Length)
-            return null;
-
-        int charCount = data[offset];
-        offset += 1;
-
-        int byteLen = charCount * 2;
-        if (byteLen == 0)
-            return string.Empty;
-
-        if (offset + byteLen > data.Length)
-            return null;
-
-        string result = Encoding.Unicode.GetString(data, offset, byteLen);
-        offset += byteLen;
+        cursor += 3;
+        uint charCount = data[cursor++];
+        if (charCount == byte.MaxValue)
+        {
+            if (cursor > end - 2) return null;
+            charCount = BitConverter.ToUInt16(data, cursor);
+            cursor += 2;
+            if (charCount == ushort.MaxValue)
+            {
+                if (cursor > end - 4) return null;
+                charCount = BitConverter.ToUInt32(data, cursor);
+                cursor += 4;
+            }
+        }
+        if (charCount > (uint)((end - cursor) / 2)) return null;
+        int byteLen = (int)charCount * 2;
+        string result = Encoding.Unicode.GetString(data, cursor, byteLen);
+        offset = cursor + byteLen;
         return result;
     }
 

@@ -1,0 +1,19 @@
+{
+  "file": "D:\\weigan\\repos\\sldfile\\SldFileTests\\TestFiles\\Features2026\\sm_base_flange_20mm.SLDPRT",
+  "featureName": "SMBaseFlange",
+  "typeName2": "SMBaseFlange",
+  "classNameExpected": "moSMBaseFlange_c",
+  "native": {
+    "d1EndConditionDistance": 0.02,
+    "expectedD1EndConditionDistance": 0.02,
+    "check": "PASS"
+  },
+  "openDoc6": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "rebuild": {
+    "result": true
+  },
+  "sha256": "8066D60EE963BAD586B508BFCF373EBBC178E0935658FCA9A0F14656974F7D06"
+}

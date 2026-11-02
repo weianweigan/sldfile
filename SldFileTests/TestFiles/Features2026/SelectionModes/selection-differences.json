@@ -1,0 +1,293 @@
+{
+  "Notes": "Explicit class definitions only. Scan windows are not object boundaries. Different stream lengths require alignment; noise-control offsets cannot simply be subtracted from shifted payloads. moSketchRegion/Chain presence does not identify explicit selections. No persistent handle decoded.",
+  "Samples": [
+    {
+      "Sample": "whole",
+      "Length": 14885,
+      "Sha256": "DABD7DE41C86872B77E51D8BAE1674595553F285A120C4831D4404F88083F7E9",
+      "Dump": "probe/whole/009.bin",
+      "SelectionTagWindows": [
+        {
+          "Name": "moOriginProfileFeature_c",
+          "Offset": 4682,
+          "DataStart": 4712,
+          "NextNamedTagOffset": 4879,
+          "PrefixHex": "0480FFFEFF029F53B97000000000000000C00500000000000000FFFEFF0000000000000000000000000000000000000000009B0000000000000000384A00002C"
+        },
+        {
+          "Name": "moProfileFeature_c",
+          "Offset": 6055,
+          "DataStart": 6079,
+          "NextNamedTagOffset": 6370,
+          "PrefixHex": "0480FFFEFF0D530065006C0065006300740069006F006E00530065006500640000000000000000C04900000000000000FFFEFF00000000000000000000000000"
+        },
+        {
+          "Name": "moSketchRegion_c",
+          "Offset": 10445,
+          "DataStart": 10467,
+          "NextNamedTagOffset": 10611,
+          "PrefixHex": "65800400C3800200FFFFFFFF00000000C3800100FFFFFFFF00000000C3800400FFFFFFFF00000000C3800300FFFFFFFF00000000E08065800400C3800700FFFF"
+        },
+        {
+          "Name": "moSketchChain_c",
+          "Offset": 10611,
+          "DataStart": 10632,
+          "NextNamedTagOffset": 10972,
+          "PrefixHex": "04000100000004000000030000000200000001000000000006000000FFFFFFFF00000000000000000500000005000000FFFEFF000000FFFFFFFF000000000000"
+        },
+        {
+          "Name": "moExtrusion_c",
+          "Offset": 11581,
+          "DataStart": 11600,
+          "NextNamedTagOffset": 11837,
+          "PrefixHex": "0480FFFEFF10530065006C0065006300740069006F006E00450078007400720075006400650000000000400100404F00000000000000FFFEFF00000000000000"
+        },
+        {
+          "Name": "moFromSktEntSurfIdRep_c",
+          "Offset": 11970,
+          "DataStart": 11999,
+          "NextNamedTagOffset": 12269,
+          "PrefixHex": "0000F480F7004F000000280AE46A0200000017810000F480F7004F000000280AE46A0300000017810000F480F7004F000000280AE46A0400000017810000F480"
+        }
+      ]
+    },
+    {
+      "Sample": "whole_resave",
+      "Length": 14885,
+      "Sha256": "ADD1C807837DA6829D1D0956BC64C4792FBD95D1E7BBC6422DE475D17FE4F048",
+      "Dump": "probe/whole_resave/009.bin",
+      "SelectionTagWindows": [
+        {
+          "Name": "moOriginProfileFeature_c",
+          "Offset": 4682,
+          "DataStart": 4712,
+          "NextNamedTagOffset": 4879,
+          "PrefixHex": "0480FFFEFF029F53B97000000000000000C00500000000000000FFFEFF000000000000000000000000000000000000000000AA0000000000000000384A00002C"
+        },
+        {
+          "Name": "moProfileFeature_c",
+          "Offset": 6055,
+          "DataStart": 6079,
+          "NextNamedTagOffset": 6370,
+          "PrefixHex": "0480FFFEFF0D530065006C0065006300740069006F006E00530065006500640000000000000000C04900000000000000FFFEFF00000000000000000000000000"
+        },
+        {
+          "Name": "moSketchRegion_c",
+          "Offset": 10445,
+          "DataStart": 10467,
+          "NextNamedTagOffset": 10611,
+          "PrefixHex": "65800400C3800200FFFFFFFF00000000C3800100FFFFFFFF00000000C3800400FFFFFFFF00000000C3800300FFFFFFFF00000000E08065800400C3800700FFFF"
+        },
+        {
+          "Name": "moSketchChain_c",
+          "Offset": 10611,
+          "DataStart": 10632,
+          "NextNamedTagOffset": 10972,
+          "PrefixHex": "04000100000004000000030000000200000001000000000006000000FFFFFFFF00000000000000000500000005000000FFFEFF000000FFFFFFFF000000000000"
+        },
+        {
+          "Name": "moExtrusion_c",
+          "Offset": 11581,
+          "DataStart": 11600,
+          "NextNamedTagOffset": 11837,
+          "PrefixHex": "0480FFFEFF10530065006C0065006300740069006F006E00450078007400720075006400650000000000400100404F00000000000000FFFEFF00000000000000"
+        },
+        {
+          "Name": "moFromSktEntSurfIdRep_c",
+          "Offset": 11970,
+          "DataStart": 11999,
+          "NextNamedTagOffset": 12269,
+          "PrefixHex": "0000F480F7004F000000280AE46A0200000017810000F480F7004F000000280AE46A0300000017810000F480F7004F000000280AE46A0400000017810000F480"
+        }
+      ]
+    },
+    {
+      "Sample": "region",
+      "Length": 18023,
+      "Sha256": "FCEEB2060D0BF3FC64E406328F36A434AECE0CFC0EF95558655C48F93FD6F33F",
+      "Dump": "probe/region/009.bin",
+      "SelectionTagWindows": [
+        {
+          "Name": "moOriginProfileFeature_c",
+          "Offset": 4682,
+          "DataStart": 4712,
+          "NextNamedTagOffset": 4879,
+          "PrefixHex": "0480FFFEFF029F53B97000000000000000C00500000000000000FFFEFF0000000000000000000000000000000000000000009B0000000000000000384A00002C"
+        },
+        {
+          "Name": "moProfileFeature_c",
+          "Offset": 6055,
+          "DataStart": 6079,
+          "NextNamedTagOffset": 6370,
+          "PrefixHex": "0480FFFEFF0D530065006C0065006300740069006F006E00530065006500640000000000000000C04900000000000000FFFEFF00000000000000000000000000"
+        },
+        {
+          "Name": "moSketchRegion_c",
+          "Offset": 10445,
+          "DataStart": 10467,
+          "NextNamedTagOffset": 10632,
+          "PrefixHex": "64800400C2800200FFFFFFFF00000000C2800100FFFFFFFF00000000C2800400FFFFFFFF00000000C2800300FFFFFFFF00000000DF8064800400C2800700FFFF"
+        },
+        {
+          "Name": "moOneContour_c",
+          "Offset": 10632,
+          "DataStart": 10652,
+          "NextNamedTagOffset": 10654,
+          "PrefixHex": "0400"
+        },
+        {
+          "Name": "moContourChooser_c",
+          "Offset": 12890,
+          "DataStart": 12914,
+          "NextNamedTagOffset": 14931,
+          "PrefixHex": "0100EC800400EE8001000000000000000500000004030000000000007DC39425AD49B2547DC39425AD49B2540000F0800000F280F480F700F800020000250AE4"
+        },
+        {
+          "Name": "moExtrusion_c",
+          "Offset": 14931,
+          "DataStart": 14950,
+          "NextNamedTagOffset": 15181,
+          "PrefixHex": "0480FFFEFF10530065006C0065006300740069006F006E00450078007400720075006400650000000000400100404F00000000000000FFFEFF00000000000000"
+        },
+        {
+          "Name": "moFromSktEntSurfIdRep_c",
+          "Offset": 15314,
+          "DataStart": 15343,
+          "NextNamedTagOffset": 15979,
+          "PrefixHex": "0000F28069014F0000002A0AE46A0500000084810000F28069014F0000002A0AE46A0600000084810000F28069014F0000002A0AE46A0700000084810000F280"
+        }
+      ]
+    },
+    {
+      "Sample": "contour",
+      "Length": 14684,
+      "Sha256": "A6D607D8F0334FF91B29EC04BC8320B05B4A298190C26998FB54F3BC0F4024EC",
+      "Dump": "probe/contour/009.bin",
+      "SelectionTagWindows": [
+        {
+          "Name": "moOriginProfileFeature_c",
+          "Offset": 4682,
+          "DataStart": 4712,
+          "NextNamedTagOffset": 4879,
+          "PrefixHex": "0480FFFEFF029F53B97000000000000000C00500000000000000FFFEFF0000000000000000000000000000000000000000009B0000000000000000384A00002C"
+        },
+        {
+          "Name": "moProfileFeature_c",
+          "Offset": 6055,
+          "DataStart": 6079,
+          "NextNamedTagOffset": 6370,
+          "PrefixHex": "0480FFFEFF0D530065006C0065006300740069006F006E00530065006500640000000000000000C04900000000000000FFFEFF00000000000000000000000000"
+        },
+        {
+          "Name": "moSketchRegion_c",
+          "Offset": 10445,
+          "DataStart": 10467,
+          "NextNamedTagOffset": 10789,
+          "PrefixHex": "64800400C2800200FFFFFFFF00000000C2800100FFFFFFFF00000000C2800400FFFFFFFF00000000C2800300FFFFFFFF00000000DF8064800400C2800700FFFF"
+        },
+        {
+          "Name": "moContourChooser_c",
+          "Offset": 10789,
+          "DataStart": 10813,
+          "NextNamedTagOffset": 10831,
+          "PrefixHex": "000001000000BF0001000000020000000100"
+        },
+        {
+          "Name": "moSketchChain_c",
+          "Offset": 10848,
+          "DataStart": 10869,
+          "NextNamedTagOffset": 10953,
+          "PrefixHex": "04000100000004000000030000000200000001000000000001000000FFFFFFFFFFFFFFFFFFFFFFFF0500000005000000FFFEFF00000001000000000000000000"
+        },
+        {
+          "Name": "moExtrusion_c",
+          "Offset": 11570,
+          "DataStart": 11589,
+          "NextNamedTagOffset": 11820,
+          "PrefixHex": "0480FFFEFF10530065006C0065006300740069006F006E00450078007400720075006400650000000000400100404F00000000000000FFFEFF00000000000000"
+        },
+        {
+          "Name": "moFromSktEntSurfIdRep_c",
+          "Offset": 11953,
+          "DataStart": 11982,
+          "NextNamedTagOffset": 12252,
+          "PrefixHex": "0000F680F9004F0000002B0AE46A0200000019810000F680F9004F0000002B0AE46A0300000019810000F680F9004F0000002B0AE46A0400000019810000F680"
+        }
+      ]
+    }
+  ],
+  "WholeResaveNoiseOffsets": [
+    80,
+    169,
+    170,
+    171,
+    276,
+    365,
+    366,
+    367,
+    753,
+    842,
+    843,
+    844,
+    1131,
+    1220,
+    1221,
+    1222,
+    1742,
+    1831,
+    1832,
+    1833,
+    2140,
+    2229,
+    2230,
+    2231,
+    2344,
+    2433,
+    2434,
+    2435,
+    2541,
+    2630,
+    2631,
+    2632,
+    2920,
+    3009,
+    3010,
+    3011,
+    3202,
+    3203,
+    3204,
+    3713,
+    3714,
+    3715,
+    4271,
+    4272,
+    4273,
+    4762,
+    4851,
+    4852,
+    4853,
+    5591,
+    5944,
+    6033,
+    6034,
+    6035,
+    6151,
+    6240,
+    6241,
+    6242,
+    10962,
+    11680,
+    11701,
+    11702,
+    11703,
+    11704,
+    11705,
+    11706,
+    11707,
+    11708,
+    11769,
+    11770,
+    11771,
+    12775
+  ]
+}

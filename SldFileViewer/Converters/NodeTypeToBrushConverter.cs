@@ -39,6 +39,7 @@ public sealed class NodeTypeToBrushConverter : IValueConverter
             TreeNodeKind.FeatureDraft => "Brush.Accent.Yellow",
             TreeNodeKind.FeatureThread => "Brush.Accent.Orange",
             TreeNodeKind.FeatureFolder => "Brush.Accent.Yellow",
+            TreeNodeKind.FeatureData => "Brush.Accent.Green",
             TreeNodeKind.AssemblyComponent => "Brush.Accent.Green",
             TreeNodeKind.AssemblyMate => "Brush.Accent.Orange",
             TreeNodeKind.DrawingSheet => "Brush.Accent.Blue",

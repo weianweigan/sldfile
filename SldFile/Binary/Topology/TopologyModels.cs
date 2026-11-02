@@ -84,13 +84,23 @@ internal sealed class EdgeRefData : IFeatureData
     /// <summary>Edge selection/topology type (typically 0x04).</summary>
     public uint EdgeType { get; set; }
 
-    /// <summary>Referenced edge indices extracted from topology entries.</summary>
+    /// <summary>
+    /// Referenced edge indices obtained by a byte-pattern scan of the payload.
+    /// This is candidate-only evidence: the tuple layout is not structurally
+    /// decoded, so these values must not be promoted to selection references.
+    /// </summary>
+    public List<uint> CandidateEdgeIndices { get; set; } = new();
+
+    /// <summary>
+    /// Structurally decoded edge indices. Empty until the moEdgeRef_c topology
+    /// path layout is established by controlled samples.
+    /// </summary>
     public List<uint> EdgeIndices { get; set; } = new();
 
     internal byte[] RawData = Array.Empty<byte>();
 
     public override string ToString() =>
-        $"moEdgeRef_c(Count={EdgeCount}, Type={EdgeType}, Indices=[{string.Join(", ", EdgeIndices)}])";
+        $"moEdgeRef_c(Count={EdgeCount}, Type={EdgeType}, CandidateIndices=[{string.Join(", ", CandidateEdgeIndices)}])";
 }
 
 /// <summary>

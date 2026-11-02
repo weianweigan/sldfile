@@ -78,6 +78,7 @@ public class TopologyAdversarialTests
         Assert.NotNull(edgeRef);
         Assert.Equal("moEdgeRef_c", edgeRef.ClassName);
         Assert.NotNull(edgeRef.EdgeIndices);
+        Assert.NotNull(edgeRef.CandidateEdgeIndices);
 
         // 4. ParseFaceRefPln
         var faceRefPln = TopologyParsers.ParseFaceRefPln(elem);
@@ -105,7 +106,7 @@ public class TopologyAdversarialTests
         var endFace3Int = TopologyParsers.ParseEndFace3IntSurfIdRep(elem);
         Assert.NotNull(endFace3Int);
         Assert.Equal("moEndFace3IntSurfIdRep_c", endFace3Int.ClassName);
-        Assert.True(endFace3Int.FaceIndex >= 1);
+        Assert.Equal(0u, endFace3Int.FaceIndex);
 
         // 9. ParseFromSktEnt3IntSurfIdRep
         var fromSkt3Int = TopologyParsers.ParseFromSktEnt3IntSurfIdRep(elem);
@@ -214,11 +215,12 @@ public class TopologyAdversarialTests
         BitConverter.GetBytes((uint)42).CopyTo(bufA, 20);       // EntityIndex / EdgeIndex
 
         var edgeRef = TopologyParsers.ParseEdgeRef(CreateMockElement("moEdgeRef_c", bufA));
-        Assert.Contains(42u, edgeRef.EdgeIndices);
+        Assert.Contains(42u, edgeRef.CandidateEdgeIndices);
+        Assert.Empty(edgeRef.EdgeIndices); // Candidate-only scan never populates structural indices.
 
         var endFace3Int = TopologyParsers.ParseEndFace3IntSurfIdRep(CreateMockElement("moEndFace3IntSurfIdRep_c", bufA));
-        Assert.Equal(0x4Bu, endFace3Int.FeatureTypeId);
-        Assert.Equal(0x12345678u, endFace3Int.SurfaceTag);
+        Assert.Equal(0u, endFace3Int.FeatureTypeId);
+        Assert.Equal(0u, endFace3Int.SurfaceTag);
 
         var fromSkt3Int = TopologyParsers.ParseFromSktEnt3IntSurfIdRep(CreateMockElement("moFromSktEnt3IntSurfIdRep_c", bufA));
         Assert.Single(fromSkt3Int.Mappings);
@@ -282,7 +284,7 @@ public class TopologyAdversarialTests
         Assert.Single(res1);
         Assert.False(res1[0].IsValid); // IsValid is false because EntityIndices is empty
         Assert.Empty(res1[0].EntityIndices);
-        Assert.Equal(4u, res1[0].ChainId);
+        Assert.Equal(0u, res1[0].ChainId);
 
         // Scenario 2: fromSkt with duplicate entities and unsorted order
         var fromSkt2 = new FromSktEntSurfIdRepData
@@ -294,12 +296,17 @@ public class TopologyAdversarialTests
         fromSkt2.Mappings.Add(new SktEntSurfMapping { EntityIndex = 10, SurfaceTag = 3 }); // duplicate 10
         fromSkt2.Mappings.Add(new SktEntSurfMapping { EntityIndex = 1, SurfaceTag = 4 });
 
-        var res2 = TopologyDecoder.BuildContourReferences(null, fromSkt2);
+        var res2 = TopologyDecoder.BuildContourReferences(null, fromSkt2, null, includeCandidates: true);
         Assert.Single(res2);
         Assert.True(res2[0].IsValid);
+        Assert.True(res2[0].IsCandidateOnly); // Byte-pattern scan is candidate-only.
         Assert.Equal(3, res2[0].EntityIndices.Count);
         // Must be sorted and distinct: [1, 3, 10]
         Assert.Equal(new uint[] { 1, 3, 10 }, res2[0].EntityIndices);
+
+        // Candidate fallback is opt-in: the default call returns nothing so that
+        // heuristics cannot leak into selected references.
+        Assert.Empty(TopologyDecoder.BuildContourReferences(null, fromSkt2));
 
         // Scenario 3: fromSkt3Int fallback when chain and fromSkt are null
         var fromSkt3Int = new FromSktEnt3IntSurfIdRepData
@@ -307,11 +314,13 @@ public class TopologyAdversarialTests
             FeatureTypeId = 0x5E
         };
         fromSkt3Int.Mappings.Add(new SktEntSurfMapping { EntityIndex = 7, SurfaceTag = 100 });
-        var res3 = TopologyDecoder.BuildContourReferences(null, null, fromSkt3Int);
+        var res3 = TopologyDecoder.BuildContourReferences(null, null, fromSkt3Int, includeCandidates: true);
         Assert.Single(res3);
-        Assert.Equal(0x5Eu, res3[0].EntityId);
+        Assert.Equal(0u, res3[0].EntityId);
+        Assert.True(res3[0].IsCandidateOnly);
         Assert.Single(res3[0].EntityIndices);
         Assert.Equal(7u, res3[0].EntityIndices[0]);
+        Assert.Empty(TopologyDecoder.BuildContourReferences(null, null, fromSkt3Int));
 
         // Scenario 4: all nulls
         var res4 = TopologyDecoder.BuildContourReferences(null, null, null);
@@ -342,26 +351,29 @@ public class TopologyAdversarialTests
     {
         var compEdge = new CompEdgeData { EdgeIndex = 15 };
         var edgeRef = new EdgeRefData();
-        edgeRef.EdgeIndices.Add(99);
+        // Candidate-only evidence. It must not become a direction target.
+        edgeRef.CandidateEdgeIndices.Add(99);
         var compRefPlane = new CompRefPlaneData { RefPlaneId = 3, Guid = "Plane_Front" };
         var faceRefPln = new FaceRefPlnData
         {
             NormalX = 0, NormalY = 0, NormalZ = 1
         };
 
-        // Precedence: compEdge / edgeRef takes priority over plane
+        // Precedence: structurally decoded compEdge wins over plane data
         var dir1 = TopologyDecoder.BuildDirectionReference(edgeRef, compEdge, compRefPlane, faceRefPln);
         Assert.NotNull(dir1);
         Assert.Equal(SelectionEntityType.Edge, dir1!.EntityType);
         Assert.Equal(15u, dir1.EntityId);
         Assert.Equal("Edge_15", dir1.ReferenceName);
 
-        // Without compEdge: edgeRef used
+        // Without compEdge: candidate edgeRef indices are NOT promoted, so the
+        // planar face direction wins.
         var dir2 = TopologyDecoder.BuildDirectionReference(edgeRef, null, compRefPlane, faceRefPln);
         Assert.NotNull(dir2);
-        Assert.Equal(SelectionEntityType.Edge, dir2!.EntityType);
-        Assert.Equal(99u, dir2.EntityId);
-        Assert.Equal("Edge_99", dir2.ReferenceName);
+        Assert.Equal(SelectionEntityType.Plane, dir2!.EntityType);
+        Assert.Equal("PlanarFaceDirection", dir2.ReferenceName);
+        Assert.Contains(99u, edgeRef.CandidateEdgeIndices);
+        Assert.Empty(edgeRef.EdgeIndices);
 
         // Without edges: faceRefPln takes priority over compRefPlane
         var dir3 = TopologyDecoder.BuildDirectionReference(null, null, compRefPlane, faceRefPln);
@@ -522,7 +534,7 @@ public class TopologyAdversarialTests
         Assert.Equal("EndConditionEntity", endEntEmpty.ReferenceType);
 
         var endEntWithFaces = new EndConditionEntityReference { FaceCount = 1 };
-        Assert.True(endEntWithFaces.IsValid);
+        Assert.False(endEntWithFaces.IsValid);
 
         var endEntWithName = new EndConditionEntityReference { FaceCount = 0, SurfaceName = "N2" };
         Assert.True(endEntWithName.IsValid);
@@ -605,9 +617,12 @@ public class TopologyAdversarialTests
 
         // Let's assert whether they throw or not, to document exact empirical behavior
         Assert.IsType<NullReferenceException>(ex1);
-        Assert.IsType<NullReferenceException>(ex2);
+        // Candidate fallbacks are opt-in and null-safe; the default path never
+        // dereferences Mappings, so heuristics cannot leak into selected data.
+        Assert.Null(ex2);
         Assert.IsType<NullReferenceException>(ex3);
-        Assert.IsType<NullReferenceException>(ex4);
+        // moEdgeRef_c candidate indices are no longer consumed for directions.
+        Assert.Null(ex4);
         Assert.IsType<NullReferenceException>(ex5);
         Assert.IsType<NullReferenceException>(ex6);
     }

@@ -795,11 +795,6 @@ public class ChallengerExtrudeStressTests
 
     [Theory]
     [InlineData(0u, false)]  // Blind (Boss)
-    [InlineData(1u, false)]  // ThroughAll (Boss)
-    [InlineData(2u, false)]  // UpToNext (Boss)
-    [InlineData(3u, false)]  // UpToVertex (Boss)
-    [InlineData(4u, false)]  // UpToSurface (Boss)
-    [InlineData(5u, false)]  // OffsetFromSurface (Boss)
     [InlineData(6u, true)]   // MidPlane (Boss) - sets BothDirections
     public void AddExtrude_BossEndConditionMatrix_PersistsAccurately(uint endCondition, bool expectBothDirections)
     {
@@ -846,37 +841,26 @@ public class ChallengerExtrudeStressTests
         }
     }
 
-    [Fact]
-    public void AddExtrude_CutEndConditionNonZero_ExposesPersistenceDivergence()
+    [Theory]
+    [InlineData(1u, false)]
+    [InlineData(2u, false)]
+    [InlineData(3u, false)]
+    [InlineData(4u, false)]
+    [InlineData(5u, false)]
+    [InlineData(1u, true)]
+    [InlineData(2u, true)]
+    [InlineData(3u, true)]
+    [InlineData(4u, true)]
+    [InlineData(5u, true)]
+    [InlineData(6u, true)]
+    public void AddExtrude_UnsupportedEndCondition_RejectsBeforePersistence(uint endCondition, bool isCut)
     {
-        // Adversarial challenge: When a Cut Extrude is added with non-zero EndCondition (e.g. MidPlane = 6),
-        // the serializer writes def.EndCondition at byte offset 0x10 following class index 0x8110.
-        // However, MfcTreeBuilder only scans for tag byte 0x01 (FF FF 01 00) and ignores 0x8110 (Tag 0x02 index reference).
-        // Consequently, EndSpecData is never created for moICE_c in ResolvedFeaturesSchemaMapper,
-        // and upon reopening the file, def.EndCondition reverts to 0 (Blind) instead of 6.
         using var temp = CreateStrippedSketchPart();
-
-        using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
-        {
-            var part = Assert.IsType<SldPart>(sw);
-            part.AddExtrude(0.020, isCut: false);
-            var cutFeat = part.AddExtrude(0.005, isCut: true, endCondition: 6u);
-            Assert.NotNull(cutFeat);
-            part.Save();
-        }
-
-        using (var reopened = SwFile.Open(temp.FilePath, readOnly: true))
-        {
-            var feat = Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Cut));
-            var def = Assert.IsType<ExtrudeFeatureDefinitionData>(feat.Definition);
-
-            // Document the observed persistence divergence:
-            // The serialized moICE_c class reference (0x8110) prevents EndSpecData mapping,
-            // so reopened def.EndCondition returns 0 instead of the specified 6.
-            Assert.Equal(0u, def.EndCondition);
-        }
+        using var sw = SwFile.Open(temp.FilePath, readOnly: false);
+        var part = Assert.IsType<SldPart>(sw);
+        Assert.Throws<NotSupportedException>(() => part.AddExtrude(.005, isCut: isCut, endCondition: endCondition));
+        Assert.DoesNotContain(part.Features, f => f.Kind == FeatureKind.Cut || f.Kind == FeatureKind.Extrusion);
     }
-
 
     // ── Challenge 17: Compounding Alternating Boss and Cut Extrusions (Stress Chain) ──
 

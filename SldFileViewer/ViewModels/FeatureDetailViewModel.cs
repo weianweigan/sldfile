@@ -51,12 +51,19 @@ public partial class FeatureDetailViewModel : ObservableObject
     [ObservableProperty]
     private bool _hasChildren;
 
+    /// <summary>
+    /// 强类型 FeatureData 视图（对应 IFeature.GetDefinition() 的离线模型）。
+    /// 选中特征没有解析结果时显示“未解析/未支持”及原因。
+    /// </summary>
+    public FeatureDataViewModel FeatureData { get; } = new();
+
     public ObservableCollection<FeatureDimensionItem> Dimensions { get; } = new();
     public ObservableCollection<FeaturePropertyItem> Properties { get; } = new();
     public ObservableCollection<FeatureChildItem> Children { get; } = new();
 
     public void LoadFeature(Feature feature)
     {
+        FeatureData.Load(feature);
         FeatureName = feature.Name;
         if (!string.IsNullOrEmpty(feature.TypeName) && feature.TypeName.Contains("moRefPlane"))
             FeatureType = "基准面 (moRefPlane)";
@@ -113,6 +120,7 @@ public partial class FeatureDetailViewModel : ObservableObject
 
     public void LoadGeneric(string name, string type, string status = "Active", string? details = null)
     {
+        FeatureData.Clear();
         FeatureName = name;
         FeatureType = type;
         FeatureId = "-";

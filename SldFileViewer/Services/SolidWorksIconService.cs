@@ -181,6 +181,9 @@ public static class SolidWorksIconService
             case TreeNodeKind.FeatureFolder:
                 return GetIcon("PNG_FEAT_EMPTY_FOLDER", preferredSize);
 
+            case TreeNodeKind.FeatureData:
+                return GetIcon("PNG_TABLE_DESIGN_TABLE", preferredSize) ?? GetIcon("PNG_TABLE_WELD_CUT_LIST", preferredSize);
+
             case TreeNodeKind.AssemblyComponent:
                 return GetIcon("PNG_ASSEMBLIES_NEW_PART", preferredSize);
 

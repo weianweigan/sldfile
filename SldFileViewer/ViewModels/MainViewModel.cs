@@ -181,6 +181,35 @@ public partial class MainViewModel : ObservableObject
                 CurrentView = Bom;
                 break;
 
+            case TreeNodeKind.FeatureData:
+                if (node.Tag is System.Collections.Generic.IReadOnlyList<Feature> featureList)
+                {
+                    var firstDefined = featureList.FirstOrDefault(f => f.Definition != null);
+                    if (firstDefined != null)
+                    {
+                        FeatureDetail.LoadFeature(firstDefined);
+                    }
+                    else
+                    {
+                        var firstRegistered = featureList.FirstOrDefault(f =>
+                            SldFile.Binary.FeatureDataRegistry.IsRegistered(
+                                f.Attributes.TryGetValue("ClassName", out var c1) ? c1 : f.TypeName) ||
+                            SldFile.Binary.FeatureDataRegistry.IsFeatureRegistered(
+                                f.Attributes.TryGetValue("ClassName", out var c2) ? c2 : f.TypeName));
+                        if (firstRegistered != null)
+                            FeatureDetail.LoadFeature(firstRegistered);
+                        else
+                            FeatureDetail.LoadGeneric(node.Title, "FeatureData",
+                                "当前文档没有已解析或已注册的特征数据节点。");
+                    }
+                }
+                else
+                {
+                    FeatureDetail.LoadGeneric(node.Title, "FeatureData");
+                }
+                CurrentView = FeatureDetail;
+                break;
+
             case TreeNodeKind.FeatureSketch:
                 if (node.Tag is SketchFeature sketch)
                 {

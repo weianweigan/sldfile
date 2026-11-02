@@ -29,6 +29,7 @@ public enum TreeNodeKind
     FeatureDraft,
     FeatureThread,
     FeatureFolder,
+    FeatureData,
     FeatureGeneric,
     AssemblyComponent,
     AssemblyMate,

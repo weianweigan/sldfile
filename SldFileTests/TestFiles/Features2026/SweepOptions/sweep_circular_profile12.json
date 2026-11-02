@@ -1,0 +1,99 @@
+{
+  "file": "D:\\weigan\\repos\\sldfile\\SldFileTests\\TestFiles\\Features2026\\SweepOptions\\sweep_circular_profile12.SLDPRT",
+  "sourceFile": "D:\\weigan\\repos\\sldfile\\reverse_workspace\\validation\\agent5-sweep-loft-20261030\\samples3\\sweep_circular_profile12.SLDPRT",
+  "createPid": 33432,
+  "verifyPid": 29196,
+  "independentProcess": true,
+  "solidWorksRevision": "34.0.0",
+  "featureName": "sweep_circular_profile12",
+  "typeName2": "Sweep",
+  "classNameExpected": "moSweep_c",
+  "description": "S3 circular profile option d12",
+  "api": {
+    "accessSelections": true,
+    "sweepType": 17,
+    "profile": "null",
+    "path": "ProfileFeature:Path1",
+    "guideCurves": [],
+    "guideCurveCount": 0,
+    "sweepTypeApi": 0,
+    "direction": -1,
+    "twistControlType": 0,
+    "twistAngleRad": 0,
+    "d1ReverseTwistDir": false,
+    "d2ReverseTwistDir": false,
+    "maintainTangency": true,
+    "advancedSmoothing": false,
+    "alignWithEndFaces": false,
+    "tangentPropagation": false,
+    "mergeSmoothFaces": false,
+    "circularProfile": true,
+    "circularProfileDiameter": 0.012,
+    "startTangencyType": 0,
+    "endTangencyType": 0,
+    "pathAlignmentType": 0,
+    "pathType": 9,
+    "thinFeature": false,
+    "isThinFeature": false,
+    "thinWallType": 0,
+    "wallThickness1": 0,
+    "wallThickness2": 0,
+    "merge": true,
+    "featureScope": true,
+    "autoSelect": false,
+    "featureScopeBodyCount": 0,
+    "isBossFeature": true,
+    "cutSweepOption": 1
+  },
+  "selectionPersistRefs": {
+    "Profile": null,
+    "Path": {
+      "length": 20,
+      "base64": "OEoAAAEAAAD//v8AAAAAAEkAAAA="
+    },
+    "Guide1": null
+  },
+  "physical": {
+    "volume": 4.523893421169302E-06,
+    "surfaceArea": 0.001734159144781566,
+    "centroid": [
+      -1.1694515497558126E-19,
+      0,
+      0.020000000000000004
+    ],
+    "bodyBox": [
+      -0.006,
+      -0.006,
+      0,
+      0.006,
+      0.006,
+      0.04
+    ],
+    "bodyMass": [
+      -1.1694515497558126E-19,
+      0,
+      0.02,
+      4.523893421169302E-06,
+      0.001734159144781566,
+      4.523893421169302E-06,
+      6.439008302797639E-10,
+      6.439008302797639E-10,
+      8.143008158104744E-11,
+      -3.109901885327628E-43,
+      -3.740655825524098E-43,
+      1.0490735693171865E-42
+    ]
+  },
+  "openDoc6": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "rebuild": {
+    "result": true,
+    "featureErrors": 0,
+    "featureErrorDetails": []
+  },
+  "sha256": "0BD4C60A57AAB4E6CF05AFBBC542A88BBDF0866DD1E1E2054590DF4B8239B026",
+  "hashUnchanged": true,
+  "status": "verified"
+}

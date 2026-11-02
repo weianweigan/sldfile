@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using SldFile.Binary.Topology;
 using SldFile.Mfc;
 
 namespace SldFile.Binary.FeatureData;
@@ -19,58 +20,72 @@ internal static class MfcExtrudeSerializer
     };
 
     /// <summary>
-    /// Extracts ordered sketch entity IDs from the target sketch folder or stream segment.
-    /// Falls back to [1, 2, 3, 4] if no sketch chain is present.
+    /// Extracts the ordered entity IDs of the target sketch chain.
+    /// The chain is taken from the resolved folder when available, otherwise it is parsed from the
+    /// stream's own <c>moSketchChain_c</c> element. Authoring requires real entity indices; there is
+    /// deliberately no [1..4] or byte-pattern fallback, because synthesized IDs bind the extrusion
+    /// to non-existent TOPOLOGY entities that native SolidWorks cannot load.
     /// </summary>
-    public static List<uint> ExtractEntityIds(FeatureFolder? targetSketchFolder, byte[]? stream = null, int sketchEndOffset = -1)
+    public static List<uint> ExtractEntityIds(FeatureFolder targetSketchFolder, byte[]? stream = null, int sketchEndOffset = -1)
     {
-        if (targetSketchFolder != null)
+        if (targetSketchFolder == null)
+            throw new NotSupportedException("Cannot author an extrusion without a target sketch folder.");
+
+        ushort version = stream != null && stream.Length >= 2 ? BitConverter.ToUInt16(stream, 0) : (ushort)0;
+        string sketchName = string.IsNullOrEmpty(targetSketchFolder.DisplayName)
+            ? $"<tag {targetSketchFolder.TagOffset}>"
+            : targetSketchFolder.DisplayName;
+
+        var chain = targetSketchFolder.ChildFeatureData.OfType<SketchChainData>().FirstOrDefault()
+            ?? targetSketchFolder.ChildFeatureDataBuilder.OfType<SketchChainData>().FirstOrDefault();
+        var ids = ReadChainEntityIds(chain);
+        if (ids != null) return ids;
+
+        // SldPart may resolve the target sketch from a raw stream scan (a bare FeatureFolder
+        // without ChildFeatureData). Parse the owning sketch's chain element directly then.
+        bool sawChainElement = false;
+        if (stream != null && targetSketchFolder.TagOffset >= 0)
         {
-            var chain = targetSketchFolder.ChildFeatureData.OfType<SketchChainData>().FirstOrDefault()
-                ?? targetSketchFolder.ChildFeatureDataBuilder.OfType<SketchChainData>().FirstOrDefault();
-
-            if (chain != null)
+            int end = sketchEndOffset > targetSketchFolder.TagOffset
+                ? Math.Min(sketchEndOffset, stream.Length)
+                : stream.Length;
+            var chainTag = MfcPrimitives.ScanMfcTags(stream)
+                .FirstOrDefault(t => t.ClassName == "moSketchChain_c" &&
+                                     t.TagOffset >= targetSketchFolder.TagOffset &&
+                                     t.TagOffset < end);
+            if (chainTag != null)
             {
-                if (chain.EntityIndices != null && chain.EntityIndices.Count > 0)
-                    return chain.EntityIndices.ToList();
-
-                if (chain.Indices != null && chain.Indices.Any(i => i > 0))
-                    return chain.Indices.Where(i => i > 0).ToList();
-
-                if (chain.Count > 0)
-                    return Enumerable.Range(1, (int)chain.Count).Select(i => (uint)i).ToList();
-            }
-
-            // Check if stream contains sgArcHandle within this sketch's range
-            if (stream != null && targetSketchFolder.TagOffset >= 0)
-            {
-                int end = (sketchEndOffset > targetSketchFolder.TagOffset) ? sketchEndOffset : stream.Length;
-                byte[] arcTag = Encoding.ASCII.GetBytes("sgArcHandle");
-                for (int i = targetSketchFolder.TagOffset; i <= Math.Min(end - arcTag.Length, stream.Length - arcTag.Length); i++)
-                {
-                    bool match = true;
-                    for (int j = 0; j < arcTag.Length; j++)
-                    {
-                        if (stream[i + j] != arcTag[j]) { match = false; break; }
-                    }
-                    if (match)
-                    {
-                        // Look for entity ID around offset + 89
-                        for (int k = i + 40; k < Math.Min(i + 150, stream.Length - 8); k++)
-                        {
-                            uint cand = BitConverter.ToUInt32(stream, k);
-                            if (cand >= 1 && cand <= 1000 && BitConverter.ToUInt32(stream, k + 4) == 1)
-                            {
-                                return new List<uint> { cand };
-                            }
-                        }
-                        return new List<uint> { 5 };
-                    }
-                }
+                sawChainElement = true;
+                var streamed = new SketchChainData();
+                TopologyParsers.ParseEnrichedSketchChain(
+                    streamed, MfcPrimitives.CopyRange(stream, chainTag.DataStart, chainTag.DataEnd));
+                ids = ReadChainEntityIds(streamed);
+                if (ids != null) return ids;
             }
         }
 
-        return new List<uint> { 1, 2, 3, 4 };
+        if (!sawChainElement && chain == null)
+        {
+            throw new NotSupportedException(
+                $"Cannot author an extrusion on sketch '{sketchName}' (ResolvedFeatures version 0x{version:X2}): " +
+                "no parseable moSketchChain_c was found for the target sketch. Only sketches with a decoded " +
+                "closed chain can be extruded. No stream changes have been made.");
+        }
+
+        throw new NotSupportedException(
+            $"Cannot author an extrusion on sketch '{sketchName}' (ResolvedFeatures version 0x{version:X2}): " +
+            "the moSketchChain_c of the target sketch does not expose any sketch entity indices. " +
+            "Synthesized entity ids are not written. No stream changes have been made.");
+    }
+
+    private static List<uint>? ReadChainEntityIds(SketchChainData? chain)
+    {
+        if (chain == null) return null;
+        if (chain.EntityIndices != null && chain.EntityIndices.Count > 0)
+            return chain.EntityIndices.ToList();
+        if (chain.Indices != null && chain.Indices.Any(i => i > 0))
+            return chain.Indices.Where(i => i > 0).ToList();
+        return null;
     }
 
     /// <summary>
@@ -318,8 +333,31 @@ internal static class MfcExtrudeSerializer
         writer.WriteBytes(topo);
 
         // 4. Bounding Box
-        double centerZ = (def.EndCondition == 6) ? 0.0 : (def.Depth / 2.0);
-        double radius = Math.Sqrt(0.0002 + def.Depth * def.Depth);
+        // Native controls: MidPlane is centered; both directions span [-D2, +D1]; an offset start
+        // shifts the box by the offset distance. The two-direction radius covers D1 + D2.
+        double centerZ;
+        double radius;
+        if (def.EndCondition == 6)
+        {
+            centerZ = 0.0;
+            radius = Math.Sqrt(0.0002 + def.Depth * def.Depth);
+        }
+        else if (def.BothDirections)
+        {
+            centerZ = (def.Depth - def.DepthDirection2) / 2.0;
+            double total = def.Depth + def.DepthDirection2;
+            radius = Math.Sqrt(0.0002 + total * total);
+        }
+        else if (def.FromType == 3)
+        {
+            centerZ = def.Depth / 2.0 + def.FromOffsetDistance;
+            radius = Math.Sqrt(0.0002 + def.Depth * def.Depth);
+        }
+        else
+        {
+            centerZ = def.ReverseDirection ? -def.Depth / 2.0 : def.Depth / 2.0;
+            radius = Math.Sqrt(0.0002 + def.Depth * def.Depth);
+        }
 
         writer.WriteMfcTag("moBBoxCenterData_c");
         writer.WriteU16(1);
@@ -341,9 +379,10 @@ internal static class MfcExtrudeSerializer
         // 5. End Condition
         writer.WriteMfcTag("moEndSpec_c");
         writer.WriteU16(0);
-        writer.WriteU32(1);
+        // u32 at +2 is 1 for a single direction and 0 for the evidenced two-direction layout.
+        writer.WriteU32(def.BothDirections ? 0u : 1u);
         writer.WriteU32(0);
-        writer.WriteU32(0);
+        writer.WriteU32(def.ReverseDirection ? 1u : 0u);
         writer.WriteU16(0);
         writer.WriteU32(def.EndCondition);
         writer.WriteU32(0);
@@ -369,9 +408,52 @@ internal static class MfcExtrudeSerializer
         writer.WriteBytes(ExtrudeSegments.BossLengthParamTrailer);
 
         // 8. FavoriteHandle & FromEndSpec
-        writer.WriteBytes(ExtrudeSegments.BossFavoriteAndFromEndSpec);
+        // The final 40-byte moFromEndSpec_c record repeats the direction flag at +8.
+        // Native baseline/resave/reverse controls establish this layout. Option-bearing
+        // favorites are composed from the measured option segments; unsupported combinations
+        // are rejected by ExtrudeFeatureBuilder.ValidateDefinition before reaching this point.
+        if (def.BothDirections)
+        {
+            ExtrudeOptionEmitter.WriteTwoDirectionFavorite(writer, def.DepthDirection2);
+            WriteFromEndSpec(writer, def.ReverseDirection);
+        }
+        else if (def.DraftWhileExtruding)
+        {
+            ExtrudeOptionEmitter.WriteDraftFavoriteAndDimension(writer, def.DraftAngle);
+            WriteFromEndSpec(writer, false);
+        }
+        else if (def.FromType == 3)
+        {
+            ExtrudeOptionEmitter.WriteOffsetFavorite(writer);
+            writer.WriteMfcTag("moFromEndSpec_c");
+            ExtrudeOptionEmitter.WriteOffsetFromEndSpec(writer, def.FromOffsetDistance);
+        }
+        else
+        {
+            var favorite = ExtrudeSegments.BossFavoriteAndFromEndSpec;
+            const int fromEndRecordLength = 6 + 15 + 40; // MFC tag + ASCII class name + fields
+            var prefix = new byte[favorite.Length - fromEndRecordLength];
+            Array.Copy(favorite, prefix, prefix.Length);
+            writer.WriteBytes(prefix);
+            WriteFromEndSpec(writer, def.ReverseDirection);
+        }
 
         return writer.ToArray();
+    }
+
+    private static void WriteFromEndSpec(MfcStreamWriter writer, bool reverse)
+    {
+        writer.WriteMfcTag("moFromEndSpec_c");
+        writer.WriteU32(0);
+        writer.WriteU32(0x6117CFF2);
+        writer.WriteU32(reverse ? 1u : 0u);
+        writer.WriteU32(0x45A74A59);
+        writer.WriteU32(0x033F4370);
+        writer.WriteU32(0);
+        writer.WriteU32(0);
+        writer.WriteU32(0);
+        writer.WriteU32(uint.MaxValue);
+        writer.WriteU32(0);
     }
 
     /// <summary>

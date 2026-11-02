@@ -50,16 +50,20 @@ internal static class TopologyParsers
             data.EdgeType = BitConverter.ToUInt32(raw, 8);
         }
 
-        // Scan for edge index entries: pattern [Type: 4B|4E|4F|5E 00 00 00] [Tag: u32] [EdgeIndex: u32]
+        // Candidate-only scan: byte patterns that look like [Type: 4B|4C|4D|4E|4F|5E]
+        // [Tag][EdgeIndex]. The persistent topology path layout is NOT decoded, so
+        // these values are kept separately from EdgeIndices and must not be used
+        // to build selection references.
+        data.EdgeIndices.Clear();
         for (int i = 12; i <= raw.Length - 12; i++)
         {
             uint typeCandidate = BitConverter.ToUInt32(raw, i);
             if (typeCandidate is 0x4B or 0x4C or 0x4D or 0x4E or 0x4F or 0x5E)
             {
                 uint edgeIdx = BitConverter.ToUInt32(raw, i + 8);
-                if (edgeIdx > 0 && edgeIdx < 5000 && !data.EdgeIndices.Contains(edgeIdx))
+                if (edgeIdx > 0 && edgeIdx < 5000 && !data.CandidateEdgeIndices.Contains(edgeIdx))
                 {
-                    data.EdgeIndices.Add(edgeIdx);
+                    data.CandidateEdgeIndices.Add(edgeIdx);
                 }
             }
         }
@@ -132,29 +136,14 @@ internal static class TopologyParsers
     public static EndFace3IntSurfIdRepData ParseEndFace3IntSurfIdRep(MfcElement element)
     {
         var data = new EndFace3IntSurfIdRepData { RawData = element.RawData };
-        byte[] raw = element.RawData;
-        for (int i = 0; i <= raw.Length - 12; i++)
-        {
-            uint typeCandidate = BitConverter.ToUInt32(raw, i);
-            if (typeCandidate is 0x4B or 0x4C or 0x4E or 0x4F or 0x56 or 0x5E)
-            {
-                data.FeatureTypeId = typeCandidate;
-                data.SurfaceTag = BitConverter.ToUInt32(raw, i + 4);
-                if (i + 12 <= raw.Length)
-                {
-                    data.FaceIndex = BitConverter.ToUInt32(raw, i + 8);
-                }
-                break;
-            }
-        }
-        if (data.FaceIndex == 0) data.FaceIndex = 1;
+        // Keep the unresolved persistent path opaque; integer tuple scanning is not decoding.
         return data;
     }
 
     public static FromSktEnt3IntSurfIdRepData ParseFromSktEnt3IntSurfIdRep(MfcElement element)
     {
         var data = new FromSktEnt3IntSurfIdRepData { RawData = element.RawData };
-        ExtractSktEntMappings(element.RawData, data.Mappings);
+        ExtractCandidateSktEntMappings(element.RawData, data.Mappings);
         if (data.Mappings.Count > 0)
         {
             data.FeatureTypeId = data.Mappings[0].FeatureTypeId;
@@ -170,7 +159,7 @@ internal static class TopologyParsers
     public static void ParseEnrichedFromSktEntSurfIdRep(FromSktEntSurfIdRepData data, byte[] raw)
     {
         data.RawData = raw;
-        ExtractSktEntMappings(raw, data.Mappings);
+        ExtractCandidateSktEntMappings(raw, data.Mappings);
         if (data.Mappings.Count > 0)
         {
             data.FeatureTypeId = data.Mappings[0].FeatureTypeId;
@@ -193,34 +182,35 @@ internal static class TopologyParsers
             data.BodyMagic = BitConverter.ToUInt64(raw, 20);
         }
 
-        // Scan for face indices in topology blocks
-        for (int i = 12; i <= raw.Length - 4; i += 2)
-        {
-            ushort candidate = BitConverter.ToUInt16(raw, i);
-            if (candidate > 0 && candidate < 500 && (candidate & 0x8000) == 0)
-            {
-                if (!data.FaceIds.Contains(candidate))
-                    data.FaceIds.Add(candidate);
-            }
-        }
+        // The persistent path is opaque until its layout has controlled-sample evidence.
+        // Small integers in this block are not necessarily face identifiers.
+        data.FaceIds.Clear();
+        data.TopologyData = new byte[Math.Max(0, raw.Length - 4)];
+        if (raw.Length > 4)
+            Array.Copy(raw, 4, data.TopologyData, 0, raw.Length - 4);
     }
 
     public static void ParseEnrichedEndFaceSurfIdRep(EndFaceSurfIdRepData data, byte[] raw)
     {
         data.RawData = raw;
 
-        // Scan for WChar name prefix: FF FE FF [len:u8]
+        // Scan for WChar name prefix: FF FE FF [len:u8].
+        // A malformed length makes ReadWChar return null without advancing;
+        // guarantee forward progress so adversarial input cannot spin forever.
         int offset = 0;
         while (offset + 4 <= raw.Length)
         {
             if (MfcPrimitives.IsWCharPrefix(raw, offset))
             {
+                int saved = offset;
                 var name = MfcPrimitives.ReadWChar(raw, ref offset);
                 if (!string.IsNullOrEmpty(name))
                 {
                     data.SurfaceName = name!;
                     break;
                 }
+                if (offset <= saved)
+                    offset = saved + 1;
             }
             else
             {
@@ -268,7 +258,12 @@ internal static class TopologyParsers
         }
     }
 
-    private static void ExtractSktEntMappings(byte[] raw, List<SktEntSurfMapping> mappings)
+    /// <summary>
+    /// Candidate-only scan of moFromSktEntSurfIdRep_c payloads. The mapping tuple
+    /// layout is not structurally decoded; results are exposed as candidates for
+    /// diagnostics and are never promoted to selected-contour/region references.
+    /// </summary>
+    private static void ExtractCandidateSktEntMappings(byte[] raw, List<SktEntSurfMapping> mappings)
     {
         if (raw == null || raw.Length < 16) return;
 

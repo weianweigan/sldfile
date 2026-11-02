@@ -14,7 +14,8 @@ internal static class TopologyDecoder
     public static IReadOnlyList<SketchContourReference> BuildContourReferences(
         SketchChainData? chain,
         FromSktEntSurfIdRepData? fromSkt,
-        FromSktEnt3IntSurfIdRepData? fromSkt3Int = null)
+        FromSktEnt3IntSurfIdRepData? fromSkt3Int = null,
+        bool includeCandidates = false)
     {
         var list = new List<SketchContourReference>();
 
@@ -22,8 +23,8 @@ internal static class TopologyDecoder
         {
             var contour = new SketchContourReference
             {
-                EntityId = chain.SketchId > 0 ? chain.SketchId : 1,
-                ChainId = chain.Count > 0 ? chain.Count : (uint)chain.EntityIndices.Count,
+                EntityId = chain.SketchId,
+                ChainId = 0, // Entity count is not a persistent chain identifier.
                 EntityIndices = chain.EntityIndices.Count > 0
                     ? chain.EntityIndices.ToArray()
                     : chain.Indices.Where(i => i > 0).ToArray(),
@@ -31,7 +32,7 @@ internal static class TopologyDecoder
             };
             list.Add(contour);
         }
-        else if (fromSkt != null && fromSkt.Mappings.Count > 0)
+        else if (includeCandidates && fromSkt != null && fromSkt.Mappings?.Count > 0)
         {
             var entities = fromSkt.Mappings
                 .Select(m => m.EntityIndex)
@@ -41,14 +42,15 @@ internal static class TopologyDecoder
 
             var contour = new SketchContourReference
             {
-                EntityId = fromSkt.FeatureTypeId > 0 ? fromSkt.FeatureTypeId : 1,
-                ChainId = 1,
+                EntityId = 0, // A class ID is not a persistent entity ID.
+                ChainId = 0,
                 EntityIndices = entities,
-                IsClosed = true
+                IsClosed = true,
+                IsCandidateOnly = true
             };
             list.Add(contour);
         }
-        else if (fromSkt3Int != null && fromSkt3Int.Mappings.Count > 0)
+        else if (includeCandidates && fromSkt3Int != null && fromSkt3Int.Mappings?.Count > 0)
         {
             var entities = fromSkt3Int.Mappings
                 .Select(m => m.EntityIndex)
@@ -58,10 +60,11 @@ internal static class TopologyDecoder
 
             var contour = new SketchContourReference
             {
-                EntityId = fromSkt3Int.FeatureTypeId > 0 ? fromSkt3Int.FeatureTypeId : 1,
-                ChainId = 1,
+                EntityId = 0,
+                ChainId = 0,
                 EntityIndices = entities,
-                IsClosed = true
+                IsClosed = true,
+                IsCandidateOnly = true
             };
             list.Add(contour);
         }
@@ -93,23 +96,27 @@ internal static class TopologyDecoder
         CompRefPlaneData? compRefPlane,
         FaceRefPlnData? faceRefPln)
     {
-        if (compEdge != null || (edgeRef != null && edgeRef.EdgeIndices.Count > 0))
+        // moEdgeRef_c edge indices are candidate-only (byte-pattern scan), so they
+        // are deliberately not promoted to a direction target. Only structurally
+        // decoded component edge/plane references may yield a direction.
+        _ = edgeRef;
+        if (compEdge?.EdgeIndex > 0)
         {
-            uint edgeId = compEdge?.EdgeIndex ?? (edgeRef!.EdgeIndices.Count > 0 ? edgeRef.EdgeIndices[0] : 1);
+            uint edgeId = compEdge.EdgeIndex;
             return new DirectionReference
             {
                 EntityType = SelectionEntityType.Edge,
                 EntityId = edgeId,
-                ReferenceName = compEdge != null ? $"Edge_{compEdge.EdgeIndex}" : $"Edge_{edgeId}"
+                ReferenceName = edgeId > 0 ? $"Edge_{edgeId}" : string.Empty
             };
         }
 
-        if (faceRefPln != null)
+        if (faceRefPln != null && new DirectionReference { Vector = faceRefPln.DirectionVector }.IsValid)
         {
             return new DirectionReference
             {
                 EntityType = SelectionEntityType.Plane,
-                EntityId = 1,
+                EntityId = 0,
                 Vector = faceRefPln.DirectionVector,
                 ReferenceName = "PlanarFaceDirection"
             };
@@ -121,7 +128,7 @@ internal static class TopologyDecoder
             {
                 EntityType = SelectionEntityType.Plane,
                 EntityId = compRefPlane.RefPlaneId,
-                ReferenceName = !string.IsNullOrEmpty(compRefPlane.Guid) ? compRefPlane.Guid : $"Plane_{compRefPlane.RefPlaneId}"
+                ReferenceName = !string.IsNullOrEmpty(compRefPlane.Guid) ? compRefPlane.Guid : (compRefPlane.RefPlaneId > 0 ? $"Plane_{compRefPlane.RefPlaneId}" : string.Empty)
             };
         }
 
@@ -137,18 +144,21 @@ internal static class TopologyDecoder
         if (faceRef == null && endFace == null && compFace == null && endFace3Int == null)
             return null;
 
-        uint faceId = compFace?.FaceIndex
-            ?? (faceRef != null && faceRef.FaceIds.Count > 0 ? faceRef.FaceIds[0] : (endFace3Int != null ? endFace3Int.FaceIndex : 1));
+        uint faceId = compFace?.FaceIndex ?? 0;
+        if (faceId == 0 && faceRef != null && faceRef.FaceIds.Count > 0)
+            faceId = faceRef.FaceIds.FirstOrDefault(id => id > 0);
+        if (faceId == 0)
+            faceId = endFace3Int?.FaceIndex ?? 0;
 
         string surfName = !string.IsNullOrEmpty(endFace?.SurfaceName)
             ? endFace!.SurfaceName
-            : (endFace3Int != null ? $"EndFace_{endFace3Int.FaceIndex}" : (compFace != null ? $"Face_{compFace.FaceIndex}" : string.Empty));
+            : (faceId == 0 ? string.Empty : (compFace?.FaceIndex == faceId ? $"Face_{faceId}" : $"EndFace_{faceId}"));
 
         return new EndConditionEntityReference
         {
             EntityType = SelectionEntityType.Face,
             EntityId = faceId,
-            FaceCount = faceRef?.FaceCount ?? 1,
+            FaceCount = faceRef?.FaceCount ?? (faceId > 0 ? 1u : 0u),
             SurfaceName = surfName
         };
     }
