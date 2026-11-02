@@ -1,6 +1,8 @@
-using System.IO.Compression;
+﻿using System.IO.Compression;
+using System.Linq;
 using System.Text;
 using System.Xml.Linq;
+using SldFile;
 using SldFile.Binary;
 
 namespace SldFileTests;
@@ -132,6 +134,55 @@ public class SectionArchiveTests
                 .Elements("property").Single(e => (string?)e.Attribute("pid") == (string?)property.Attribute("pid"));
             Assert.True(XNode.DeepEquals(property, preserved));
         }
+    }
+
+    [Fact]
+    public void Utf8StreamNamesForVirtualComponentsAreSupported()
+    {
+        var data = (byte[])File.ReadAllBytes(TestFileProvider.CubePart2026).Clone();
+        byte key = data[7];
+        var index = SectionArchiveDirectory.Read(data, key);
+        var entry = index.Entries.Single(e => e.Name == "docProps/custom.xml");
+
+        // 构造等长的 UTF-8 中文流名称："VirtualComp/件.xml" (12 + 3 + 4 = 19 字节)
+        string utf8Name = "VirtualComp/件.xml";
+        byte[] utf8Bytes = Encoding.UTF8.GetBytes(utf8Name);
+        Assert.Equal(entry.Name.Length, utf8Bytes.Length);
+
+        for (int i = 0; i < utf8Bytes.Length; i++)
+        {
+            byte encoded = SectionContainerReader.Ror(utf8Bytes[i], key);
+            data[entry.LocalOffset + 30 + i] = encoded;
+            data[entry.CentralOffset + 46 + i] = encoded;
+        }
+
+        var newIndex = SectionArchiveDirectory.Read(data, key);
+        var utf8Entry = Assert.Single(newIndex.Entries, e => e.Name == utf8Name);
+        var payload = newIndex.Extract(data, utf8Entry);
+        Assert.NotEmpty(payload);
+    }
+
+    [Fact]
+    public void InvalidUtf8OrControlCharsInStreamNameAreRejected()
+    {
+        var data = (byte[])File.ReadAllBytes(TestFileProvider.CubePart2026).Clone();
+        byte key = data[7];
+        var index = SectionArchiveDirectory.Read(data, key);
+        var entry = index.Entries.Single(e => e.Name == "docProps/custom.xml");
+
+        // 写入控制字符 (例如 '\t' = 9 < 32)
+        byte controlEncoded = SectionContainerReader.Ror(9, key);
+        var controlData = (byte[])data.Clone();
+        controlData[entry.LocalOffset + 30] = controlEncoded;
+        controlData[entry.CentralOffset + 46] = controlEncoded;
+        Assert.Throws<InvalidDataException>(() => SectionArchiveDirectory.Read(controlData, key));
+
+        // 写入非法 UTF-8 序列 (单字节 0xFF)
+        byte invalidUtf8Encoded = SectionContainerReader.Ror(0xFF, key);
+        var invalidData = (byte[])data.Clone();
+        invalidData[entry.LocalOffset + 30] = invalidUtf8Encoded;
+        invalidData[entry.CentralOffset + 46] = invalidUtf8Encoded;
+        Assert.Throws<InvalidDataException>(() => SectionArchiveDirectory.Read(invalidData, key));
     }
 
     private static XDocument ReadCustom(string path) => XDocument.Parse(Encoding.UTF8.GetString(
