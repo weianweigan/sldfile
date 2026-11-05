@@ -321,4 +321,41 @@ public class AssemblyExplodeAndIsolateTests
         Assert.False(vm.IsIsolated);
         Assert.False(vm.HasHiddenComponents);
     }
+
+    [Fact]
+    public async Task Explode_OnRealAssemblyFile_ProducesSignificantExplosionDisplacement()
+    {
+        string realAsmPath = @"C:\Users\HP\Desktop\SC32x50S.SLDASM";
+        if (!System.IO.File.Exists(realAsmPath)) return;
+
+        var docService = new SwDocumentService();
+        await docService.OpenAsync(realAsmPath);
+        var exportService = new ExportService();
+        var dialogService = new DummyDialogService();
+
+        var vm = new MeshViewerViewModel(docService, exportService, dialogService);
+        vm.LoadMesh();
+
+        Assert.True(vm.HasAssemblyComponents);
+        Assert.True(vm.AssemblyComponentCount >= 2);
+
+        // 开启爆炸视图并拉到 100%
+        vm.IsExplodeModeEnabled = true;
+        vm.SetExplodePercentCommand.Execute(100.0);
+
+        var (offsets, compOffsets) = vm.CalculateExplodeOffsets();
+        Assert.NotNull(offsets);
+        Assert.True(compOffsets.Count >= 2);
+
+        // 检查是否有顶点发生了显著位移（> 10mm）
+        float maxDisplacement = 0;
+        for (int i = 0; i < offsets.Length; i++)
+        {
+            if (offsets[i].Length() > maxDisplacement)
+            {
+                maxDisplacement = offsets[i].Length();
+            }
+        }
+        Assert.True(maxDisplacement > 10.0f, $"Explode displacement should be significant (> 10mm), but was {maxDisplacement:F1}mm");
+    }
 }

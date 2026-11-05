@@ -439,6 +439,7 @@ public void LoadMesh(int configIndex = 0)
 CurrentConfigIndex = configIndex;
 
 _flattenedComponents = null;
+    _cachedPartMap = null;
 _hiddenComponentIds.Clear();
 UpdateHiddenState();
 IsIsolated = false;
@@ -893,36 +894,14 @@ public void HighlightFeature(Feature? feature)
 public (System.Numerics.Vector3 Center, System.Numerics.Vector3 Min, System.Numerics.Vector3 Max, List<DisplayMeshPart> MatchedParts) FindComponentBounds(AssemblyComponentNode comp)
 {
     var matched = new List<DisplayMeshPart>();
-    string compName = comp.Name;
-    string instName = comp.InstanceName;
-
     if (Mesh != null && Mesh.Parts != null)
     {
-        foreach (var part in Mesh.Parts)
+        var partMap = BuildPartComponentMap();
+        foreach (var kvp in partMap)
         {
-            bool isMatch = false;
-            if (!string.IsNullOrEmpty(part.AppearanceName) &&
-                (part.AppearanceName.Contains(compName, StringComparison.OrdinalIgnoreCase) ||
-                 (!string.IsNullOrEmpty(instName) && part.AppearanceName.Contains(instName, StringComparison.OrdinalIgnoreCase))))
+            if (kvp.Value == comp || IsComponentOrChild(kvp.Value, comp))
             {
-                isMatch = true;
-            }
-            if (!isMatch && part.SurfaceReferences != null)
-            {
-                foreach (var sr in part.SurfaceReferences)
-                {
-                    if (!string.IsNullOrEmpty(sr.Identity) &&
-                        (sr.Identity.Contains(compName, StringComparison.OrdinalIgnoreCase) ||
-                         (!string.IsNullOrEmpty(instName) && sr.Identity.Contains(instName, StringComparison.OrdinalIgnoreCase))))
-                    {
-                        isMatch = true;
-                        break;
-                    }
-                }
-            }
-            if (isMatch)
-            {
-                matched.Add(part);
+                matched.Add(Mesh.Parts[kvp.Key]);
             }
         }
     }
@@ -947,7 +926,6 @@ public (System.Numerics.Vector3 Center, System.Numerics.Vector3 Min, System.Nume
     }
     else
     {
-        // 从组件变换矩阵推导中心 (SolidWorks 矩阵位移量单位通常为米，转换为毫米)
         float tx = comp.Transform.M41 * 1000f - meshCenter.X;
         float ty = comp.Transform.M42 * 1000f - meshCenter.Y;
         float tz = comp.Transform.M43 * 1000f - meshCenter.Z;
@@ -974,7 +952,6 @@ public (System.Numerics.Vector3 Center, System.Numerics.Vector3 Min, System.Nume
     System.Numerics.Vector3 center = (min + max) * 0.5f;
     return (center, min, max, matched);
 }
-
 private System.Numerics.Vector3 GetMeshCenter() =>
     Mesh != null ? (Mesh.Min + Mesh.Max) * 0.5f : System.Numerics.Vector3.Zero;
 
@@ -1077,15 +1054,35 @@ BuildSectionPlaneMeshes(size, axisDir, offset);
         return list;
     }
 
+        private Dictionary<int, AssemblyComponentNode>? _cachedPartMap;
+
     private Dictionary<int, AssemblyComponentNode> BuildPartComponentMap()
     {
+        if (_cachedPartMap != null) return _cachedPartMap;
         var map = new Dictionary<int, AssemblyComponentNode>();
         if (Mesh?.Parts == null || Mesh.Parts.Count == 0) return map;
 
         var comps = GetFlattenedComponents();
         if (comps.Count == 0) return map;
 
-        for (int pIdx = 0; pIdx < Mesh.Parts.Count; pIdx++)
+        int partCount = Mesh.Parts.Count;
+        var partCenters = new System.Numerics.Vector3[partCount];
+        for (int i = 0; i < partCount; i++)
+        {
+            var p = Mesh.Parts[i];
+            System.Numerics.Vector3 pMin = new(float.MaxValue, float.MaxValue, float.MaxValue);
+            System.Numerics.Vector3 pMax = new(float.MinValue, float.MinValue, float.MinValue);
+            for (int v = 0; v < p.VertexCount; v++)
+            {
+                var pt = Mesh.Positions[p.VertexStart + v];
+                pMin = System.Numerics.Vector3.Min(pMin, pt);
+                pMax = System.Numerics.Vector3.Max(pMax, pt);
+            }
+            partCenters[i] = (pMin + pMax) * 0.5f;
+        }
+
+        // 阶段 1: 属性名称匹配 (单测与部分模型)
+        for (int pIdx = 0; pIdx < partCount; pIdx++)
         {
             var part = Mesh.Parts[pIdx];
             foreach (var comp in comps)
@@ -1122,6 +1119,105 @@ BuildSectionPlaneMeshes(size, axisDir, offset);
             }
         }
 
+        // 阶段 2: 外部零件网格反变换匹配
+        if (map.Count < partCount)
+        {
+            var partMeshes = new Dictionary<string, DisplayMesh>();
+            foreach (var c in comps)
+            {
+                if (!string.IsNullOrEmpty(c.FilePath) && File.Exists(c.FilePath))
+                {
+                    try
+                    {
+                        using var psw = SwFile.Open(c.FilePath);
+                        var pm = psw.GetDisplayMesh();
+                        if (pm != null) partMeshes[c.ComponentId] = pm;
+                    }
+                    catch { }
+                }
+            }
+
+            if (partMeshes.Count > 0)
+            {
+                for (int pIdx = 0; pIdx < partCount; pIdx++)
+                {
+                    if (map.ContainsKey(pIdx)) continue;
+                    var v0 = Mesh.Positions[Mesh.Parts[pIdx].VertexStart];
+                    foreach (var c in comps)
+                    {
+                        if (partMeshes.TryGetValue(c.ComponentId, out var pm))
+                        {
+                            var compPos = new System.Numerics.Vector3(c.Transform.M41 * 1000f, c.Transform.M42 * 1000f, c.Transform.M43 * 1000f);
+                            var local = v0 - compPos;
+                            if (local.X >= pm.Min.X - 2.5f && local.X <= pm.Max.X + 2.5f &&
+                                local.Y >= pm.Min.Y - 2.5f && local.Y <= pm.Max.Y + 2.5f &&
+                                local.Z >= pm.Min.Z - 2.5f && local.Z <= pm.Max.Z + 2.5f)
+                            {
+                                map[pIdx] = c;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 阶段 3 (空间中心聚类兜底，确保 100% 覆盖所有 Part)
+        if (map.Count < partCount && comps.Count > 0)
+        {
+            int k = comps.Count;
+            var compRefPoints = new System.Numerics.Vector3[k];
+            for (int ci = 0; ci < k; ci++)
+            {
+                var c = comps[ci];
+                var assigned = map.Where(kv => kv.Value == c).Select(kv => partCenters[kv.Key]).ToList();
+                if (assigned.Count > 0)
+                {
+                    compRefPoints[ci] = new System.Numerics.Vector3(assigned.Average(pt => pt.X), assigned.Average(pt => pt.Y), assigned.Average(pt => pt.Z));
+                }
+                else
+                {
+                    compRefPoints[ci] = new System.Numerics.Vector3(c.Transform.M41 * 1000f, c.Transform.M42 * 1000f, c.Transform.M43 * 1000f);
+                }
+            }
+
+            // 检查参考点是否完全重合
+            var meshSize = Mesh.Max - Mesh.Min;
+            for (int ci = 0; ci < k; ci++)
+            {
+                for (int cj = ci + 1; cj < k; cj++)
+                {
+                    if ((compRefPoints[ci] - compRefPoints[cj]).Length() < 1.0f)
+                    {
+                        float t = (float)ci / Math.Max(k - 1, 1) - 0.5f;
+                        compRefPoints[ci] = (Mesh.Min + Mesh.Max) * 0.5f + new System.Numerics.Vector3(meshSize.X * t, 0, 0);
+                        break;
+                    }
+                }
+            }
+
+            for (int pIdx = 0; pIdx < partCount; pIdx++)
+            {
+                if (!map.ContainsKey(pIdx))
+                {
+                    var pc = partCenters[pIdx];
+                    int bestCi = 0;
+                    float bestD = float.MaxValue;
+                    for (int ci = 0; ci < k; ci++)
+                    {
+                        float d = (pc - compRefPoints[ci]).LengthSquared();
+                        if (d < bestD)
+                        {
+                            bestD = d;
+                            bestCi = ci;
+                        }
+                    }
+                    map[pIdx] = comps[bestCi];
+                }
+            }
+        }
+
+        _cachedPartMap = map;
         return map;
     }
 
@@ -1162,19 +1258,20 @@ BuildSectionPlaneMeshes(size, axisDir, offset);
 
         var partMap = BuildPartComponentMap();
         var size = Mesh.Max - Mesh.Min;
-        float maxSpan = Math.Max(size.X, Math.Max(size.Y, Math.Max(size.Z, 10f)));
-        float explodeDistance = (float)((ExplodePercent / 100.0) * maxSpan * 0.75);
+        float maxSpan = Math.Max(size.X, Math.Max(size.Y, Math.Max(size.Z, 30f)));
+        float explodeDistance = (float)((ExplodePercent / 100.0) * maxSpan * 0.85);
 
         for (int i = 0; i < comps.Count; i++)
         {
             var comp = comps[i];
-            var (center, _, _, _) = FindComponentBounds(comp);
-            var dir = center;
+            var (cCenter, _, _, _) = FindComponentBounds(comp);
+            var dir = cCenter;
+
             float len = dir.Length();
-            if (len < 1e-3f)
+            if (len < 5.0f)
             {
                 double angle = (2.0 * Math.PI * i) / Math.Max(comps.Count, 1);
-                dir = new System.Numerics.Vector3((float)Math.Cos(angle), 0.2f, (float)Math.Sin(angle));
+                dir = new System.Numerics.Vector3((float)Math.Cos(angle), (float)Math.Sin(angle) * 0.6f, (float)Math.Sin(angle * 2.0) * 0.4f);
                 dir = System.Numerics.Vector3.Normalize(dir);
             }
             else
@@ -1205,7 +1302,7 @@ BuildSectionPlaneMeshes(size, axisDir, offset);
         return (vertexOffsets, compOffsets);
     }
 
-        private void BuildWpfMesh(DisplayMesh mesh, System.Numerics.Vector3 center)
+    private void BuildWpfMesh(DisplayMesh mesh, System.Numerics.Vector3 center)
     {
         var geo = new MeshGeometry3D();
         var ghostGeo = IsIsolated ? new MeshGeometry3D() : null;
