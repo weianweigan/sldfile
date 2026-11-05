@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -28,6 +28,12 @@ public partial class DocumentTreeViewModel : ObservableObject
     public ObservableCollection<TreeNodeModel> RootNodes { get; } = new();
 
     public event Action<TreeNodeModel>? NodeSelected;
+public event Action<AssemblyComponentNode, ComponentTreeAction>? ComponentActionRequested;
+
+public void RequestComponentAction(AssemblyComponentNode comp, ComponentTreeAction action)
+{
+    ComponentActionRequested?.Invoke(comp, action);
+}
 
     public DocumentTreeViewModel(ISwDocumentService docService)
     {

@@ -211,6 +211,7 @@ public partial class Mesh3DView : UserControl
         else if (e.PropertyName == nameof(MeshViewerViewModel.WpfComponentHighlightMesh))
         {
             UpdateComponentHighlightVisual();
+        UpdateGhostVisual();
         }
     }
 
@@ -222,6 +223,7 @@ public partial class Mesh3DView : UserControl
             UpdateEdgeVisual();
             UpdateSectionVisuals();
             UpdateComponentHighlightVisual();
+        UpdateGhostVisual();
             return;
         }
 
@@ -265,6 +267,7 @@ public partial class Mesh3DView : UserControl
         UpdateEdgeVisual();
         UpdateSectionVisuals();
         UpdateComponentHighlightVisual();
+        UpdateGhostVisual();
 
         if (resetCamera)
         {
@@ -1215,6 +1218,13 @@ public partial class Mesh3DView : UserControl
     {
         if (VM?.SelectedAssemblyComponent == null || VM.Mesh == null) return;
         var (center, min, max, _) = VM.FindComponentBounds(VM.SelectedAssemblyComponent);
+        var (_, compOffsets) = VM.CalculateExplodeOffsets();
+        if (compOffsets.TryGetValue(VM.SelectedAssemblyComponent, out var cOff))
+        {
+            center += cOff;
+            min += cOff;
+            max += cOff;
+        }
         _target = new Point3D(center.X, center.Y, center.Z);
         var size = max - min;
         double maxDim = Math.Max(size.X, Math.Max(size.Y, size.Z));
@@ -1525,5 +1535,20 @@ public partial class Mesh3DView : UserControl
         Camera.Width = _cameraWidth;
         UpdateCalloutPosition();
         e.Handled = true;
+    }
+
+    private void UpdateGhostVisual()
+    {
+        GhostModelVisual.Content = null;
+        if (VM?.WpfGhostMesh == null) return;
+
+        var ghostMat = new DiffuseMaterial(new SolidColorBrush(Color.FromArgb(36, 148, 163, 184)));
+        var ghostModel = new GeometryModel3D
+        {
+            Geometry = VM.WpfGhostMesh,
+            Material = ghostMat,
+            BackMaterial = ghostMat
+        };
+        GhostModelVisual.Content = ghostModel;
     }
 }

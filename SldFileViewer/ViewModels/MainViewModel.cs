@@ -81,6 +81,7 @@ public partial class MainViewModel : ObservableObject
         FeatureDetail = featureDetail;
 
         DocumentTree.NodeSelected += OnTreeNodeSelected;
+        DocumentTree.ComponentActionRequested += OnComponentActionRequested;
     }
 
     [RelayCommand]
@@ -392,6 +393,32 @@ public partial class MainViewModel : ObservableObject
                 break;
 
             default:
+                break;
+        }
+    }
+
+    private void OnComponentActionRequested(AssemblyComponentNode comp, ComponentTreeAction action)
+    {
+        switch (action)
+        {
+            case ComponentTreeAction.Isolate:
+                MeshViewer.IsolateComponent(comp);
+                CurrentView = MeshViewer;
+                break;
+            case ComponentTreeAction.ToggleVisibility:
+            case ComponentTreeAction.Hide:
+                MeshViewer.ToggleComponentVisibility(comp);
+                break;
+            case ComponentTreeAction.Show:
+                MeshViewer.ShowComponent(comp);
+                break;
+            case ComponentTreeAction.ShowAll:
+                MeshViewer.ShowAllComponents();
+                break;
+            case ComponentTreeAction.ZoomTo:
+                MeshViewer.HighlightComponent(comp);
+                CurrentView = MeshViewer;
+                MeshViewer.ZoomToComponent();
                 break;
         }
     }

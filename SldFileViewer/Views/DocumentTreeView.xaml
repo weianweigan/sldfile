@@ -70,9 +70,35 @@
         <TreeView Grid.Row="1"
                   ItemsSource="{Binding RootNodes}"
                   SelectedItemChanged="OnTreeViewSelectedItemChanged">
+            <TreeView.ItemContainerStyle>
+                <Style TargetType="{x:Type TreeViewItem}">
+                    <EventSetter Event="PreviewMouseRightButtonDown" Handler="OnTreeViewItemPreviewMouseRightButtonDown"/>
+                    <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                    <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>
+                </Style>
+            </TreeView.ItemContainerStyle>
             <TreeView.ItemTemplate>
                 <HierarchicalDataTemplate DataType="{x:Type models:TreeNodeModel}" ItemsSource="{Binding Children}">
-                    <StackPanel Orientation="Horizontal" Margin="2,2" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Margin="2,2" VerticalAlignment="Center"
+                                Tag="{Binding}"
+                                ContextMenuOpening="OnNodeContextMenuOpening">
+                        <StackPanel.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="隔离此零部件 (Isolate)" Click="OnIsolateComponentClick">
+                                    <MenuItem.Icon><iconPacks:PackIconMaterial Kind="Target" Width="13" Height="13"/></MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="隐藏/显示此零部件 (Hide/Show)" Click="OnToggleHideComponentClick">
+                                    <MenuItem.Icon><iconPacks:PackIconMaterial Kind="EyeOffOutline" Width="13" Height="13"/></MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="聚焦定位 (Zoom To)" Click="OnZoomToComponentClick">
+                                    <MenuItem.Icon><iconPacks:PackIconMaterial Kind="CrosshairsGps" Width="13" Height="13"/></MenuItem.Icon>
+                                </MenuItem>
+                                <Separator/>
+                                <MenuItem Header="全部显示 (Show All)" Click="OnShowAllComponentsClick">
+                                    <MenuItem.Icon><iconPacks:PackIconMaterial Kind="EyeOutline" Width="13" Height="13"/></MenuItem.Icon>
+                                </MenuItem>
+                            </ContextMenu>
+                        </StackPanel.ContextMenu>
                         <!-- Node Icon -->
                         <Grid Width="16" Height="16" Margin="0,0,6,0" VerticalAlignment="Center">
                             <Image Source="{Binding Icon}"

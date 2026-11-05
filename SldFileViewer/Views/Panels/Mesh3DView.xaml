@@ -164,6 +164,54 @@
                         </StackPanel>
                     </Button>
 
+                    <!-- 全部显示恢复按钮 (当有隐藏组件时显示) -->
+                    <Button Command="{Binding ShowAllComponentsCommand}"
+                            Visibility="{Binding HasHiddenComponents, Converter={StaticResource BoolToVisibilityConverter}}"
+                            Style="{StaticResource Style.Button.Secondary}"
+                            Background="#FEF2F2" BorderBrush="#FCA5A5"
+                            Padding="8,4" Margin="0,0,6,0"
+                            ToolTip="取消所有隐藏与隔离，恢复所有零件显示">
+                        <StackPanel Orientation="Horizontal">
+                            <iconPacks:PackIconMaterial Kind="EyeOutline" Foreground="#DC2626" Width="12" Height="12" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="全部显示" Foreground="#DC2626" FontSize="11" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </Button>
+
+                    <!-- 爆炸拆解视图切换开关 (当模型为包含组件的装配体时可见) -->
+                    <ToggleButton IsChecked="{Binding IsExplodeModeEnabled}"
+                                  Visibility="{Binding HasAssemblyComponents, Converter={StaticResource BoolToVisibilityConverter}}"
+                                  Style="{StaticResource Style.ToggleButton.Toolbar}"
+                                  ToolTip="开启/关闭装配体爆炸拆解视图"
+                                  Margin="0,0,6,0">
+                        <StackPanel Orientation="Horizontal">
+                            <iconPacks:PackIconMaterial Kind="PackageVariantClosedPlus" Width="13" Height="13" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="爆炸视图" FontSize="11" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </ToggleButton>
+
+                    <!-- 爆炸拆解滑动条面板 -->
+                    <Border Visibility="{Binding IsExplodeModeEnabled, Converter={StaticResource BoolToVisibilityConverter}}"
+                            Background="{StaticResource Brush.Figma.SurfaceCanvas}"
+                            BorderBrush="{StaticResource Brush.Figma.Hairline}"
+                            BorderThickness="1" CornerRadius="10"
+                            Padding="8,2" Margin="0,0,6,0" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="拆解: " FontSize="11" Foreground="{StaticResource Brush.Figma.Ink}" Opacity="0.7" VerticalAlignment="Center"/>
+                            <Slider Value="{Binding ExplodePercent}" Minimum="0" Maximum="100" Width="80" SmallChange="5" LargeChange="10"
+                                    VerticalAlignment="Center" Margin="4,0"/>
+                            <TextBlock Text="{Binding ExplodePercentDisplay}" Width="32" TextAlignment="Right" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{StaticResource Brush.Figma.Ink}" VerticalAlignment="Center"/>
+                            <Button Command="{Binding ResetExplodeCommand}" Style="{StaticResource Style.Button.Toolbar}" Margin="4,0,0,0" Padding="4,2" ToolTip="复位为 0%">
+                                <TextBlock Text="复位" FontSize="10"/>
+                            </Button>
+                            <Button Command="{Binding SetExplodePercentCommand}" CommandParameter="50.0" Style="{StaticResource Style.Button.Toolbar}" Margin="2,0,0,0" Padding="4,2" ToolTip="半开 50%">
+                                <TextBlock Text="50%" FontSize="10"/>
+                            </Button>
+                            <Button Command="{Binding SetExplodePercentCommand}" CommandParameter="100.0" Style="{StaticResource Style.Button.Toolbar}" Margin="2,0,0,0" Padding="4,2" ToolTip="完全拆开 100%">
+                                <TextBlock Text="100%" FontSize="10"/>
+                            </Button>
+                        </StackPanel>
+                    </Border>
                     <Rectangle Width="1" Height="16" Fill="{StaticResource Brush.Figma.Hairline}" Margin="8,0" />
 
                     <Button Command="{Binding ExportObjCommand}"
@@ -249,6 +297,8 @@
 
                     <!-- Model Geometry Visual -->
                     <ModelVisual3D x:Name="ModelVisual" />
+                      <!-- 隔离模式下的半透明背景幽灵 Visual -->
+                      <ModelVisual3D x:Name="GhostModelVisual" />
                     <!-- Model Edge Lines Visual (OutlineEdges) -->
                     <ModelVisual3D x:Name="EdgeVisual" />
                     <!-- Section Cut Outlines Visual (High-contrast Cut Lines) -->
@@ -274,6 +324,32 @@
                     <!-- 装配体组件 / 特征 3D 联动选中高亮 Visual -->
                     <ModelVisual3D x:Name="ComponentHighlightVisual" />
                 </Viewport3D>
+                <!-- 隔离模式顶部悬浮提示横幅 -->
+                <Border Visibility="{Binding IsIsolated, Converter={StaticResource BoolToVisibilityConverter}}"
+                        HorizontalAlignment="Center" VerticalAlignment="Top"
+                        Margin="0,16,0,0"
+                        Background="#F00F172A"
+                        BorderBrush="#0284C7"
+                        BorderThickness="1.5"
+                        CornerRadius="16"
+                        Padding="16,6">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="16" ShadowDepth="3" Opacity="0.3" Direction="270"/>
+                    </Border.Effect>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <iconPacks:PackIconMaterial Kind="Target" Foreground="#38BDF8" Width="14" Height="14" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="正在隔离查看: " FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding IsolatedComponentName}" FontSize="11" FontWeight="Bold" Foreground="White" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <Button Command="{Binding ExitIsolateCommand}"
+                                Style="{StaticResource Style.Button.Primary}"
+                                Padding="8,3" Cursor="Hand" ToolTip="退出隔离模式 (快捷键: Esc)">
+                            <StackPanel Orientation="Horizontal">
+                                <iconPacks:PackIconMaterial Kind="Close" Foreground="White" Width="10" Height="10" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="退出隔离" FontSize="11" FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Border>
                 <!-- 2D In-Viewport Annotation & Tooltip Overlay (3D 视口原位就地尺寸显示画布，支持拖拽移动与防重叠) -->
                 <Canvas x:Name="OverlayCanvas" IsHitTestVisible="True" Background="{x:Null}">
                     <!-- 动态尺寸拖拽引出虚线 (当用户拖离原点时清晰连接被测位置) -->
@@ -603,6 +679,22 @@
                         <iconPacks:PackIconMaterial Kind="PuzzleOutline" Foreground="#0284C7" Width="14" Height="14" Margin="0,0,6,0" VerticalAlignment="Center"/>
                         <TextBlock Text="已选目标: " FontSize="11" Foreground="#64748B" VerticalAlignment="Center"/>
                         <TextBlock Text="{Binding HighlightedComponentName}" FontSize="11" FontWeight="Bold" Foreground="#0F172A" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <Button Command="{Binding IsolateCurrentComponentCommand}"
+                                Visibility="{Binding SelectedAssemblyComponent, Converter={StaticResource NullToVisibilityConverter}}"
+                                Style="{StaticResource Style.Button.Secondary}" Padding="8,2" Height="22" Margin="0,0,6,0" ToolTip="隔离该零部件 (仅显示该零件，其余幽灵化)">
+                            <StackPanel Orientation="Horizontal">
+                                <iconPacks:PackIconMaterial Kind="Target" Width="11" Height="11" Margin="0,0,3,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="隔离" FontSize="10.5"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding HideCurrentComponentCommand}"
+                                Visibility="{Binding SelectedAssemblyComponent, Converter={StaticResource NullToVisibilityConverter}}"
+                                Style="{StaticResource Style.Button.Secondary}" Padding="8,2" Height="22" Margin="0,0,6,0" ToolTip="隐藏当前选中的零部件">
+                            <StackPanel Orientation="Horizontal">
+                                <iconPacks:PackIconMaterial Kind="EyeOffOutline" Width="11" Height="11" Margin="0,0,3,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="隐藏" FontSize="10.5"/>
+                            </StackPanel>
+                        </Button>
                         <Button Command="{Binding ZoomToComponentCommand}" Style="{StaticResource Style.Button.Secondary}" Padding="8,2" Height="22" Margin="0,0,6,0" ToolTip="聚焦并缩放到该目标">
                             <StackPanel Orientation="Horizontal">
                                 <iconPacks:PackIconMaterial Kind="Target" Width="11" Height="11" Margin="0,0,3,0" VerticalAlignment="Center"/>

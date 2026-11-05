@@ -93,6 +93,44 @@ private string? _highlightedComponentName;
 [ObservableProperty]
 private MeshGeometry3D? _wpfComponentHighlightMesh;
 
+// ── 装配体高级交互：零件隐藏、隔离模式与爆炸视图 ──
+
+private readonly HashSet<string> _hiddenComponentIds = new(StringComparer.OrdinalIgnoreCase);
+private List<AssemblyComponentNode>? _flattenedComponents;
+
+[ObservableProperty]
+private bool _hasAssemblyComponents;
+
+[ObservableProperty]
+private int _assemblyComponentCount;
+
+[ObservableProperty]
+private bool _hasHiddenComponents;
+
+[ObservableProperty]
+private int _hiddenComponentCount;
+
+[ObservableProperty]
+private bool _isIsolated;
+
+[ObservableProperty]
+private AssemblyComponentNode? _isolatedComponent;
+
+[ObservableProperty]
+private string? _isolatedComponentName;
+
+[ObservableProperty]
+private MeshGeometry3D? _wpfGhostMesh;
+
+[ObservableProperty]
+private bool _isExplodeModeEnabled;
+
+[ObservableProperty]
+private double _explodePercent = 0.0;
+
+[ObservableProperty]
+private string _explodePercentDisplay = "0%";
+
 // ── 剖视图 (Cross-Section View) 状态与属性 ──
 
 [ObservableProperty]
@@ -400,6 +438,20 @@ public void LoadMesh(int configIndex = 0)
 
 CurrentConfigIndex = configIndex;
 
+_flattenedComponents = null;
+_hiddenComponentIds.Clear();
+UpdateHiddenState();
+IsIsolated = false;
+IsolatedComponent = null;
+IsolatedComponentName = null;
+WpfGhostMesh = null;
+IsExplodeModeEnabled = false;
+ExplodePercent = 0.0;
+
+var comps = _docService.GetAssemblyTree();
+HasAssemblyComponents = comps != null && comps.Count > 0;
+AssemblyComponentCount = comps?.Count ?? 0;
+
 var mesh = _docService.GetDisplayMesh();
 
 Mesh = mesh;
@@ -520,6 +572,131 @@ partial void OnDisplayStyleChanged(ModelDisplayStyle value)
     }
 }
 
+partial void OnIsExplodeModeEnabledChanged(bool value)
+{
+    if (!value)
+    {
+        ExplodePercent = 0.0;
+    }
+    RebuildWpfMeshes();
+    HighlightComponent(SelectedAssemblyComponent);
+}
+
+partial void OnExplodePercentChanged(double value)
+{
+    ExplodePercentDisplay = $"{Math.Round(value)}%";
+    RebuildWpfMeshes();
+    HighlightComponent(SelectedAssemblyComponent);
+}
+
+[RelayCommand]
+public void HideComponent(AssemblyComponentNode? comp)
+{
+    if (comp == null) return;
+    string id = !string.IsNullOrEmpty(comp.ComponentId) ? comp.ComponentId : comp.Name;
+    _hiddenComponentIds.Add(id);
+    UpdateHiddenState();
+    RebuildWpfMeshes();
+}
+
+[RelayCommand]
+public void ShowComponent(AssemblyComponentNode? comp)
+{
+    if (comp == null) return;
+    string id = !string.IsNullOrEmpty(comp.ComponentId) ? comp.ComponentId : comp.Name;
+    _hiddenComponentIds.Remove(id);
+    UpdateHiddenState();
+    RebuildWpfMeshes();
+}
+
+[RelayCommand]
+public void ToggleComponentVisibility(AssemblyComponentNode? comp)
+{
+    if (comp == null) return;
+    string id = !string.IsNullOrEmpty(comp.ComponentId) ? comp.ComponentId : comp.Name;
+    if (_hiddenComponentIds.Contains(id))
+        _hiddenComponentIds.Remove(id);
+    else
+        _hiddenComponentIds.Add(id);
+    UpdateHiddenState();
+    RebuildWpfMeshes();
+}
+
+[RelayCommand]
+public void ShowAllComponents()
+{
+    _hiddenComponentIds.Clear();
+    UpdateHiddenState();
+    ExitIsolate();
+    RebuildWpfMeshes();
+}
+
+[RelayCommand]
+public void IsolateComponent(AssemblyComponentNode? comp)
+{
+    if (comp == null) return;
+    IsIsolated = true;
+    IsolatedComponent = comp;
+    IsolatedComponentName = string.IsNullOrWhiteSpace(comp.InstanceName) ? comp.Name : $"{comp.Name} ({comp.InstanceName})";
+    RebuildWpfMeshes();
+    HighlightComponent(comp);
+}
+
+[RelayCommand]
+public void ExitIsolate()
+{
+    if (!IsIsolated) return;
+    IsIsolated = false;
+    IsolatedComponent = null;
+    IsolatedComponentName = null;
+    WpfGhostMesh = null;
+    RebuildWpfMeshes();
+    HighlightComponent(SelectedAssemblyComponent);
+}
+
+[RelayCommand]
+public void ResetExplode()
+{
+    ExplodePercent = 0.0;
+}
+
+[RelayCommand]
+public void SetExplodePercent(double percent)
+{
+    ExplodePercent = Math.Clamp(percent, 0.0, 100.0);
+}
+
+[RelayCommand]
+public void HideCurrentComponent()
+{
+    if (SelectedAssemblyComponent != null)
+    {
+        HideComponent(SelectedAssemblyComponent);
+        HighlightComponent(null);
+    }
+}
+
+[RelayCommand]
+public void IsolateCurrentComponent()
+{
+    if (SelectedAssemblyComponent != null)
+    {
+        IsolateComponent(SelectedAssemblyComponent);
+    }
+}
+
+private void UpdateHiddenState()
+{
+    HiddenComponentCount = _hiddenComponentIds.Count;
+    HasHiddenComponents = _hiddenComponentIds.Count > 0;
+}
+
+public bool IsComponentHidden(AssemblyComponentNode comp)
+{
+    string id = !string.IsNullOrEmpty(comp.ComponentId) ? comp.ComponentId : comp.Name;
+    return _hiddenComponentIds.Contains(id);
+}
+
 [RelayCommand]
 public void SetStandardView(StandardViewType viewType)
 {
@@ -580,11 +757,17 @@ public void HighlightComponent(AssemblyComponentNode? comp)
     }
 
     var (center, min, max, matched) = FindComponentBounds(comp);
+    var (_, compOffsets) = CalculateExplodeOffsets();
+    var compOffset = System.Numerics.Vector3.Zero;
+    if (compOffsets.TryGetValue(comp, out var cOff))
+    {
+        compOffset = cOff;
+    }
 
     var geo = new MeshGeometry3D();
     var meshCenter = GetMeshCenter();
 
-    // 1. 若找到了匹配的表面面片，把这些面片提取到高亮网格
+    // 1. 若找到了匹配的表面面片，把这些面片提取到高亮网格（包含爆炸平移）
     if (matched.Count > 0)
     {
         foreach (var part in matched)
@@ -597,7 +780,7 @@ public void HighlightComponent(AssemblyComponentNode? comp)
             int baseIndex = geo.Positions.Count;
             for (int i = 0; i < vCount; i++)
             {
-                var p = Mesh.Positions[vStart + i] - meshCenter;
+                var p = Mesh.Positions[vStart + i] - meshCenter + compOffset;
                 geo.Positions.Add(new Point3D(p.X, p.Y, p.Z));
                 if (vStart + i < Mesh.Normals.Count)
                 {
@@ -619,6 +802,8 @@ public void HighlightComponent(AssemblyComponentNode? comp)
     else
     {
         // 2. 若未按名称直接匹配到 Part，使用包围盒线框与光标标记
+        min += compOffset;
+        max += compOffset;
         double thick = Math.Max(ComputeScaleFactor() * 1.5, 0.5);
         var boxMesh = MeshGeometryHelper.CreateBoundingBoxWireframe(
             new Point3D(min.X, min.Y, min.Z),
@@ -870,75 +1055,249 @@ BuildSectionPlaneMeshes(size, axisDir, offset);
 
 }
 
-private void BuildWpfMesh(DisplayMesh mesh, System.Numerics.Vector3 center)
+    private List<AssemblyComponentNode> GetFlattenedComponents()
+    {
+        if (_flattenedComponents != null) return _flattenedComponents;
+        var raw = _docService.GetAssemblyTree();
+        var list = new List<AssemblyComponentNode>();
+        if (raw != null)
+        {
+            void Traverse(IEnumerable<AssemblyComponentNode> nodes)
+            {
+                foreach (var n in nodes)
+                {
+                    list.Add(n);
+                    if (n.Children != null && n.Children.Count > 0)
+                        Traverse(n.Children);
+                }
+            }
+            Traverse(raw);
+        }
+        _flattenedComponents = list;
+        return list;
+    }
 
-{
+    private Dictionary<int, AssemblyComponentNode> BuildPartComponentMap()
+    {
+        var map = new Dictionary<int, AssemblyComponentNode>();
+        if (Mesh?.Parts == null || Mesh.Parts.Count == 0) return map;
 
-var geo = new MeshGeometry3D();
+        var comps = GetFlattenedComponents();
+        if (comps.Count == 0) return map;
 
-for (int i = 0; i < mesh.Positions.Count; i++)
+        for (int pIdx = 0; pIdx < Mesh.Parts.Count; pIdx++)
+        {
+            var part = Mesh.Parts[pIdx];
+            foreach (var comp in comps)
+            {
+                string cName = comp.Name;
+                string iName = comp.InstanceName;
 
-{
+                bool isMatch = false;
+                if (!string.IsNullOrEmpty(part.AppearanceName) &&
+                    (part.AppearanceName.Contains(cName, StringComparison.OrdinalIgnoreCase) ||
+                     (!string.IsNullOrEmpty(iName) && part.AppearanceName.Contains(iName, StringComparison.OrdinalIgnoreCase))))
+                {
+                    isMatch = true;
+                }
+                if (!isMatch && part.SurfaceReferences != null)
+                {
+                    foreach (var sr in part.SurfaceReferences)
+                    {
+                        if (!string.IsNullOrEmpty(sr.Identity) &&
+                            (sr.Identity.Contains(cName, StringComparison.OrdinalIgnoreCase) ||
+                             (!string.IsNullOrEmpty(iName) && sr.Identity.Contains(iName, StringComparison.OrdinalIgnoreCase))))
+                        {
+                            isMatch = true;
+                            break;
+                        }
+                    }
+                }
 
-var p = mesh.Positions[i] - center;
+                if (isMatch)
+                {
+                    map[pIdx] = comp;
+                    break;
+                }
+            }
+        }
 
-geo.Positions.Add(new Point3D(p.X, p.Y, p.Z));
+        return map;
+    }
 
-}
+    private static bool IsComponentOrChild(AssemblyComponentNode node, AssemblyComponentNode target)
+    {
+        if (node == target) return true;
+        if (!string.IsNullOrEmpty(node.ComponentId) && string.Equals(node.ComponentId, target.ComponentId, StringComparison.OrdinalIgnoreCase)) return true;
+        if (!string.IsNullOrEmpty(node.Name) && string.Equals(node.Name, target.Name, StringComparison.OrdinalIgnoreCase)) return true;
 
-if (mesh.Normals.Count == mesh.Positions.Count)
+        bool CheckDescendants(AssemblyComponentNode current)
+        {
+            if (current.Children == null) return false;
+            foreach (var c in current.Children)
+            {
+                if (c == node ||
+                    (!string.IsNullOrEmpty(c.ComponentId) && string.Equals(c.ComponentId, node.ComponentId, StringComparison.OrdinalIgnoreCase)) ||
+                    (!string.IsNullOrEmpty(c.Name) && string.Equals(c.Name, node.Name, StringComparison.OrdinalIgnoreCase)) ||
+                    CheckDescendants(c))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+        return CheckDescendants(target);
+    }
 
-{
+    public (System.Numerics.Vector3[]? vertexOffsets, Dictionary<AssemblyComponentNode, System.Numerics.Vector3> compOffsets) CalculateExplodeOffsets()
+    {
+        var compOffsets = new Dictionary<AssemblyComponentNode, System.Numerics.Vector3>();
+        if (!IsExplodeModeEnabled || ExplodePercent <= 0.001 || Mesh == null || Mesh.Positions.Count == 0)
+        {
+            return (null, compOffsets);
+        }
 
-for (int i = 0; i < mesh.Normals.Count; i++)
+        var comps = GetFlattenedComponents();
+        if (comps.Count == 0) return (null, compOffsets);
 
-{
+        var partMap = BuildPartComponentMap();
+        var size = Mesh.Max - Mesh.Min;
+        float maxSpan = Math.Max(size.X, Math.Max(size.Y, Math.Max(size.Z, 10f)));
+        float explodeDistance = (float)((ExplodePercent / 100.0) * maxSpan * 0.75);
 
-var n = mesh.Normals[i];
+        for (int i = 0; i < comps.Count; i++)
+        {
+            var comp = comps[i];
+            var (center, _, _, _) = FindComponentBounds(comp);
+            var dir = center;
+            float len = dir.Length();
+            if (len < 1e-3f)
+            {
+                double angle = (2.0 * Math.PI * i) / Math.Max(comps.Count, 1);
+                dir = new System.Numerics.Vector3((float)Math.Cos(angle), 0.2f, (float)Math.Sin(angle));
+                dir = System.Numerics.Vector3.Normalize(dir);
+            }
+            else
+            {
+                dir = System.Numerics.Vector3.Normalize(dir);
+            }
 
-geo.Normals.Add(new Vector3D(n.X, n.Y, n.Z));
+            compOffsets[comp] = dir * explodeDistance;
+        }
 
-}
+        var vertexOffsets = new System.Numerics.Vector3[Mesh.Positions.Count];
+        if (Mesh.Parts != null)
+        {
+            for (int pIdx = 0; pIdx < Mesh.Parts.Count; pIdx++)
+            {
+                if (partMap.TryGetValue(pIdx, out var comp) && compOffsets.TryGetValue(comp, out var offset))
+                {
+                    var part = Mesh.Parts[pIdx];
+                    int vEnd = Math.Min(part.VertexStart + part.VertexCount, Mesh.Positions.Count);
+                    for (int v = part.VertexStart; v < vEnd; v++)
+                    {
+                        vertexOffsets[v] = offset;
+                    }
+                }
+            }
+        }
 
-}
+        return (vertexOffsets, compOffsets);
+    }
 
-int posCount = mesh.Positions.Count;
+        private void BuildWpfMesh(DisplayMesh mesh, System.Numerics.Vector3 center)
+    {
+        var geo = new MeshGeometry3D();
+        var ghostGeo = IsIsolated ? new MeshGeometry3D() : null;
 
-for (int i = 0; i + 2 < mesh.TriangleIndices.Count; i += 3)
+        int posCount = mesh.Positions.Count;
+        var (vertexOffsets, _) = CalculateExplodeOffsets();
 
-{
+        for (int i = 0; i < posCount; i++)
+        {
+            var p = mesh.Positions[i] - center;
+            if (vertexOffsets != null) p += vertexOffsets[i];
+            var pt = new Point3D(p.X, p.Y, p.Z);
+            geo.Positions.Add(pt);
+            if (ghostGeo != null) ghostGeo.Positions.Add(pt);
+        }
 
-int i0 = mesh.TriangleIndices[i];
+        if (mesh.Normals.Count == posCount)
+        {
+            for (int i = 0; i < posCount; i++)
+            {
+                var n = mesh.Normals[i];
+                var vec = new Vector3D(n.X, n.Y, n.Z);
+                geo.Normals.Add(vec);
+                if (ghostGeo != null) ghostGeo.Normals.Add(vec);
+            }
+        }
 
-int i1 = mesh.TriangleIndices[i + 1];
+        var partMap = BuildPartComponentMap();
 
-int i2 = mesh.TriangleIndices[i + 2];
+        if (mesh.Parts != null && mesh.Parts.Count > 0)
+        {
+            for (int pIdx = 0; pIdx < mesh.Parts.Count; pIdx++)
+            {
+                var part = mesh.Parts[pIdx];
+                AssemblyComponentNode? comp = null;
+                partMap.TryGetValue(pIdx, out comp);
 
-if (i0 >= 0 && i0 < posCount &&
+                if (comp != null && IsComponentHidden(comp))
+                {
+                    continue;
+                }
 
-i1 >= 0 && i1 < posCount &&
+                bool isGhost = IsIsolated && (comp == null || IsolatedComponent == null || !IsComponentOrChild(comp, IsolatedComponent));
+                var targetGeo = (isGhost && ghostGeo != null) ? ghostGeo : geo;
 
-i2 >= 0 && i2 < posCount)
+                int tStart = part.TriangleStart * 3;
+                int tEnd = Math.Min(tStart + part.TriangleCount * 3, mesh.TriangleIndices.Count);
+                for (int i = tStart; i + 2 < tEnd; i += 3)
+                {
+                    int i0 = mesh.TriangleIndices[i];
+                    int i1 = mesh.TriangleIndices[i + 1];
+                    int i2 = mesh.TriangleIndices[i + 2];
+                    if (i0 >= 0 && i0 < posCount && i1 >= 0 && i1 < posCount && i2 >= 0 && i2 < posCount)
+                    {
+                        targetGeo.TriangleIndices.Add(i0);
+                        targetGeo.TriangleIndices.Add(i1);
+                        targetGeo.TriangleIndices.Add(i2);
+                    }
+                }
+            }
+        }
+        else
+        {
+            for (int i = 0; i + 2 < mesh.TriangleIndices.Count; i += 3)
+            {
+                int i0 = mesh.TriangleIndices[i];
+                int i1 = mesh.TriangleIndices[i + 1];
+                int i2 = mesh.TriangleIndices[i + 2];
+                if (i0 >= 0 && i0 < posCount && i1 >= 0 && i1 < posCount && i2 >= 0 && i2 < posCount)
+                {
+                    geo.TriangleIndices.Add(i0);
+                    geo.TriangleIndices.Add(i1);
+                    geo.TriangleIndices.Add(i2);
+                }
+            }
+        }
 
-{
+        geo.Freeze();
+        WpfMesh = geo;
 
-geo.TriangleIndices.Add(i0);
+        if (ghostGeo != null && ghostGeo.TriangleIndices.Count > 0)
+        {
+            ghostGeo.Freeze();
+            WpfGhostMesh = ghostGeo;
+        }
+        else
+        {
+            WpfGhostMesh = null;
+        }
+    }
 
-geo.TriangleIndices.Add(i1);
-
-geo.TriangleIndices.Add(i2);
-
-}
-
-}
-
-geo.Freeze();
-
-WpfMesh = geo;
-
-}
-
-private void BuildClippedWpfMesh(DisplayMesh mesh, System.Numerics.Vector3 center, System.Numerics.Vector3 normal, float planeDist)
+    private void BuildClippedWpfMesh(DisplayMesh mesh, System.Numerics.Vector3 center, System.Numerics.Vector3 normal, float planeDist)
 
 {
 
@@ -1444,55 +1803,70 @@ WpfSectionManipulatorMesh = manipGeo;
 
 }
 
-private void BuildEdgeMesh(DisplayMesh mesh, System.Numerics.Vector3 center)
+    private void BuildEdgeMesh(DisplayMesh mesh, System.Numerics.Vector3 center)
+    {
+        if (mesh.OutlineEdges == null || mesh.OutlineEdges.Count == 0 || mesh.Positions.Count == 0)
+        {
+            WpfEdgeMesh = null;
+            return;
+        }
 
-{
+        var edgeGeo = new MeshGeometry3D();
+        var size = mesh.Max - mesh.Min;
+        double maxDim = Math.Max(size.X, Math.Max(size.Y, size.Z));
+        float thickness = (float)Math.Clamp(maxDim * 0.0012, 0.05, 5.0);
 
-if (mesh.OutlineEdges == null || mesh.OutlineEdges.Count == 0 || mesh.Positions.Count == 0)
+        int posCount = mesh.Positions.Count;
+        int vertexBase = 0;
 
-{
+        var (vertexOffsets, _) = CalculateExplodeOffsets();
+        var partMap = BuildPartComponentMap();
 
-WpfEdgeMesh = null;
+        int[] vToPart = new int[posCount];
+        Array.Fill(vToPart, -1);
+        if (mesh.Parts != null)
+        {
+            for (int pIdx = 0; pIdx < mesh.Parts.Count; pIdx++)
+            {
+                var p = mesh.Parts[pIdx];
+                int vEnd = Math.Min(p.VertexStart + p.VertexCount, posCount);
+                for (int v = p.VertexStart; v < vEnd; v++)
+                {
+                    vToPart[v] = pIdx;
+                }
+            }
+        }
 
-return;
+        foreach (var (start, end) in mesh.OutlineEdges)
+        {
+            if (start < 0 || start >= posCount || end < 0 || end >= posCount || start == end)
+                continue;
 
-}
+            int pIdx = vToPart[start];
+            if (pIdx >= 0 && partMap.TryGetValue(pIdx, out var comp))
+            {
+                if (IsComponentHidden(comp)) continue;
+                if (IsIsolated && IsolatedComponent != null && !IsComponentOrChild(comp, IsolatedComponent))
+                    continue;
+            }
 
-var edgeGeo = new MeshGeometry3D();
+            var p0 = mesh.Positions[start] - center;
+            var p1 = mesh.Positions[end] - center;
 
-var size = mesh.Max - mesh.Min;
+            if (vertexOffsets != null)
+            {
+                p0 += vertexOffsets[start];
+                p1 += vertexOffsets[end];
+            }
 
-double maxDim = Math.Max(size.X, Math.Max(size.Y, size.Z));
+            AppendThickEdge(edgeGeo, p0, p1, thickness, ref vertexBase);
+        }
 
-float thickness = (float)Math.Clamp(maxDim * 0.0012, 0.05, 5.0);
+        edgeGeo.Freeze();
+        WpfEdgeMesh = edgeGeo.Positions.Count > 0 ? edgeGeo : null;
+    }
 
-int posCount = mesh.Positions.Count;
-
-int vertexBase = 0;
-
-foreach (var (start, end) in mesh.OutlineEdges)
-
-{
-
-if (start < 0 || start >= posCount || end < 0 || end >= posCount || start == end)
-
-continue;
-
-var p0 = mesh.Positions[start] - center;
-
-var p1 = mesh.Positions[end] - center;
-
-AppendThickEdge(edgeGeo, p0, p1, thickness, ref vertexBase);
-
-}
-
-edgeGeo.Freeze();
-
-WpfEdgeMesh = edgeGeo;
-
-}
-
-private void BuildClippedEdgeMesh(DisplayMesh mesh, System.Numerics.Vector3 center, System.Numerics.Vector3 normal, float planeDist)
+    private void BuildClippedEdgeMesh(DisplayMesh mesh, System.Numerics.Vector3 center, System.Numerics.Vector3 normal, float planeDist)
 
 {
 
