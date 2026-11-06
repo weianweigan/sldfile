@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -70,12 +70,44 @@ public abstract partial class SwFile
                 dlBytes = zlb.RawData;
         }
         if (dlBytes == null || dlBytes.Length == 0)
+        {
+            foreach (var kvp in ZlbContents)
+            {
+                if (kvp.Key.EndsWith("DisplayLists__ZLB", StringComparison.OrdinalIgnoreCase) && kvp.Value.RawData != null && kvp.Value.RawData.Length > 0)
+                {
+                    dlBytes = kvp.Value.RawData;
+                    break;
+                }
+            }
+        }
+        if (dlBytes == null || dlBytes.Length == 0)
+        {
+            foreach (var kvp in RawStreams)
+            {
+                if (kvp.Key.EndsWith("DisplayLists", StringComparison.OrdinalIgnoreCase) && kvp.Value != null && kvp.Value.Length > 0)
+                {
+                    dlBytes = kvp.Value;
+                    break;
+                }
+            }
+        }
+        if (dlBytes == null || dlBytes.Length == 0)
             return null;
 
         byte[]? vsBytes = VisualStatesRawData;
         if (vsBytes == null && ZlbContents.TryGetValue("ThirdPtyStore/VisualStates__ZLB", out var vsZlb))
             vsBytes = vsZlb.RawData;
-
+        if (vsBytes == null)
+        {
+            foreach (var kvp in ZlbContents)
+            {
+                if (kvp.Key.EndsWith("VisualStates__ZLB", StringComparison.OrdinalIgnoreCase) && kvp.Value.RawData != null && kvp.Value.RawData.Length > 0)
+                {
+                    vsBytes = kvp.Value.RawData;
+                    break;
+                }
+            }
+        }
         return DisplayMeshReader.ReadMesh(dlBytes, vsBytes);
     }
 

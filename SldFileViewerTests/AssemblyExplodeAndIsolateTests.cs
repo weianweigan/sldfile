@@ -358,4 +358,25 @@ public class AssemblyExplodeAndIsolateTests
         }
         Assert.True(maxDisplacement > 10.0f, $"Explode displacement should be significant (> 10mm), but was {maxDisplacement:F1}mm");
     }
+    [Theory]
+    [InlineData("50.0", 50.0)]
+    [InlineData("100.0", 100.0)]
+    [InlineData("50", 50.0)]
+    [InlineData("100", 100.0)]
+    [InlineData(50.0, 50.0)]
+    [InlineData(100.0, 100.0)]
+    [InlineData(50, 50.0)]
+    public void SetExplodePercentCommand_AcceptsStringOrNumberParameter_WithoutException(object parameter, double expected)
+    {
+        var docService = new MockSwDocumentService();
+        var exportService = new ExportService();
+        var dialogService = new DummyDialogService();
+        var vm = new MeshViewerViewModel(docService, exportService, dialogService);
+
+        // WPF RelayCommand.CanExecute 和 Execute 不应抛出任何异常
+        Assert.True(vm.SetExplodePercentCommand.CanExecute(parameter));
+        vm.SetExplodePercentCommand.Execute(parameter);
+
+        Assert.Equal(expected, vm.ExplodePercent, 1);
+    }
 }

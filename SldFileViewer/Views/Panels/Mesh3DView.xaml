@@ -204,10 +204,10 @@
                             <Button Command="{Binding ResetExplodeCommand}" Style="{StaticResource Style.Button.Toolbar}" Margin="4,0,0,0" Padding="4,2" ToolTip="复位为 0%">
                                 <TextBlock Text="复位" FontSize="10"/>
                             </Button>
-                            <Button Command="{Binding SetExplodePercentCommand}" CommandParameter="50.0" Style="{StaticResource Style.Button.Toolbar}" Margin="2,0,0,0" Padding="4,2" ToolTip="半开 50%">
+                            <Button Command="{Binding SetExplodePercentCommand}" CommandParameter="50" Style="{StaticResource Style.Button.Toolbar}" Margin="2,0,0,0" Padding="4,2" ToolTip="半开 50%">
                                 <TextBlock Text="50%" FontSize="10"/>
                             </Button>
-                            <Button Command="{Binding SetExplodePercentCommand}" CommandParameter="100.0" Style="{StaticResource Style.Button.Toolbar}" Margin="2,0,0,0" Padding="4,2" ToolTip="完全拆开 100%">
+                            <Button Command="{Binding SetExplodePercentCommand}" CommandParameter="100" Style="{StaticResource Style.Button.Toolbar}" Margin="2,0,0,0" Padding="4,2" ToolTip="完全拆开 100%">
                                 <TextBlock Text="100%" FontSize="10"/>
                             </Button>
                         </StackPanel>
@@ -722,13 +722,13 @@
 
                 <!-- Empty State Notice Banner (Figma Pastel Pink Pill) -->
                 <Border Visibility="{Binding HasMesh, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}"
-                        VerticalAlignment="Top" HorizontalAlignment="Center"
-                        Margin="0,16,0,0"
+                        VerticalAlignment="Center" HorizontalAlignment="Center"
+                        IsHitTestVisible="False"
                         Background="{StaticResource Brush.Figma.BlockPink}"
                         BorderBrush="{StaticResource Brush.Figma.BlockPink}"
                         BorderThickness="1"
                         CornerRadius="10"
-                        Padding="16,6">
+                        Padding="20,10">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <iconPacks:PackIconMaterial Kind="AlertCircleOutline"
                                                     Foreground="{StaticResource Brush.Figma.Ink}"

@@ -439,7 +439,8 @@ public void LoadMesh(int configIndex = 0)
 CurrentConfigIndex = configIndex;
 
 _flattenedComponents = null;
-    _cachedPartMap = null;
+_cachedPartMap = null;
+_cachedCompCenters = null;
 _hiddenComponentIds.Clear();
 UpdateHiddenState();
 IsIsolated = false;
@@ -662,9 +663,25 @@ public void ResetExplode()
 }
 
 [RelayCommand]
-public void SetExplodePercent(double percent)
+public void SetExplodePercent(object? param)
 {
-    ExplodePercent = Math.Clamp(percent, 0.0, 100.0);
+    if (param == null) return;
+    if (param is double d)
+    {
+        ExplodePercent = Math.Clamp(d, 0.0, 100.0);
+    }
+    else if (param is float f)
+    {
+        ExplodePercent = Math.Clamp((double)f, 0.0, 100.0);
+    }
+    else if (param is int i)
+    {
+        ExplodePercent = Math.Clamp((double)i, 0.0, 100.0);
+    }
+    else if (double.TryParse(param.ToString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double val))
+    {
+        ExplodePercent = Math.Clamp(val, 0.0, 100.0);
+    }
 }
 
 [RelayCommand]
@@ -1054,7 +1071,8 @@ BuildSectionPlaneMeshes(size, axisDir, offset);
         return list;
     }
 
-        private Dictionary<int, AssemblyComponentNode>? _cachedPartMap;
+    private Dictionary<int, AssemblyComponentNode>? _cachedPartMap;
+    private Dictionary<AssemblyComponentNode, System.Numerics.Vector3>? _cachedCompCenters;
 
     private Dictionary<int, AssemblyComponentNode> BuildPartComponentMap()
     {
@@ -1119,22 +1137,40 @@ BuildSectionPlaneMeshes(size, axisDir, offset);
             }
         }
 
-        // 阶段 2: 外部零件网格反变换匹配
-        if (map.Count < partCount)
+        // 阶段 2: 外部零件网格反变换匹配 (仅在小规模装配体且外部文件较少时探测，防止大模型磁盘 I/O 假死)
+        if (map.Count < partCount && comps.Count <= 40)
         {
             var partMeshes = new Dictionary<string, DisplayMesh>();
+            var probedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
             foreach (var c in comps)
             {
-                if (!string.IsNullOrEmpty(c.FilePath) && File.Exists(c.FilePath))
+                if (probedFiles.Count >= 12) break; // 最多探测 12 个独立零件文件，防止磁盘 I/O 阻塞
+                if (string.IsNullOrEmpty(c.FilePath) || !probedFiles.Add(c.FilePath)) continue;
+
+                try
                 {
-                    try
+                    if (File.Exists(c.FilePath))
                     {
-                        using var psw = SwFile.Open(c.FilePath);
-                        var pm = psw.GetDisplayMesh();
-                        if (pm != null) partMeshes[c.ComponentId] = pm;
+                        var fi = new FileInfo(c.FilePath);
+                        if (fi.Length > 0 && fi.Length < 20 * 1024 * 1024) // 忽略大于 20MB 的超大文件
+                        {
+                            using var psw = SwFile.Open(c.FilePath);
+                            var pm = psw.GetDisplayMesh();
+                            if (pm != null)
+                            {
+                                foreach (var compWithSamePath in comps)
+                                {
+                                    if (string.Equals(compWithSamePath.FilePath, c.FilePath, StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        partMeshes[compWithSamePath.ComponentId] = pm;
+                                    }
+                                }
+                            }
+                        }
                     }
-                    catch { }
                 }
+                catch { }
             }
 
             if (partMeshes.Count > 0)
@@ -1162,18 +1198,33 @@ BuildSectionPlaneMeshes(size, axisDir, offset);
             }
         }
 
-        // 阶段 3 (空间中心聚类兜底，确保 100% 覆盖所有 Part)
+        // 阶段 3 (空间中心聚类兜底，纯内存高性能算法，确保 100% 覆盖所有 Part)
         if (map.Count < partCount && comps.Count > 0)
         {
             int k = comps.Count;
             var compRefPoints = new System.Numerics.Vector3[k];
+
+            // 预先建立组件已分配部件中心点的聚合字典，避免反复 LINQ 遍历
+            var assignedMap = new Dictionary<AssemblyComponentNode, (System.Numerics.Vector3 Sum, int Count)>();
+            foreach (var kv in map)
+            {
+                var pt = partCenters[kv.Key];
+                if (!assignedMap.TryGetValue(kv.Value, out var val))
+                {
+                    assignedMap[kv.Value] = (pt, 1);
+                }
+                else
+                {
+                    assignedMap[kv.Value] = (val.Sum + pt, val.Count + 1);
+                }
+            }
+
             for (int ci = 0; ci < k; ci++)
             {
                 var c = comps[ci];
-                var assigned = map.Where(kv => kv.Value == c).Select(kv => partCenters[kv.Key]).ToList();
-                if (assigned.Count > 0)
+                if (assignedMap.TryGetValue(c, out var val) && val.Count > 0)
                 {
-                    compRefPoints[ci] = new System.Numerics.Vector3(assigned.Average(pt => pt.X), assigned.Average(pt => pt.Y), assigned.Average(pt => pt.Z));
+                    compRefPoints[ci] = val.Sum / (float)val.Count;
                 }
                 else
                 {
@@ -1185,9 +1236,9 @@ BuildSectionPlaneMeshes(size, axisDir, offset);
             var meshSize = Mesh.Max - Mesh.Min;
             for (int ci = 0; ci < k; ci++)
             {
-                for (int cj = ci + 1; cj < k; cj++)
+                for (int cj = ci + 1; cj < Math.Min(ci + 5, k); cj++)
                 {
-                    if ((compRefPoints[ci] - compRefPoints[cj]).Length() < 1.0f)
+                    if ((compRefPoints[ci] - compRefPoints[cj]).LengthSquared() < 1.0f)
                     {
                         float t = (float)ci / Math.Max(k - 1, 1) - 0.5f;
                         compRefPoints[ci] = (Mesh.Min + Mesh.Max) * 0.5f + new System.Numerics.Vector3(meshSize.X * t, 0, 0);
@@ -1245,6 +1296,70 @@ BuildSectionPlaneMeshes(size, axisDir, offset);
         return CheckDescendants(target);
     }
 
+    private Dictionary<AssemblyComponentNode, System.Numerics.Vector3> GetCachedComponentCenters(
+        List<AssemblyComponentNode> comps,
+        Dictionary<int, AssemblyComponentNode> partMap)
+    {
+        if (_cachedCompCenters != null) return _cachedCompCenters;
+
+        var centers = new Dictionary<AssemblyComponentNode, System.Numerics.Vector3>();
+        var meshCenter = GetMeshCenter();
+
+        // 1. 预先汇总每个组件分配的所有 Part 的顶点中心
+        var partSums = new Dictionary<AssemblyComponentNode, (System.Numerics.Vector3 Sum, int Count)>();
+        if (Mesh != null && Mesh.Parts != null)
+        {
+            foreach (var kvp in partMap)
+            {
+                var comp = kvp.Value;
+                var part = Mesh.Parts[kvp.Key];
+                int start = part.VertexStart;
+                int count = part.VertexCount;
+                System.Numerics.Vector3 partSum = System.Numerics.Vector3.Zero;
+                for (int v = 0; v < count; v++)
+                {
+                    partSum += (Mesh.Positions[start + v] - meshCenter);
+                }
+
+                if (!partSums.TryGetValue(comp, out var existing))
+                {
+                    partSums[comp] = (partSum, count);
+                }
+                else
+                {
+                    partSums[comp] = (existing.Sum + partSum, existing.Count + count);
+                }
+            }
+        }
+
+        // 2. 为每个组件赋予中心
+        foreach (var comp in comps)
+        {
+            if (partSums.TryGetValue(comp, out var item) && item.Count > 0)
+            {
+                centers[comp] = item.Sum / (float)item.Count;
+            }
+            else
+            {
+                float tx = comp.Transform.M41 * 1000f - meshCenter.X;
+                float ty = comp.Transform.M42 * 1000f - meshCenter.Y;
+                float tz = comp.Transform.M43 * 1000f - meshCenter.Z;
+                if (float.IsFinite(tx) && float.IsFinite(ty) && float.IsFinite(tz) &&
+                    Math.Abs(tx) < 100000 && Math.Abs(ty) < 100000 && Math.Abs(tz) < 100000)
+                {
+                    centers[comp] = new System.Numerics.Vector3(tx, ty, tz);
+                }
+                else
+                {
+                    centers[comp] = System.Numerics.Vector3.Zero;
+                }
+            }
+        }
+
+        _cachedCompCenters = centers;
+        return centers;
+    }
+
     public (System.Numerics.Vector3[]? vertexOffsets, Dictionary<AssemblyComponentNode, System.Numerics.Vector3> compOffsets) CalculateExplodeOffsets()
     {
         var compOffsets = new Dictionary<AssemblyComponentNode, System.Numerics.Vector3>();
@@ -1261,11 +1376,13 @@ BuildSectionPlaneMeshes(size, axisDir, offset);
         float maxSpan = Math.Max(size.X, Math.Max(size.Y, Math.Max(size.Z, 30f)));
         float explodeDistance = (float)((ExplodePercent / 100.0) * maxSpan * 0.85);
 
+        // 获取或构建每个组件的中心点缓存（避免拖动滑块时重复遍历）
+        var compCenters = GetCachedComponentCenters(comps, partMap);
+
         for (int i = 0; i < comps.Count; i++)
         {
             var comp = comps[i];
-            var (cCenter, _, _, _) = FindComponentBounds(comp);
-            var dir = cCenter;
+            var dir = compCenters.TryGetValue(comp, out var cCenter) ? cCenter : System.Numerics.Vector3.Zero;
 
             float len = dir.Length();
             if (len < 5.0f)
