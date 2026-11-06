@@ -83,7 +83,12 @@ public sealed class SwDocumentService : ISwDocumentService
 
     public DisplayMesh? GetDisplayMesh()
     {
-        return _currentFile?.GetDisplayMesh();
+        var mesh = _currentFile?.GetDisplayMesh();
+        if (mesh == null && _currentFile != null && _currentFile.Kind == DocumentKind.Assembly)
+        {
+            mesh = _currentFile.StitchAssemblyMeshFromComponents();
+        }
+        return mesh;
     }
 
     public IReadOnlyList<AssemblyComponentNode> GetAssemblyTree(string? configName = null)

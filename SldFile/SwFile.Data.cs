@@ -91,24 +91,145 @@ public abstract partial class SwFile
                 }
             }
         }
-        if (dlBytes == null || dlBytes.Length == 0)
-            return null;
-
-        byte[]? vsBytes = VisualStatesRawData;
-        if (vsBytes == null && ZlbContents.TryGetValue("ThirdPtyStore/VisualStates__ZLB", out var vsZlb))
-            vsBytes = vsZlb.RawData;
-        if (vsBytes == null)
+        if (dlBytes != null && dlBytes.Length > 0)
         {
-            foreach (var kvp in ZlbContents)
+            byte[]? vsBytes = VisualStatesRawData;
+            if (vsBytes == null && ZlbContents.TryGetValue("ThirdPtyStore/VisualStates__ZLB", out var vsZlb))
+                vsBytes = vsZlb.RawData;
+            if (vsBytes == null)
             {
-                if (kvp.Key.EndsWith("VisualStates__ZLB", StringComparison.OrdinalIgnoreCase) && kvp.Value.RawData != null && kvp.Value.RawData.Length > 0)
+                foreach (var kvp in ZlbContents)
                 {
-                    vsBytes = kvp.Value.RawData;
-                    break;
+                    if (kvp.Key.EndsWith("VisualStates__ZLB", StringComparison.OrdinalIgnoreCase) && kvp.Value.RawData != null && kvp.Value.RawData.Length > 0)
+                    {
+                        vsBytes = kvp.Value.RawData;
+                        break;
+                    }
                 }
             }
+            var mesh = DisplayMeshReader.ReadMesh(dlBytes, vsBytes);
+            if (mesh != null && mesh.VertexCount > 0)
+                return mesh;
         }
-        return DisplayMeshReader.ReadMesh(dlBytes, vsBytes);
+
+        // 尝试从现代 FaceTessellations 分块流中读取 3D 网格
+        var ftMesh = DisplayMeshReader.ReadMeshFromFaceTessellations(RawStreams, ZlbContents);
+        if (ftMesh != null && ftMesh.VertexCount > 0)
+            return ftMesh;
+        return null;
+    }
+
+    /// <summary>
+    /// 当装配体自身未内嵌 3D 网格时，根据装配树和各子组件的外部零件文件动态变换拼装出整机网格。
+    /// </summary>
+    public DisplayMesh? StitchAssemblyMeshFromComponents(string? configurationName = null)
+    {
+        var components = GetAssemblyTree(configurationName);
+        if (components == null || components.Count == 0) return null;
+
+        var allPositions = new List<System.Numerics.Vector3>();
+        var allNormals = new List<System.Numerics.Vector3>();
+        var allIndices = new List<int>();
+        var allEdges = new List<(int, int)>();
+        var parts = new List<DisplayMeshPart>();
+
+        System.Numerics.Vector3 min = new(float.PositiveInfinity, float.PositiveInfinity, float.PositiveInfinity);
+        System.Numerics.Vector3 max = new(float.NegativeInfinity, float.NegativeInfinity, float.NegativeInfinity);
+
+        var cachedPartMeshes = new Dictionary<string, DisplayMesh>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var comp in components)
+        {
+            if (string.IsNullOrEmpty(comp.FilePath) || !File.Exists(comp.FilePath))
+                continue;
+
+            if (!cachedPartMeshes.TryGetValue(comp.FilePath, out var childMesh))
+            {
+                try
+                {
+                    using var psw = SwFile.Open(comp.FilePath);
+                    childMesh = psw.GetDisplayMesh();
+                    if (childMesh != null)
+                    {
+                        cachedPartMeshes[comp.FilePath] = childMesh;
+                    }
+                }
+                catch { }
+            }
+
+            if (childMesh == null || childMesh.Positions.Count == 0) continue;
+
+            int vStart = allPositions.Count;
+            int tStart = allIndices.Count / 3;
+            int eStart = allEdges.Count;
+
+            float tx = comp.Transform.M41 * 1000f;
+            float ty = comp.Transform.M42 * 1000f;
+            float tz = comp.Transform.M43 * 1000f;
+
+            for (int i = 0; i < childMesh.Positions.Count; i++)
+            {
+                var p = childMesh.Positions[i];
+                float x = p.X * comp.Transform.M11 + p.Y * comp.Transform.M21 + p.Z * comp.Transform.M31 + tx;
+                float y = p.X * comp.Transform.M12 + p.Y * comp.Transform.M22 + p.Z * comp.Transform.M32 + ty;
+                float z = p.X * comp.Transform.M13 + p.Y * comp.Transform.M23 + p.Z * comp.Transform.M33 + tz;
+                var transformedP = new System.Numerics.Vector3(x, y, z);
+                allPositions.Add(transformedP);
+                min = System.Numerics.Vector3.Min(min, transformedP);
+                max = System.Numerics.Vector3.Max(max, transformedP);
+            }
+
+            for (int i = 0; i < childMesh.Normals.Count; i++)
+            {
+                var n = childMesh.Normals[i];
+                float nx = n.X * comp.Transform.M11 + n.Y * comp.Transform.M21 + n.Z * comp.Transform.M31;
+                float ny = n.X * comp.Transform.M12 + n.Y * comp.Transform.M22 + n.Z * comp.Transform.M32;
+                float nz = n.X * comp.Transform.M13 + n.Y * comp.Transform.M23 + n.Z * comp.Transform.M33;
+                var transformedN = System.Numerics.Vector3.Normalize(new System.Numerics.Vector3(nx, ny, nz));
+                allNormals.Add(transformedN);
+            }
+
+            for (int i = 0; i < childMesh.TriangleIndices.Count; i++)
+            {
+                allIndices.Add(childMesh.TriangleIndices[i] + vStart);
+            }
+
+            for (int i = 0; i < childMesh.OutlineEdges.Count; i++)
+            {
+                var (e0, e1) = childMesh.OutlineEdges[i];
+                allEdges.Add((e0 + vStart, e1 + vStart));
+            }
+
+            parts.Add(new DisplayMeshPart
+            {
+                Id = $"stitched:{parts.Count}",
+                StreamIndex = 0,
+                TableIndex = parts.Count,
+                TableOffset = 0,
+                VertexStart = vStart,
+                VertexCount = childMesh.Positions.Count,
+                TriangleStart = tStart,
+                TriangleCount = childMesh.TriangleIndices.Count / 3,
+                EdgeStart = eStart,
+                EdgeCount = childMesh.OutlineEdges.Count,
+                StripCount = 0,
+                NormalsDerived = false,
+                AppearanceName = comp.Name
+            });
+        }
+
+        if (allPositions.Count == 0) return null;
+
+        return new DisplayMesh
+        {
+            Positions = allPositions.AsReadOnly(),
+            Normals = allNormals.AsReadOnly(),
+            TriangleIndices = allIndices.AsReadOnly(),
+            OutlineEdges = allEdges.AsReadOnly(),
+            Parts = parts.AsReadOnly(),
+            Min = min,
+            Max = max
+        };
     }
 
     /// <summary>
@@ -396,3 +517,4 @@ public abstract partial class SwFile
         if (_disposed) throw new ObjectDisposedException(GetType().Name);
     }
 }
+
