@@ -1099,6 +1099,26 @@ BuildSectionPlaneMeshes(size, axisDir, offset);
             partCenters[i] = (pMin + pMax) * 0.5f;
         }
 
+        // 阶段 0: 动态拼接网格直接通过 Part.Id 映射 componentId
+        for (int pIdx = 0; pIdx < partCount; pIdx++)
+        {
+            var part = Mesh.Parts[pIdx];
+            if (!string.IsNullOrEmpty(part.Id) && part.Id.StartsWith("stitched:"))
+            {
+                var segments = part.Id.Split(':');
+                if (segments.Length >= 2)
+                {
+                    string cId = segments[1];
+                    var matchedComp = comps.FirstOrDefault(c => c.ComponentId == cId);
+                    if (matchedComp != null)
+                    {
+                        map[pIdx] = matchedComp;
+                        continue;
+                    }
+                }
+            }
+        }
+
         // 阶段 1: 属性名称匹配 (单测与部分模型)
         for (int pIdx = 0; pIdx < partCount; pIdx++)
         {
@@ -1150,12 +1170,20 @@ BuildSectionPlaneMeshes(size, axisDir, offset);
 
                 try
                 {
-                    if (File.Exists(c.FilePath))
+                    string actualPartPath = c.FilePath;
+                    if (!File.Exists(actualPartPath) && _docService.CurrentFile != null && !string.IsNullOrEmpty(_docService.CurrentFile.FilePath))
                     {
-                        var fi = new FileInfo(c.FilePath);
+                        string cDir = Path.GetDirectoryName(_docService.CurrentFile.FilePath)!;
+                        string cCand = Path.Combine(cDir, Path.GetFileName(c.FilePath));
+                        if (File.Exists(cCand)) actualPartPath = cCand;
+                    }
+
+                    if (File.Exists(actualPartPath))
+                    {
+                        var fi = new FileInfo(actualPartPath);
                         if (fi.Length > 0 && fi.Length < 20 * 1024 * 1024) // 忽略大于 20MB 的超大文件
                         {
-                            using var psw = SwFile.Open(c.FilePath);
+                            using var psw = SwFile.Open(actualPartPath);
                             var pm = psw.GetDisplayMesh();
                             if (pm != null)
                             {

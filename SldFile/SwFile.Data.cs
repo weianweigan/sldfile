@@ -116,16 +116,102 @@ public abstract partial class SwFile
         var ftMesh = DisplayMeshReader.ReadMeshFromFaceTessellations(RawStreams, ZlbContents);
         if (ftMesh != null && ftMesh.VertexCount > 0)
             return ftMesh;
+
+        // 若是零件文件且无本地网格，尝试检查外部引用实体 (如 MirrorStock / 镜像零件)
+        if (Kind == DocumentKind.Part)
+        {
+            string? derivedBasePath = FindDerivedBasePartPath();
+            if (!string.IsNullOrEmpty(derivedBasePath) && File.Exists(derivedBasePath))
+            {
+                try
+                {
+                    using var baseSw = SwFile.Open(derivedBasePath!, readOnly: true);
+                    var baseMesh = baseSw.GetDisplayMesh();
+                    if (baseMesh != null && baseMesh.VertexCount > 0)
+                        return baseMesh;
+                }
+                catch { }
+            }
+        }
+
         return null;
     }
 
+    private string? FindDerivedBasePartPath()
+    {
+        if (!RawStreams.TryGetValue("swXmlContents/Features", out var featBytes) || featBytes.Length == 0)
+            return null;
+        try
+        {
+            string xml = Encoding.UTF8.GetString(featBytes);
+            int sIdx = xml.IndexOf('<');
+            if (sIdx > 0) xml = xml.Substring(sIdx);
+            var doc = System.Xml.Linq.XDocument.Parse(xml);
+            var root = doc.Root;
+            if (root == null) return null;
+
+            var extFeat = root.Descendants().FirstOrDefault(e => e.Name.LocalName == "swExtFeature" &&
+                (e.Attribute("swFeatureType")?.Value == "MirrorStock" || e.Attribute("swFeatureType")?.Value == "Stock"));
+            if (extFeat == null) return null;
+
+            string? modelRef = extFeat.Attribute("swModelRef")?.Value;
+            if (string.IsNullOrEmpty(modelRef)) return null;
+
+            var modelElem = root.Descendants().FirstOrDefault(e => e.Name.LocalName == "swModel" &&
+                e.Attribute("id")?.Value == modelRef);
+            if (modelElem == null) return null;
+
+            string? fileRef = modelElem.Attribute("swFileRef")?.Value;
+            if (string.IsNullOrEmpty(fileRef)) return null;
+
+            var fileElem = root.Descendants().FirstOrDefault(e => e.Name.LocalName == "swFile" &&
+                e.Attribute("id")?.Value == fileRef);
+            if (fileElem == null) return null;
+
+            string? rawPath = fileElem.Attribute("swPath")?.Value;
+            if (string.IsNullOrEmpty(rawPath)) return null;
+
+            if (File.Exists(rawPath)) return rawPath;
+            if (!string.IsNullOrEmpty(FilePath))
+            {
+                string fileDir = Path.GetDirectoryName(FilePath)!;
+                string localCand = Path.Combine(fileDir, Path.GetFileName(rawPath));
+                if (File.Exists(localCand)) return localCand;
+            }
+            return rawPath;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     /// <summary>
-    /// 当装配体自身未内嵌 3D 网格时，根据装配树和各子组件的外部零件文件动态变换拼装出整机网格。
+    /// 当装配体自身未内嵌 3D 网格或包含外部子装配体时，根据装配树和各子组件的外部零件文件动态变换拼装出整机网格。
     /// </summary>
     public DisplayMesh? StitchAssemblyMeshFromComponents(string? configurationName = null)
     {
         var components = GetAssemblyTree(configurationName);
         if (components == null || components.Count == 0) return null;
+
+        var leafComponents = new List<AssemblyComponentNode>();
+        void CollectLeaves(IEnumerable<AssemblyComponentNode> nodes)
+        {
+            foreach (var n in nodes)
+            {
+                if (n.IsSuppressed) continue;
+                if (n.Children != null && n.Children.Count > 0)
+                {
+                    CollectLeaves(n.Children);
+                }
+                else
+                {
+                    leafComponents.Add(n);
+                }
+            }
+        }
+        CollectLeaves(components);
+        if (leafComponents.Count == 0) return null;
 
         var allPositions = new List<System.Numerics.Vector3>();
         var allNormals = new List<System.Numerics.Vector3>();
@@ -137,21 +223,29 @@ public abstract partial class SwFile
         System.Numerics.Vector3 max = new(float.NegativeInfinity, float.NegativeInfinity, float.NegativeInfinity);
 
         var cachedPartMeshes = new Dictionary<string, DisplayMesh>(StringComparer.OrdinalIgnoreCase);
+        string? asmDir = !string.IsNullOrEmpty(FilePath) ? Path.GetDirectoryName(FilePath) : null;
 
-        foreach (var comp in components)
+        foreach (var comp in leafComponents)
         {
-            if (string.IsNullOrEmpty(comp.FilePath) || !File.Exists(comp.FilePath))
+            string actualPath = comp.FilePath;
+            if (!File.Exists(actualPath) && !string.IsNullOrEmpty(asmDir))
+            {
+                string candidate = Path.Combine(asmDir, Path.GetFileName(comp.FilePath));
+                if (File.Exists(candidate)) actualPath = candidate;
+            }
+
+            if (string.IsNullOrEmpty(actualPath) || !File.Exists(actualPath))
                 continue;
 
-            if (!cachedPartMeshes.TryGetValue(comp.FilePath, out var childMesh))
+            if (!cachedPartMeshes.TryGetValue(actualPath, out var childMesh))
             {
                 try
                 {
-                    using var psw = SwFile.Open(comp.FilePath);
+                    using var psw = SwFile.Open(actualPath, readOnly: true);
                     childMesh = psw.GetDisplayMesh();
                     if (childMesh != null)
                     {
-                        cachedPartMeshes[comp.FilePath] = childMesh;
+                        cachedPartMeshes[actualPath] = childMesh;
                     }
                 }
                 catch { }
@@ -200,22 +294,53 @@ public abstract partial class SwFile
                 allEdges.Add((e0 + vStart, e1 + vStart));
             }
 
-            parts.Add(new DisplayMeshPart
+            var surfRef = new[] { new DisplaySurfaceReference { Identity = comp.InstanceName } };
+
+            if (childMesh.Parts != null && childMesh.Parts.Count > 0)
             {
-                Id = $"stitched:{parts.Count}",
-                StreamIndex = 0,
-                TableIndex = parts.Count,
-                TableOffset = 0,
-                VertexStart = vStart,
-                VertexCount = childMesh.Positions.Count,
-                TriangleStart = tStart,
-                TriangleCount = childMesh.TriangleIndices.Count / 3,
-                EdgeStart = eStart,
-                EdgeCount = childMesh.OutlineEdges.Count,
-                StripCount = 0,
-                NormalsDerived = false,
-                AppearanceName = comp.Name
-            });
+                foreach (var cp in childMesh.Parts)
+                {
+                    parts.Add(new DisplayMeshPart
+                    {
+                        Id = $"stitched:{comp.ComponentId}:{parts.Count}",
+                        StreamIndex = 0,
+                        TableIndex = parts.Count,
+                        TableOffset = 0,
+                        VertexStart = vStart + cp.VertexStart,
+                        VertexCount = cp.VertexCount,
+                        TriangleStart = tStart + cp.TriangleStart,
+                        TriangleCount = cp.TriangleCount,
+                        EdgeStart = eStart + cp.EdgeStart,
+                        EdgeCount = cp.EdgeCount,
+                        StripCount = cp.StripCount,
+                        NormalsDerived = cp.NormalsDerived,
+                        Color = cp.Color,
+                        ColorSource = cp.ColorSource,
+                        AppearanceName = !string.IsNullOrEmpty(cp.AppearanceName) ? cp.AppearanceName : comp.InstanceName,
+                        SurfaceReferences = surfRef
+                    });
+                }
+            }
+            else
+            {
+                parts.Add(new DisplayMeshPart
+                {
+                    Id = $"stitched:{comp.ComponentId}:{parts.Count}",
+                    StreamIndex = 0,
+                    TableIndex = parts.Count,
+                    TableOffset = 0,
+                    VertexStart = vStart,
+                    VertexCount = childMesh.Positions.Count,
+                    TriangleStart = tStart,
+                    TriangleCount = childMesh.TriangleIndices.Count / 3,
+                    EdgeStart = eStart,
+                    EdgeCount = childMesh.OutlineEdges.Count,
+                    StripCount = 0,
+                    NormalsDerived = false,
+                    AppearanceName = comp.InstanceName,
+                    SurfaceReferences = surfRef
+                });
+            }
         }
 
         if (allPositions.Count == 0) return null;
@@ -246,7 +371,8 @@ public abstract partial class SwFile
         if (string.IsNullOrEmpty(xml))
             return Array.Empty<AssemblyComponentNode>();
 
-        return Assembly.AssemblyTreeReader.ParseAssemblyTree(xml!, configurationName);
+        string? asmDir = !string.IsNullOrEmpty(FilePath) ? Path.GetDirectoryName(FilePath) : null;
+        return Assembly.AssemblyTreeReader.ParseAssemblyTree(xml!, configurationName, asmDir);
     }
 
     /// <summary>
@@ -517,4 +643,3 @@ public abstract partial class SwFile
         if (_disposed) throw new ObjectDisposedException(GetType().Name);
     }
 }
-

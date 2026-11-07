@@ -91,4 +91,51 @@ public class AssemblyTreeTests
         Assert.Empty(tree);
         Assert.Empty(bom);
     }
+
+    [Fact]
+    public void ParseAssemblyTree_NestedSubAssemblies_AccumulatesWorldTransformCorrectly()
+    {
+        // Root ASM contains SubAsm (translated X=10)
+        // SubAsm contains PartA (translated Y=5)
+        // In top-level world coordinates, PartA should be at (X=10, Y=5)
+        string xml = @"<?xml version=""1.0"" encoding=""utf-8""?>
+<swAssemblyTree>
+  <swHeader>
+    <swFile id=""fRoot"" swDocType=""ASSEMBLY"" swPath=""Root.SLDASM"" />
+    <swFile id=""fSub"" swDocType=""ASSEMBLY"" swPath=""Sub.SLDASM"" />
+    <swFile id=""fPart"" swDocType=""PART"" swPath=""PartA.SLDPRT"" />
+  </swHeader>
+  <swModelList>
+    <swModel id=""mRoot"" swFileRef=""fRoot"" swConfigurationName=""Default"">
+      <swReference swID=""refSub1"" swName=""Sub"" swReferenceNumber=""1"" swModelRef=""mSub""
+        swTransform=""1 0 0 0  0 1 0 0  0 0 1 0  10 0 0 1"" />
+    </swModel>
+    <swModel id=""mSub"" swFileRef=""fSub"" swConfigurationName=""Default"">
+      <swReference swID=""refPart1"" swName=""PartA"" swReferenceNumber=""1"" swModelRef=""mPart""
+        swTransform=""1 0 0 0  0 1 0 0  0 0 1 0  0 5 0 1"" />
+    </swModel>
+    <swModel id=""mPart"" swFileRef=""fPart"" swConfigurationName=""Default"" />
+  </swModelList>
+</swAssemblyTree>";
+
+        var nodes = SldFile.Assembly.AssemblyTreeReader.ParseAssemblyTree(xml);
+        Assert.Single(nodes);
+
+        var subNode = nodes[0];
+        Assert.Equal("Sub", subNode.Name);
+        Assert.Equal(10f, subNode.Transform.M41);
+        Assert.Equal(0f, subNode.Transform.M42);
+        Assert.Equal(10f, subNode.LocalTransform.M41);
+
+        Assert.Single(subNode.Children);
+        var partNode = subNode.Children[0];
+        Assert.Equal("PartA", partNode.Name);
+        // Local transform should remain Y=5
+        Assert.Equal(0f, partNode.LocalTransform.M41);
+        Assert.Equal(5f, partNode.LocalTransform.M42);
+
+        // Accumulated World transform must be X=10, Y=5
+        Assert.Equal(10f, partNode.Transform.M41);
+        Assert.Equal(5f, partNode.Transform.M42);
+    }
 }
