@@ -2,6 +2,7 @@ using System;
 
 using System.IO;
 
+using System.Windows.Media;
 using System.Windows.Media.Media3D;
 
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -1449,33 +1450,39 @@ BuildSectionPlaneMeshes(size, axisDir, offset);
 
     private void BuildWpfMesh(DisplayMesh mesh, System.Numerics.Vector3 center)
     {
-        var geo = new MeshGeometry3D();
-        var ghostGeo = IsIsolated ? new MeshGeometry3D() : null;
-
         int posCount = mesh.Positions.Count;
         var (vertexOffsets, _) = CalculateExplodeOffsets();
+
+        var positions = new Point3DCollection(posCount);
+        Point3DCollection? ghostPositions = IsIsolated ? new Point3DCollection(posCount) : null;
 
         for (int i = 0; i < posCount; i++)
         {
             var p = mesh.Positions[i] - center;
             if (vertexOffsets != null) p += vertexOffsets[i];
             var pt = new Point3D(p.X, p.Y, p.Z);
-            geo.Positions.Add(pt);
-            if (ghostGeo != null) ghostGeo.Positions.Add(pt);
+            positions.Add(pt);
+            if (ghostPositions != null) ghostPositions.Add(pt);
         }
 
+        Vector3DCollection? normals = null;
+        Vector3DCollection? ghostNormals = null;
         if (mesh.Normals.Count == posCount)
         {
+            normals = new Vector3DCollection(posCount);
+            if (IsIsolated) ghostNormals = new Vector3DCollection(posCount);
             for (int i = 0; i < posCount; i++)
             {
                 var n = mesh.Normals[i];
                 var vec = new Vector3D(n.X, n.Y, n.Z);
-                geo.Normals.Add(vec);
-                if (ghostGeo != null) ghostGeo.Normals.Add(vec);
+                normals.Add(vec);
+                if (ghostNormals != null) ghostNormals.Add(vec);
             }
         }
 
         var partMap = BuildPartComponentMap();
+        var triangleIndices = new Int32Collection(mesh.TriangleIndices.Count);
+        Int32Collection? ghostIndices = IsIsolated ? new Int32Collection() : null;
 
         if (mesh.Parts != null && mesh.Parts.Count > 0)
         {
@@ -1491,7 +1498,7 @@ BuildSectionPlaneMeshes(size, axisDir, offset);
                 }
 
                 bool isGhost = IsIsolated && (comp == null || IsolatedComponent == null || !IsComponentOrChild(comp, IsolatedComponent));
-                var targetGeo = (isGhost && ghostGeo != null) ? ghostGeo : geo;
+                var targetIndices = (isGhost && ghostIndices != null) ? ghostIndices : triangleIndices;
 
                 int tStart = part.TriangleStart * 3;
                 int tEnd = Math.Min(tStart + part.TriangleCount * 3, mesh.TriangleIndices.Count);
@@ -1502,9 +1509,9 @@ BuildSectionPlaneMeshes(size, axisDir, offset);
                     int i2 = mesh.TriangleIndices[i + 2];
                     if (i0 >= 0 && i0 < posCount && i1 >= 0 && i1 < posCount && i2 >= 0 && i2 < posCount)
                     {
-                        targetGeo.TriangleIndices.Add(i0);
-                        targetGeo.TriangleIndices.Add(i1);
-                        targetGeo.TriangleIndices.Add(i2);
+                        targetIndices.Add(i0);
+                        targetIndices.Add(i1);
+                        targetIndices.Add(i2);
                     }
                 }
             }
@@ -1518,18 +1525,30 @@ BuildSectionPlaneMeshes(size, axisDir, offset);
                 int i2 = mesh.TriangleIndices[i + 2];
                 if (i0 >= 0 && i0 < posCount && i1 >= 0 && i1 < posCount && i2 >= 0 && i2 < posCount)
                 {
-                    geo.TriangleIndices.Add(i0);
-                    geo.TriangleIndices.Add(i1);
-                    geo.TriangleIndices.Add(i2);
+                    triangleIndices.Add(i0);
+                    triangleIndices.Add(i1);
+                    triangleIndices.Add(i2);
                 }
             }
         }
 
+        var geo = new MeshGeometry3D
+        {
+            Positions = positions,
+            Normals = normals,
+            TriangleIndices = triangleIndices
+        };
         geo.Freeze();
         WpfMesh = geo;
 
-        if (ghostGeo != null && ghostGeo.TriangleIndices.Count > 0)
+        if (ghostIndices != null && ghostIndices.Count > 0)
         {
+            var ghostGeo = new MeshGeometry3D
+            {
+                Positions = ghostPositions,
+                Normals = ghostNormals,
+                TriangleIndices = ghostIndices
+            };
             ghostGeo.Freeze();
             WpfGhostMesh = ghostGeo;
         }
@@ -2053,13 +2072,20 @@ WpfSectionManipulatorMesh = manipGeo;
             return;
         }
 
-        var edgeGeo = new MeshGeometry3D();
         var size = mesh.Max - mesh.Min;
         double maxDim = Math.Max(size.X, Math.Max(size.Y, size.Z));
         float thickness = (float)Math.Clamp(maxDim * 0.0012, 0.05, 5.0);
 
         int posCount = mesh.Positions.Count;
-        int vertexBase = 0;
+        int rawEdgeCount = mesh.OutlineEdges.Count;
+
+        // 自适应边线筛选与预算控制（大装配体极限性能保障）
+        float minLen = 1e-4f;
+        if (rawEdgeCount > 10000)
+        {
+            // 剔除小于最小可见长度的微碎线（通常为曲面三角剖分缝隙或微倒角碎片）
+            minLen = Math.Max(thickness * 0.6f, 0.4f);
+        }
 
         var (vertexOffsets, _) = CalculateExplodeOffsets();
         var partMap = BuildPartComponentMap();
@@ -2079,8 +2105,13 @@ WpfSectionManipulatorMesh = manipGeo;
             }
         }
 
-        foreach (var (start, end) in mesh.OutlineEdges)
+        // 收集有效且可见的候选边
+        const int MaxEdgeBudget = 35000;
+        var validEdges = new List<(int start, int end, float len)>(Math.Min(rawEdgeCount, MaxEdgeBudget * 2));
+
+        for (int i = 0; i < rawEdgeCount; i++)
         {
+            var (start, end) = mesh.OutlineEdges[i];
             if (start < 0 || start >= posCount || end < 0 || end >= posCount || start == end)
                 continue;
 
@@ -2092,6 +2123,28 @@ WpfSectionManipulatorMesh = manipGeo;
                     continue;
             }
 
+            var p0 = mesh.Positions[start];
+            var p1 = mesh.Positions[end];
+            float len = (p1 - p0).Length();
+            if (len < minLen) continue;
+
+            validEdges.Add((start, end, len));
+        }
+
+        // 若超出了边线预算上限，优先保留长度较长的主轮廓线
+        if (validEdges.Count > MaxEdgeBudget)
+        {
+            validEdges.Sort((a, b) => b.len.CompareTo(a.len));
+            validEdges.RemoveRange(MaxEdgeBudget, validEdges.Count - MaxEdgeBudget);
+        }
+
+        int targetCount = validEdges.Count;
+        var positions = new Point3DCollection(targetCount * 8);
+        var indices = new Int32Collection(targetCount * 12);
+        int vertexBase = 0;
+
+        foreach (var (start, end, _) in validEdges)
+        {
             var p0 = mesh.Positions[start] - center;
             var p1 = mesh.Positions[end] - center;
 
@@ -2101,178 +2154,153 @@ WpfSectionManipulatorMesh = manipGeo;
                 p1 += vertexOffsets[end];
             }
 
-            AppendThickEdge(edgeGeo, p0, p1, thickness, ref vertexBase);
+            AppendThickEdgeOptimized(positions, indices, p0, p1, thickness, ref vertexBase);
         }
 
+        var edgeGeo = new MeshGeometry3D
+        {
+            Positions = positions,
+            TriangleIndices = indices
+        };
         edgeGeo.Freeze();
         WpfEdgeMesh = edgeGeo.Positions.Count > 0 ? edgeGeo : null;
     }
 
     private void BuildClippedEdgeMesh(DisplayMesh mesh, System.Numerics.Vector3 center, System.Numerics.Vector3 normal, float planeDist)
-
-{
-
-if (mesh.OutlineEdges == null || mesh.OutlineEdges.Count == 0 || mesh.Positions.Count == 0)
-
-{
-
-WpfEdgeMesh = null;
-
-return;
-
-}
-
-var edgeGeo = new MeshGeometry3D();
-
-var size = mesh.Max - mesh.Min;
-
-double maxDim = Math.Max(size.X, Math.Max(size.Y, size.Z));
-
-float thickness = (float)Math.Clamp(maxDim * 0.0012, 0.05, 5.0);
-
-int posCount = mesh.Positions.Count;
-
-int vertexBase = 0;
-
-foreach (var (start, end) in mesh.OutlineEdges)
-
-{
-
-if (start < 0 || start >= posCount || end < 0 || end >= posCount || start == end)
-
-continue;
-
-var p0 = mesh.Positions[start] - center;
-
-var p1 = mesh.Positions[end] - center;
-
-float d0 = System.Numerics.Vector3.Dot(p0, normal) - planeDist;
-
-float d1 = System.Numerics.Vector3.Dot(p1, normal) - planeDist;
-
-if (d0 < 0 && d1 < 0) continue; // 全部剔除
-
-if (d0 >= 0 && d1 >= 0)
-
-{
-
-// 全部保留
-
-AppendThickEdge(edgeGeo, p0, p1, thickness, ref vertexBase);
-
-}
-
-else
-
-{
-
-// 截交线
-
-float t = d0 / (d0 - d1);
-
-var pInt = p0 + (p1 - p0) * t;
-
-if (d0 >= 0)
-
-AppendThickEdge(edgeGeo, p0, pInt, thickness, ref vertexBase);
-
-else
-
-AppendThickEdge(edgeGeo, pInt, p1, thickness, ref vertexBase);
-
-}
-
-}
-
-edgeGeo.Freeze();
-
-WpfEdgeMesh = edgeGeo;
-
-}
-
-private static void AppendThickEdge(MeshGeometry3D edgeGeo, System.Numerics.Vector3 p0, System.Numerics.Vector3 p1, float thickness, ref int vertexBase)
-
-{
-
-var dir = p1 - p0;
-
-float len = dir.Length();
-
-if (len < 1e-4f) return;
-
-var v = Math.Abs(dir.X) > 0.9f * len ? new System.Numerics.Vector3(0, 1, 0) : new System.Numerics.Vector3(1, 0, 0);
-
-var u = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(dir, v)) * thickness;
-
-var w = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(dir, u)) * thickness;
-
-edgeGeo.Positions.Add(new Point3D(p0.X - u.X, p0.Y - u.Y, p0.Z - u.Z));
-
-edgeGeo.Positions.Add(new Point3D(p0.X + u.X, p0.Y + u.Y, p0.Z + u.Z));
-
-edgeGeo.Positions.Add(new Point3D(p1.X + u.X, p1.Y + u.Y, p1.Z + u.Z));
-
-edgeGeo.Positions.Add(new Point3D(p1.X - u.X, p1.Y - u.Y, p1.Z - u.Z));
-
-edgeGeo.Positions.Add(new Point3D(p0.X - w.X, p0.Y - w.Y, p0.Z - w.Z));
-
-edgeGeo.Positions.Add(new Point3D(p0.X + w.X, p0.Y + w.Y, p0.Z + w.Z));
-
-edgeGeo.Positions.Add(new Point3D(p1.X + w.X, p1.Y + w.Y, p1.Z + w.Z));
-
-edgeGeo.Positions.Add(new Point3D(p1.X - w.X, p1.Y - w.Y, p1.Z - w.Z));
-
-edgeGeo.TriangleIndices.Add(vertexBase);
-
-edgeGeo.TriangleIndices.Add(vertexBase + 1);
-
-edgeGeo.TriangleIndices.Add(vertexBase + 2);
-
-edgeGeo.TriangleIndices.Add(vertexBase);
-
-edgeGeo.TriangleIndices.Add(vertexBase + 2);
-
-edgeGeo.TriangleIndices.Add(vertexBase + 3);
-
-edgeGeo.TriangleIndices.Add(vertexBase);
-
-edgeGeo.TriangleIndices.Add(vertexBase + 2);
-
-edgeGeo.TriangleIndices.Add(vertexBase + 1);
-
-edgeGeo.TriangleIndices.Add(vertexBase);
-
-edgeGeo.TriangleIndices.Add(vertexBase + 3);
-
-edgeGeo.TriangleIndices.Add(vertexBase + 2);
-
-edgeGeo.TriangleIndices.Add(vertexBase + 4);
-
-edgeGeo.TriangleIndices.Add(vertexBase + 5);
-
-edgeGeo.TriangleIndices.Add(vertexBase + 6);
-
-edgeGeo.TriangleIndices.Add(vertexBase + 4);
-
-edgeGeo.TriangleIndices.Add(vertexBase + 6);
-
-edgeGeo.TriangleIndices.Add(vertexBase + 7);
-
-edgeGeo.TriangleIndices.Add(vertexBase + 4);
-
-edgeGeo.TriangleIndices.Add(vertexBase + 6);
-
-edgeGeo.TriangleIndices.Add(vertexBase + 5);
-
-edgeGeo.TriangleIndices.Add(vertexBase + 4);
-
-edgeGeo.TriangleIndices.Add(vertexBase + 7);
-
-edgeGeo.TriangleIndices.Add(vertexBase + 6);
-
-vertexBase += 8;
-
-}
+    {
+        if (mesh.OutlineEdges == null || mesh.OutlineEdges.Count == 0 || mesh.Positions.Count == 0)
+        {
+            WpfEdgeMesh = null;
+            return;
+        }
+
+        var size = mesh.Max - mesh.Min;
+        double maxDim = Math.Max(size.X, Math.Max(size.Y, size.Z));
+        float thickness = (float)Math.Clamp(maxDim * 0.0012, 0.05, 5.0);
+
+        int posCount = mesh.Positions.Count;
+        int rawEdgeCount = mesh.OutlineEdges.Count;
+
+        float minLen = 1e-4f;
+        if (rawEdgeCount > 10000)
+        {
+            minLen = Math.Max(thickness * 0.6f, 0.4f);
+        }
+
+        const int MaxEdgeBudget = 35000;
+        var clippedSegments = new List<(System.Numerics.Vector3 p0, System.Numerics.Vector3 p1, float len)>(Math.Min(rawEdgeCount, MaxEdgeBudget * 2));
+
+        foreach (var (start, end) in mesh.OutlineEdges)
+        {
+            if (start < 0 || start >= posCount || end < 0 || end >= posCount || start == end)
+                continue;
+
+            var p0 = mesh.Positions[start] - center;
+            var p1 = mesh.Positions[end] - center;
+
+            float d0 = System.Numerics.Vector3.Dot(p0, normal) - planeDist;
+            float d1 = System.Numerics.Vector3.Dot(p1, normal) - planeDist;
+
+            if (d0 < 0 && d1 < 0) continue;
+
+            if (d0 >= 0 && d1 >= 0)
+            {
+                float len = (p1 - p0).Length();
+                if (len >= minLen) clippedSegments.Add((p0, p1, len));
+            }
+            else
+            {
+                float t = d0 / (d0 - d1);
+                var pInt = p0 + (p1 - p0) * t;
+                if (d0 >= 0)
+                {
+                    float len = (pInt - p0).Length();
+                    if (len >= minLen) clippedSegments.Add((p0, pInt, len));
+                }
+                else
+                {
+                    float len = (p1 - pInt).Length();
+                    if (len >= minLen) clippedSegments.Add((pInt, p1, len));
+                }
+            }
+        }
+
+        if (clippedSegments.Count > MaxEdgeBudget)
+        {
+            clippedSegments.Sort((a, b) => b.len.CompareTo(a.len));
+            clippedSegments.RemoveRange(MaxEdgeBudget, clippedSegments.Count - MaxEdgeBudget);
+        }
+
+        int targetCount = clippedSegments.Count;
+        var positions = new Point3DCollection(targetCount * 8);
+        var indices = new Int32Collection(targetCount * 12);
+        int vertexBase = 0;
+
+        foreach (var (p0, p1, _) in clippedSegments)
+        {
+            AppendThickEdgeOptimized(positions, indices, p0, p1, thickness, ref vertexBase);
+        }
+
+        var edgeGeo = new MeshGeometry3D
+        {
+            Positions = positions,
+            TriangleIndices = indices
+        };
+        edgeGeo.Freeze();
+        WpfEdgeMesh = edgeGeo.Positions.Count > 0 ? edgeGeo : null;
+    }
+
+    private static void AppendThickEdge(MeshGeometry3D edgeGeo, System.Numerics.Vector3 p0, System.Numerics.Vector3 p1, float thickness, ref int vertexBase)
+    {
+        AppendThickEdgeOptimized(edgeGeo.Positions, edgeGeo.TriangleIndices, p0, p1, thickness, ref vertexBase);
+    }
+
+    private static void AppendThickEdgeOptimized(
+        Point3DCollection positions,
+        Int32Collection indices,
+        System.Numerics.Vector3 p0,
+        System.Numerics.Vector3 p1,
+        float thickness,
+        ref int vertexBase)
+    {
+        var dir = p1 - p0;
+        float len = dir.Length();
+        if (len < 1e-4f) return;
+
+        var v = Math.Abs(dir.X) > 0.9f * len ? new System.Numerics.Vector3(0, 1, 0) : new System.Numerics.Vector3(1, 0, 0);
+        var u = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(dir, v)) * thickness;
+        var w = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(dir, u)) * thickness;
+
+        // Quad 1
+        positions.Add(new Point3D(p0.X - u.X, p0.Y - u.Y, p0.Z - u.Z));
+        positions.Add(new Point3D(p0.X + u.X, p0.Y + u.Y, p0.Z + u.Z));
+        positions.Add(new Point3D(p1.X + u.X, p1.Y + u.Y, p1.Z + u.Z));
+        positions.Add(new Point3D(p1.X - u.X, p1.Y - u.Y, p1.Z - u.Z));
+
+        // Quad 2
+        positions.Add(new Point3D(p0.X - w.X, p0.Y - w.Y, p0.Z - w.Z));
+        positions.Add(new Point3D(p0.X + w.X, p0.Y + w.Y, p0.Z + w.Z));
+        positions.Add(new Point3D(p1.X + w.X, p1.Y + w.Y, p1.Z + w.Z));
+        positions.Add(new Point3D(p1.X - w.X, p1.Y - w.Y, p1.Z - w.Z));
+
+        // Quad 1 基础三角形索引 (依靠 GeometryModel3D.BackMaterial 呈现双面可见，无需重复反向索引)
+        indices.Add(vertexBase);
+        indices.Add(vertexBase + 1);
+        indices.Add(vertexBase + 2);
+        indices.Add(vertexBase);
+        indices.Add(vertexBase + 2);
+        indices.Add(vertexBase + 3);
+
+        // Quad 2 基础三角形索引
+        indices.Add(vertexBase + 4);
+        indices.Add(vertexBase + 5);
+        indices.Add(vertexBase + 6);
+        indices.Add(vertexBase + 4);
+        indices.Add(vertexBase + 6);
+        indices.Add(vertexBase + 7);
+
+        vertexBase += 8;
+    }
 
 private string GetDefaultFileName(string extension)
 

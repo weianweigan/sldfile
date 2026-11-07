@@ -34,6 +34,10 @@ public partial class Mesh3DView : UserControl
     private double _theta = 45.0; // Azimuth angle
     private Point3D _target = new(0, 0, 0);
 
+    private GeometryModel3D? _cachedEdgeModel;
+    private bool _isInInteraction;
+    private System.Windows.Threading.DispatcherTimer? _wheelInteractionTimer;
+
     public Mesh3DView()
     {
         InitializeComponent();
@@ -278,9 +282,21 @@ public partial class Mesh3DView : UserControl
     private void UpdateEdgeVisual()
     {
         EdgeVisual.Content = null;
-        if (VM == null || VM.WpfEdgeMesh == null) return;
-        if (VM.DisplayStyle == ModelDisplayStyle.Shaded) return;
-        if (!VM.ShowEdges && VM.DisplayStyle != ModelDisplayStyle.Wireframe) return;
+        if (VM == null || VM.WpfEdgeMesh == null)
+        {
+            _cachedEdgeModel = null;
+            return;
+        }
+        if (VM.DisplayStyle == ModelDisplayStyle.Shaded)
+        {
+            _cachedEdgeModel = null;
+            return;
+        }
+        if (!VM.ShowEdges && VM.DisplayStyle != ModelDisplayStyle.Wireframe)
+        {
+            _cachedEdgeModel = null;
+            return;
+        }
 
         Color edgeColor = (VM.DisplayStyle == ModelDisplayStyle.Wireframe || VM.DisplayStyle == ModelDisplayStyle.TechnicalWhite)
             ? Color.FromRgb(15, 23, 42) // 纯黑高对比工程边线
@@ -293,7 +309,59 @@ public partial class Mesh3DView : UserControl
             Material = edgeMaterial,
             BackMaterial = edgeMaterial
         };
-        EdgeVisual.Content = edgeModel;
+        _cachedEdgeModel = edgeModel;
+        if (!_isInInteraction)
+        {
+            EdgeVisual.Content = edgeModel;
+        }
+    }
+
+    private void BeginInteractionState()
+    {
+        if (_isInInteraction) return;
+        _isInInteraction = true;
+
+        // 大装配体交互动态加速：在用户高频拖拽旋转或缩放时，临时挂起重型边线层，保证视口 60 FPS 满帧顺滑
+        if (VM != null && (VM.VertexCount > 15000 || VM.EdgeCount > 5000))
+        {
+            if (EdgeVisual.Content != null)
+            {
+                EdgeVisual.Content = null;
+            }
+        }
+    }
+
+    private void EndInteractionState()
+    {
+        if (!_isInInteraction) return;
+        _isInInteraction = false;
+
+        // 交互动作停止，恢复高精清晰轮廓边线
+        if (VM != null && (VM.ShowEdges || VM.DisplayStyle == ModelDisplayStyle.Wireframe) && _cachedEdgeModel != null)
+        {
+            EdgeVisual.Content = _cachedEdgeModel;
+        }
+    }
+
+    private void ResetWheelInteractionTimer()
+    {
+        if (_wheelInteractionTimer == null)
+        {
+            _wheelInteractionTimer = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(150)
+            };
+            _wheelInteractionTimer.Tick += (s, e) =>
+            {
+                _wheelInteractionTimer.Stop();
+                if (!_isRotating && !_isPanning && !_isZooming && !_isDraggingSection)
+                {
+                    EndInteractionState();
+                }
+            };
+        }
+        _wheelInteractionTimer.Stop();
+        _wheelInteractionTimer.Start();
     }
 
 
@@ -746,7 +814,12 @@ public partial class Mesh3DView : UserControl
         Point3D? foundHit = null;
         RayMeshGeometry3DHitTestResult? bestMeshHit = null;
 
-        VisualTreeHelper.HitTest(MainViewport, null, result =>
+        VisualTreeHelper.HitTest(MainViewport, target =>
+        {
+            if (target == ModelVisual)
+                return HitTestFilterBehavior.Continue;
+            return HitTestFilterBehavior.ContinueSkipChildren;
+        }, result =>
         {
             if (result is RayMeshGeometry3DHitTestResult meshHit)
             {
@@ -1024,7 +1097,12 @@ public partial class Mesh3DView : UserControl
 
         bool hit = false;
         PointHitTestParameters hitParams = new(point);
-        VisualTreeHelper.HitTest(MainViewport, null, hitResult =>
+        VisualTreeHelper.HitTest(MainViewport, target =>
+        {
+            if (target == SectionPlaneVisual || target == SectionManipulatorVisual || target == SectionBorderVisual)
+                return HitTestFilterBehavior.Continue;
+            return HitTestFilterBehavior.ContinueSkipChildren;
+        }, hitResult =>
         {
             if (hitResult is RayMeshGeometry3DHitTestResult meshHit)
             {
@@ -1328,18 +1406,21 @@ public partial class Mesh3DView : UserControl
             else
                 _isRotating = true;
 
+            BeginInteractionState();
             ViewportContainer.CaptureMouse();
             e.Handled = true;
         }
         else if (e.ChangedButton == MouseButton.Left)
         {
             _isRotating = true;
+            BeginInteractionState();
             ViewportContainer.CaptureMouse();
             e.Handled = true;
         }
         else if (e.ChangedButton == MouseButton.Right)
         {
             _isPanning = true;
+            BeginInteractionState();
             ViewportContainer.CaptureMouse();
             e.Handled = true;
         }
@@ -1430,6 +1511,7 @@ public partial class Mesh3DView : UserControl
         // 3. 视图缩放、旋转与平移
         if (_isZooming)
         {
+            BeginInteractionState();
             double factor = Math.Pow(1.008, -delta.Y);
             _cameraWidth = Math.Clamp(_cameraWidth * factor, 0.5, 100000.0);
             Camera.Width = _cameraWidth;
@@ -1439,6 +1521,7 @@ public partial class Mesh3DView : UserControl
         }
         else if (_isRotating)
         {
+            BeginInteractionState();
             _theta -= delta.X * 0.4;
             _phi = Math.Clamp(_phi - delta.Y * 0.4, 5.0, 175.0);
             UpdateCameraPosition();
@@ -1447,6 +1530,7 @@ public partial class Mesh3DView : UserControl
         }
         else if (_isPanning)
         {
+            BeginInteractionState();
             double viewWidth = ViewportContainer.ActualWidth > 0 ? ViewportContainer.ActualWidth : 800;
             double panFactor = _cameraWidth / viewWidth;
 
@@ -1502,6 +1586,7 @@ public partial class Mesh3DView : UserControl
         if (!_isRotating && !_isPanning && !_isZooming && !_isDraggingSection)
         {
             ViewportContainer.ReleaseMouseCapture();
+            EndInteractionState();
         }
         e.Handled = true;
     }
@@ -1515,10 +1600,16 @@ public partial class Mesh3DView : UserControl
         {
             Mouse.OverrideCursor = null;
         }
+        if (!_isRotating && !_isPanning && !_isZooming && !_isDraggingSection)
+        {
+            EndInteractionState();
+        }
     }
 
     private void OnViewportMouseWheel(object sender, MouseWheelEventArgs e)
     {
+        BeginInteractionState();
+
         double factor = e.Delta > 0 ? 0.85 : 1.18;
 
         double minWidth = 0.5;
@@ -1534,6 +1625,7 @@ public partial class Mesh3DView : UserControl
         _cameraWidth = Math.Clamp(_cameraWidth * factor, minWidth, maxWidth);
         Camera.Width = _cameraWidth;
         UpdateCalloutPosition();
+        ResetWheelInteractionTimer();
         e.Handled = true;
     }
 
