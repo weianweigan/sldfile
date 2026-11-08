@@ -256,6 +256,7 @@ public sealed class SwDocumentService : ISwDocumentService
 
     public byte[]? GetPreviewPng(int configIndex = 0) => _currentFile?.GetPreviewPng(configIndex);
     public byte[]? GetPreviewBitmap(int configIndex = 0) => _currentFile?.GetPreviewBitmap(configIndex);
+    public byte[]? GetBestPreviewImage(int configIndex = 0) => _currentFile?.GetBestPreviewImage(configIndex);
 
     public IReadOnlyList<DrawingSheetInfo> GetDrawingSheets()
     {
@@ -265,6 +266,11 @@ public sealed class SwDocumentService : ISwDocumentService
     public byte[]? GetSheetPreviewPng(int sheetIndex)
     {
         return _currentFile?.GetSheetPreviewPng(sheetIndex);
+    }
+
+    public byte[]? GetBestSheetPreviewImage(int sheetIndex)
+    {
+        return _currentFile?.GetBestSheetPreviewImage(sheetIndex);
     }
 
     public void SaveCustomProperties(IEnumerable<CustomPropertyItem> properties, string? configName = null)

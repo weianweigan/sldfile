@@ -13,7 +13,8 @@ internal static class DrawingReader
     public static IReadOnlyList<DrawingSheetInfo> ReadSheets(
         string? keywordsXml,
         IReadOnlyList<string> sheetNamesFromStream,
-        Func<int, byte[]?> getSheetPreview)
+        Func<int, byte[]?> getSheetPreview,
+        Func<int, byte[]?>? getHighResPreview = null)
     {
         var sheets = new List<DrawingSheetInfo>();
 
@@ -55,12 +56,14 @@ internal static class DrawingReader
                         }
 
                         byte[]? preview = getSheetPreview(sheetIdx);
+                        byte[]? highRes = getHighResPreview?.Invoke(sheetIdx);
 
                         sheets.Add(new DrawingSheetInfo
                         {
                             Name = sheetName,
                             SheetIndex = sheetIdx,
                             PreviewPng = preview,
+                            HighResPreview = highRes,
                             Views = views.AsReadOnly()
                         });
 
@@ -84,6 +87,7 @@ internal static class DrawingReader
                     Name = sheetNamesFromStream[i],
                     SheetIndex = i,
                     PreviewPng = getSheetPreview(i),
+                    HighResPreview = getHighResPreview?.Invoke(i),
                     Views = Array.Empty<DrawingViewInfo>()
                 });
             }

@@ -44,8 +44,10 @@ public class AssemblyExplodeAndIsolateTests
         public IReadOnlyList<EquationItem> GetEquations() => Array.Empty<EquationItem>();
         public byte[]? GetPreviewPng(int configIndex = 0) => null;
         public byte[]? GetPreviewBitmap(int configIndex = 0) => null;
+        public byte[]? GetBestPreviewImage(int configIndex = 0) => null;
         public IReadOnlyList<DrawingSheetInfo> GetDrawingSheets() => Array.Empty<DrawingSheetInfo>();
         public byte[]? GetSheetPreviewPng(int sheetIndex) => null;
+        public byte[]? GetBestSheetPreviewImage(int sheetIndex) => null;
         public void SaveCustomProperties(IEnumerable<CustomPropertyItem> properties, string? configName = null) { }
     }
 

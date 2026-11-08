@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Linq;
+using System.Threading.Tasks;
 using SldFile.Binary;
 
 namespace SldFile;
@@ -55,6 +56,48 @@ public abstract partial class SwFile
                 return DibBitmapConverter.ConvertToBmp(bytes2);
         }
         return DibBitmapConverter.ConvertToBmp(PreviewImage);
+    }
+
+    /// <summary>
+    /// Returns the best available preview image data (preferring high-resolution BMP over thumbnail PNG, or vice versa).
+    /// </summary>
+    public byte[]? GetBestPreviewImage(int configIndex = 0)
+    {
+        var bmp = GetPreviewBitmap(configIndex);
+        var png = GetPreviewPng(configIndex);
+        if (bmp != null && png != null)
+        {
+            var (bw, bh) = GetImageDimensions(bmp);
+            var (pw, ph) = GetImageDimensions(png);
+            return (bw * (long)bh >= pw * (long)ph) ? bmp : png;
+        }
+        return bmp ?? png;
+    }
+
+    /// <summary>
+    /// Parses width and height from PNG (IHDR) or BMP headers.
+    /// </summary>
+    public static (int width, int height) GetImageDimensions(byte[]? imageBytes)
+    {
+        if (imageBytes == null || imageBytes.Length < 24) return (0, 0);
+
+        // PNG signature: 89 50 4E 47
+        if (imageBytes.Length >= 24 && imageBytes[0] == 0x89 && imageBytes[1] == 0x50 && imageBytes[2] == 0x4E && imageBytes[3] == 0x47)
+        {
+            int w = (imageBytes[16] << 24) | (imageBytes[17] << 16) | (imageBytes[18] << 8) | imageBytes[19];
+            int h = (imageBytes[20] << 24) | (imageBytes[21] << 16) | (imageBytes[22] << 8) | imageBytes[23];
+            return (Math.Max(0, w), Math.Max(0, h));
+        }
+
+        // BMP signature: 42 4D ('BM')
+        if (imageBytes.Length >= 26 && imageBytes[0] == 0x42 && imageBytes[1] == 0x4D)
+        {
+            int w = BitConverter.ToInt32(imageBytes, 18);
+            int h = Math.Abs(BitConverter.ToInt32(imageBytes, 22));
+            return (Math.Max(0, w), Math.Max(0, h));
+        }
+
+        return (0, 0);
     }
 
     /// <summary>Returns a copy of the raw Preview stream bytes (4-byte length prefix + DIB), or null when none is present.</summary>
@@ -224,6 +267,42 @@ public abstract partial class SwFile
 
         var cachedPartMeshes = new Dictionary<string, DisplayMesh>(StringComparer.OrdinalIgnoreCase);
         string? asmDir = !string.IsNullOrEmpty(FilePath) ? Path.GetDirectoryName(FilePath) : null;
+
+        // 收集所有去重后的外部子零件路径，利用多核 CPU 进行异步并行预解码，显著提升装配体首次拼装速度
+        var uniquePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var comp in leafComponents)
+        {
+            string actualPath = comp.FilePath;
+            if (!File.Exists(actualPath) && !string.IsNullOrEmpty(asmDir))
+            {
+                string candidate = Path.Combine(asmDir, Path.GetFileName(comp.FilePath));
+                if (File.Exists(candidate)) actualPath = candidate;
+            }
+            if (!string.IsNullOrEmpty(actualPath) && File.Exists(actualPath))
+            {
+                uniquePaths.Add(actualPath);
+            }
+        }
+
+        if (uniquePaths.Count > 1)
+        {
+            Parallel.ForEach(uniquePaths, path =>
+            {
+                try
+                {
+                    using var psw = SwFile.Open(path, readOnly: true);
+                    var m = psw.GetDisplayMesh();
+                    if (m != null && m.Positions.Count > 0)
+                    {
+                        lock (cachedPartMeshes)
+                        {
+                            cachedPartMeshes[path] = m;
+                        }
+                    }
+                }
+                catch { }
+            });
+        }
 
         foreach (var comp in leafComponents)
         {
@@ -456,6 +535,38 @@ public abstract partial class SwFile
     }
 
     /// <summary>
+    /// Gets the best available preview image bytes for the specified drawing sheet (0-based),
+    /// preferring high-resolution preview bitmap (e.g. 2850x1436) when available.
+    /// </summary>
+    public byte[]? GetBestSheetPreviewImage(int sheetIndex)
+    {
+        var sheetPng = GetSheetPreviewPng(sheetIndex);
+        if (sheetIndex == 0)
+        {
+            var highResBmp = GetPreviewBitmap(0);
+            if (highResBmp != null)
+            {
+                if (sheetPng == null) return highResBmp;
+                var (bw, bh) = GetImageDimensions(highResBmp);
+                var (pw, ph) = GetImageDimensions(sheetPng);
+                if (bw * (long)bh >= pw * (long)ph) return highResBmp;
+            }
+        }
+        else
+        {
+            var cfgBmp = GetPreviewBitmap(sheetIndex);
+            if (cfgBmp != null)
+            {
+                if (sheetPng == null) return cfgBmp;
+                var (bw, bh) = GetImageDimensions(cfgBmp);
+                var (pw, ph) = GetImageDimensions(sheetPng);
+                if (bw * (long)bh >= pw * (long)ph) return cfgBmp;
+            }
+        }
+        return sheetPng;
+    }
+
+    /// <summary>
     /// Gets all drawing sheets with their views and preview images.
     /// </summary>
     public IReadOnlyList<DrawingSheetInfo> GetDrawingSheets()
@@ -472,7 +583,7 @@ public abstract partial class SwFile
             keywordsXml = zlb.XmlContent;
         }
 
-        return Drawing.DrawingReader.ReadSheets(keywordsXml, DrawingSheetNames, GetSheetPreviewPng);
+        return Drawing.DrawingReader.ReadSheets(keywordsXml, DrawingSheetNames, GetSheetPreviewPng, GetBestSheetPreviewImage);
     }
 
     private void InitializeUserData(Dictionary<string, byte[]> streams)

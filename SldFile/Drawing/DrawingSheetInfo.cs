@@ -11,6 +11,16 @@ public sealed class DrawingSheetInfo
     public string Name { get; internal set; } = string.Empty;
     public int SheetIndex { get; internal set; }
     public byte[]? PreviewPng { get; internal set; }
+
+    /// <summary>
+    /// Higher resolution preview bitmap (e.g. DIB/BMP from Preview stream), if available.
+    /// </summary>
+    public byte[]? HighResPreview { get; internal set; }
+
+    /// <summary>
+    /// Returns the best available preview image data (preferring high-resolution preview over thumbnail).
+    /// </summary>
+    public byte[]? BestPreview => HighResPreview ?? PreviewPng;
     public IReadOnlyList<DrawingViewInfo> Views { get; internal set; } = Array.Empty<DrawingViewInfo>();
 }
 

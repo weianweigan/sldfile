@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using SldFile;
@@ -28,7 +28,9 @@ public interface ISwDocumentService : IDisposable
     IReadOnlyList<EquationItem> GetEquations();
     byte[]? GetPreviewPng(int configIndex = 0);
     byte[]? GetPreviewBitmap(int configIndex = 0);
+    byte[]? GetBestPreviewImage(int configIndex = 0);
     IReadOnlyList<DrawingSheetInfo> GetDrawingSheets();
     byte[]? GetSheetPreviewPng(int sheetIndex);
+    byte[]? GetBestSheetPreviewImage(int sheetIndex);
     void SaveCustomProperties(IEnumerable<CustomPropertyItem> properties, string? configName = null);
 }
