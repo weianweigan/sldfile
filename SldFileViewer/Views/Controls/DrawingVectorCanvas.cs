@@ -72,6 +72,10 @@ public sealed class DrawingVectorCanvas : FrameworkElement
             if (string.IsNullOrWhiteSpace(text.CleanText))
                 continue;
 
+            // Filter out internal unresolved property macros
+            if (text.CleanText.StartsWith("$PRPSHEET", StringComparison.OrdinalIgnoreCase))
+                continue;
+
             // Filter out system placeholders or unplaced text
             if (text.PixelX <= 0 && text.PixelY <= 0)
                 continue;
@@ -94,9 +98,9 @@ public sealed class DrawingVectorCanvas : FrameworkElement
                 TextBrush,
                 pixelsPerDip);
 
-            // Anchor point adjustment: baseline offset
-            double drawX = text.PixelX;
-            double drawY = text.PixelY - emSize * 0.82;
+            // Anchor point adjustment: SolidWorks drawing text anchor is top-left aligned
+            double drawX = text.PixelX + 4.0;
+            double drawY = text.PixelY + 2.0;
 
             if (Math.Abs(text.AngleRad) > 1e-4)
             {
