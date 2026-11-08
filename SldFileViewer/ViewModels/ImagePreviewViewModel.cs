@@ -4,6 +4,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using SldFile.Drawing.Vector;
 using SldFileViewer.Services;
 
 namespace SldFileViewer.ViewModels;
@@ -44,6 +45,21 @@ public partial class ImagePreviewViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(ScalingMode))]
     [NotifyPropertyChangedFor(nameof(FilterModeText))]
     private bool _isSmoothFilter = true;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasVectorData))]
+    [NotifyPropertyChangedFor(nameof(VectorStatusText))]
+    private DrawingSheetVectorData? _vectorData;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(VectorOverlayButtonText))]
+    private bool _isVectorOverlayEnabled = true;
+
+    public bool HasVectorData => VectorData != null && VectorData.HasVectorData;
+
+    public string VectorStatusText => HasVectorData ? $"矢量 CAD ({VectorData!.Texts.Count} 图元)" : "无矢量数据";
+
+    public string VectorOverlayButtonText => IsVectorOverlayEnabled ? "矢量增强: 开" : "矢量增强: 关";
 
     public BitmapScalingMode ScalingMode => IsSmoothFilter ? BitmapScalingMode.Fant : BitmapScalingMode.NearestNeighbor;
 
@@ -94,6 +110,12 @@ public partial class ImagePreviewViewModel : ObservableObject
     }
 
     [RelayCommand]
+    public void ToggleVectorOverlay()
+    {
+        IsVectorOverlayEnabled = !IsVectorOverlayEnabled;
+    }
+
+    [RelayCommand]
     public void ExportImage()
     {
         if (RawImageBytes == null || RawImageBytes.Length == 0 || _dialogService == null)
@@ -124,8 +146,10 @@ public partial class ImagePreviewViewModel : ObservableObject
         ZoomText = $"{Math.Round(zoomRatio * 100):0}%";
     }
 
-    public void LoadImage(byte[]? imageBytes, string description = "")
+    public void LoadImage(byte[]? imageBytes, string description = "", DrawingSheetVectorData? vectorData = null)
     {
+        VectorData = vectorData;
+
         if (imageBytes == null || imageBytes.Length == 0)
         {
             ImageSource = null;
@@ -155,8 +179,14 @@ public partial class ImagePreviewViewModel : ObservableObject
             PixelHeight = bmp.PixelHeight;
             IsHighDefinition = bmp.PixelWidth >= 1920 || bmp.PixelHeight >= 1080;
 
+            if (VectorData != null && VectorData.HasVectorData)
+            {
+                VectorData.CalculatePixelCoordinates(bmp.PixelWidth, bmp.PixelHeight);
+            }
+
             string hdTag = IsHighDefinition ? " [高清]" : "";
-            ImageInfo = $"{description}{hdTag} - 分辨率: {bmp.PixelWidth} x {bmp.PixelHeight} px ({(imageBytes.Length + 1023) / 1024} KB)";
+            string vectorTag = (VectorData != null && VectorData.HasVectorData) ? $" [矢量 CAD: {VectorData.Texts.Count} 图元]" : "";
+            ImageInfo = $"{description}{hdTag}{vectorTag} - 分辨率: {bmp.PixelWidth} x {bmp.PixelHeight} px ({(imageBytes.Length + 1023) / 1024} KB)";
 
             // 图像更新后请求视口自适应
             RequestFitToWindow?.Invoke();

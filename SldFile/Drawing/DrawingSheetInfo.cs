@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using SldFile.Drawing.Vector;
 
 namespace SldFile;
 
@@ -21,6 +22,12 @@ public sealed class DrawingSheetInfo
     /// Returns the best available preview image data (preferring high-resolution preview over thumbnail).
     /// </summary>
     public byte[]? BestPreview => HighResPreview ?? PreviewPng;
+
+    /// <summary>
+    /// Extracted 2D vector graphic metadata (text notes, title block, dimensions) for lossless CAD rendering.
+    /// </summary>
+    public DrawingSheetVectorData? VectorData { get; internal set; }
+
     public IReadOnlyList<DrawingViewInfo> Views { get; internal set; } = Array.Empty<DrawingViewInfo>();
 }
 

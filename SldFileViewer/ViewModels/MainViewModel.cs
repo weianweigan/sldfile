@@ -129,12 +129,14 @@ public partial class MainViewModel : ObservableObject
             string initCfgName = SelectedConfiguration?.Name ?? "默认";
             byte[]? initialImage = null;
             string previewDesc = $"模型预览 (配置: {initCfgName})";
+            SldFile.Drawing.Vector.DrawingSheetVectorData? initialVectorData = null;
             if (sw.Kind == DocumentKind.Drawing)
             {
                 var sheets = _docService.GetDrawingSheets();
                 var firstSheet = sheets.FirstOrDefault();
                 initialImage = _docService.GetBestSheetPreviewImage(0) ?? firstSheet?.BestPreview ?? _docService.GetBestPreviewImage(0);
                 previewDesc = firstSheet != null ? $"工程图纸: {firstSheet.Name}" : "工程图预览";
+                initialVectorData = firstSheet?.VectorData;
             }
             else
             {
@@ -143,7 +145,7 @@ public partial class MainViewModel : ObservableObject
 
             if (initialImage != null)
             {
-                ImagePreview.LoadImage(initialImage, previewDesc);
+                ImagePreview.LoadImage(initialImage, previewDesc, initialVectorData);
             }
 
             // Set default view to MeshViewer or Preview
@@ -260,12 +262,14 @@ public partial class MainViewModel : ObservableObject
                 string cfgName = SelectedConfiguration?.Name ?? "默认";
                 byte[]? img = null;
                 string desc = $"模型预览 (配置: {cfgName})";
+                SldFile.Drawing.Vector.DrawingSheetVectorData? vectorData = null;
                 if (_docService.CurrentFile?.Kind == DocumentKind.Drawing)
                 {
                     var sheets = _docService.GetDrawingSheets();
                     var firstSheet = sheets.FirstOrDefault();
                     img = _docService.GetBestSheetPreviewImage(0) ?? firstSheet?.BestPreview ?? _docService.GetBestPreviewImage(0);
                     desc = firstSheet != null ? $"工程图纸: {firstSheet.Name}" : "工程图预览";
+                    vectorData = firstSheet?.VectorData;
                 }
                 else
                 {
@@ -274,7 +278,7 @@ public partial class MainViewModel : ObservableObject
 
                 if (img != null)
                 {
-                    ImagePreview.LoadImage(img, desc);
+                    ImagePreview.LoadImage(img, desc, vectorData);
                 }
 
                 if (MeshViewer.HasMesh)
@@ -361,7 +365,7 @@ public partial class MainViewModel : ObservableObject
                 if (node.Tag is DrawingSheetInfo sheet)
                 {
                     var sheetImg = _docService.GetBestSheetPreviewImage(sheet.SheetIndex) ?? sheet.BestPreview ?? sheet.PreviewPng;
-                    ImagePreview.LoadImage(sheetImg, $"工程图纸: {sheet.Name}");
+                    ImagePreview.LoadImage(sheetImg, $"工程图纸: {sheet.Name}", sheet.VectorData);
                     CurrentView = ImagePreview;
                 }
                 break;

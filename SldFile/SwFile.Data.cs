@@ -583,7 +583,8 @@ public abstract partial class SwFile
             keywordsXml = zlb.XmlContent;
         }
 
-        return Drawing.DrawingReader.ReadSheets(keywordsXml, DrawingSheetNames, GetSheetPreviewPng, GetBestSheetPreviewImage);
+        RawStreams.TryGetValue("Contents/Definition", out var defnStream);
+        return Drawing.DrawingReader.ReadSheets(keywordsXml, DrawingSheetNames, GetSheetPreviewPng, GetBestSheetPreviewImage, defnStream);
     }
 
     private void InitializeUserData(Dictionary<string, byte[]> streams)

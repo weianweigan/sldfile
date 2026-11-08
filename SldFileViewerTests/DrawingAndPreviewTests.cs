@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using SldFileViewer.Models;
 using SldFileViewer.Services;
@@ -113,5 +114,92 @@ public class DrawingAndPreviewTests
         imgVm.LoadImage(Array.Empty<byte>());
         Assert.False(imgVm.HasImage);
         Assert.Null(imgVm.ImageSource);
+    }
+    [Fact]
+    public void ImagePreviewViewModel_VectorOverlay_TogglesAndFormatsStatus()
+    {
+        var docService = new SwDocumentService();
+        var imgVm = new ImagePreviewViewModel(docService);
+
+        var vectorData = new SldFile.Drawing.Vector.DrawingSheetVectorData();
+        vectorData.Texts = new[]
+        {
+            new SldFile.Drawing.Vector.DrawingVectorText("未注公差", 250, 49),
+            new SldFile.Drawing.Vector.DrawingVectorText("技术要求", 12, 24)
+        };
+
+        // Synthesize 100x100 BMP
+        byte[] bmp = new byte[54 + 100 * 100 * 3];
+        bmp[0] = 0x42; bmp[1] = 0x4D;
+        BitConverter.GetBytes(bmp.Length).CopyTo(bmp, 2);
+        BitConverter.GetBytes(54).CopyTo(bmp, 10);
+        BitConverter.GetBytes(40).CopyTo(bmp, 14);
+        BitConverter.GetBytes(100).CopyTo(bmp, 18);
+        BitConverter.GetBytes(100).CopyTo(bmp, 22);
+        BitConverter.GetBytes((short)1).CopyTo(bmp, 26);
+        BitConverter.GetBytes((short)24).CopyTo(bmp, 28);
+
+        imgVm.LoadImage(bmp, "测试工程图", vectorData);
+
+        Assert.True(imgVm.HasVectorData);
+        Assert.True(imgVm.IsVectorOverlayEnabled);
+        Assert.Contains("矢量 CAD (2 图元)", imgVm.VectorStatusText);
+        Assert.Contains("[矢量 CAD: 2 图元]", imgVm.ImageInfo);
+        Assert.Equal("矢量增强: 开", imgVm.VectorOverlayButtonText);
+
+        // Toggle
+        imgVm.ToggleVectorOverlayCommand.Execute(null);
+        Assert.False(imgVm.IsVectorOverlayEnabled);
+        Assert.Equal("矢量增强: 关", imgVm.VectorOverlayButtonText);
+
+        imgVm.ToggleVectorOverlayCommand.Execute(null);
+        Assert.True(imgVm.IsVectorOverlayEnabled);
+    }
+
+    [Fact]
+    public async Task Drawing_RealUserFile_LoadsVectorTextsAndOverlaysLosslessly()
+    {
+        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
+        if (!File.Exists(realPath)) return;
+
+        var docService = new SwDocumentService();
+        var dialogService = new MockDialogService();
+        var exportService = new ExportService();
+
+        var treeVm = new DocumentTreeViewModel(docService);
+        var sketchVm = new SketchCanvasViewModel();
+        var propsVm = new CustomPropsViewModel(docService, dialogService);
+        var eqVm = new EquationsViewModel(docService);
+        var bomVm = new BomViewModel(docService, exportService, dialogService);
+        var meshVm = new MeshViewerViewModel(docService, exportService, dialogService);
+        var imgVm = new ImagePreviewViewModel(docService, dialogService);
+        var featVm = new FeatureDetailViewModel();
+
+        var mainVm = new MainViewModel(docService, dialogService, treeVm, sketchVm, propsVm, eqVm, bomVm, meshVm, imgVm, featVm);
+
+        await mainVm.LoadDocumentAsync(realPath);
+
+        Assert.True(mainVm.IsFileLoaded);
+        Assert.Same(imgVm, mainVm.CurrentView);
+        Assert.True(imgVm.HasImage);
+
+        // Verify Vector Typography Data loaded!
+        Assert.True(imgVm.HasVectorData, "Expected drawing to contain vector CAD metadata");
+        Assert.True(imgVm.VectorData!.Texts.Count > 50, $"Expected >50 vector texts, got {imgVm.VectorData!.Texts.Count}");
+
+        // Verify key title block and note texts
+        var texts = imgVm.VectorData!.Texts;
+        Assert.Contains(texts, t => t.CleanText.Contains("技术要求"));
+        Assert.Contains(texts, t => t.CleanText.Contains("未注公差"));
+        Assert.Contains(texts, t => t.CleanText.Contains("D8001507933"));
+        Assert.Contains(texts, t => t.CleanText.Contains("锐边倒角去毛刺"));
+
+        // Verify coordinates mapped
+        var techNote = texts.First(t => t.CleanText.Contains("技术要求"));
+        Assert.True(techNote.PixelX > 150 && techNote.PixelX < 400, $"Expected PixelX in [150, 400], got {techNote.PixelX}");
+        Assert.True(techNote.PixelY > 400 && techNote.PixelY < 700, $"Expected PixelY in [400, 700], got {techNote.PixelY}");
+        Assert.True(techNote.PixelY > 400 && techNote.PixelY < 700);
+
+        mainVm.CloseFileCommand.Execute(null);
     }
 }

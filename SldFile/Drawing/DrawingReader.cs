@@ -2,11 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
+using SldFile.Drawing.Vector;
 
 namespace SldFile.Drawing;
 
 /// <summary>
-/// Reads drawing sheets, views, and sheet previews from drawing metadata.
+/// Reads drawing sheets, views, sheet previews, and vector graphic metadata from drawing streams.
 /// </summary>
 internal static class DrawingReader
 {
@@ -14,7 +15,8 @@ internal static class DrawingReader
         string? keywordsXml,
         IReadOnlyList<string> sheetNamesFromStream,
         Func<int, byte[]?> getSheetPreview,
-        Func<int, byte[]?>? getHighResPreview = null)
+        Func<int, byte[]?>? getHighResPreview = null,
+        byte[]? definitionStream = null)
     {
         var sheets = new List<DrawingSheetInfo>();
 
@@ -58,12 +60,28 @@ internal static class DrawingReader
                         byte[]? preview = getSheetPreview(sheetIdx);
                         byte[]? highRes = getHighResPreview?.Invoke(sheetIdx);
 
+                        DrawingSheetVectorData? vectorData = null;
+                        if (definitionStream != null && definitionStream.Length > 0)
+                        {
+                            vectorData = DrawingVectorReader.ReadVectorData(definitionStream, keywordsXml, sheetIdx);
+                            byte[]? bestImage = highRes ?? preview;
+                            if (bestImage != null && vectorData != null && vectorData.HasVectorData)
+                            {
+                                var (w, h) = SwFile.GetImageDimensions(bestImage);
+                                if (w > 0 && h > 0)
+                                {
+                                    vectorData.CalculatePixelCoordinates(w, h);
+                                }
+                            }
+                        }
+
                         sheets.Add(new DrawingSheetInfo
                         {
                             Name = sheetName,
                             SheetIndex = sheetIdx,
                             PreviewPng = preview,
                             HighResPreview = highRes,
+                            VectorData = vectorData,
                             Views = views.AsReadOnly()
                         });
 
@@ -82,12 +100,31 @@ internal static class DrawingReader
         {
             for (int i = 0; i < sheetNamesFromStream.Count; i++)
             {
+                byte[]? preview = getSheetPreview(i);
+                byte[]? highRes = getHighResPreview?.Invoke(i);
+
+                DrawingSheetVectorData? vectorData = null;
+                if (definitionStream != null && definitionStream.Length > 0)
+                {
+                    vectorData = DrawingVectorReader.ReadVectorData(definitionStream, keywordsXml, i);
+                    byte[]? bestImage = highRes ?? preview;
+                    if (bestImage != null && vectorData != null && vectorData.HasVectorData)
+                    {
+                        var (w, h) = SwFile.GetImageDimensions(bestImage);
+                        if (w > 0 && h > 0)
+                        {
+                            vectorData.CalculatePixelCoordinates(w, h);
+                        }
+                    }
+                }
+
                 sheets.Add(new DrawingSheetInfo
                 {
                     Name = sheetNamesFromStream[i],
                     SheetIndex = i,
-                    PreviewPng = getSheetPreview(i),
-                    HighResPreview = getHighResPreview?.Invoke(i),
+                    PreviewPng = preview,
+                    HighResPreview = highRes,
+                    VectorData = vectorData,
                     Views = Array.Empty<DrawingViewInfo>()
                 });
             }

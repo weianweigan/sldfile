@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
+             xmlns:controls="clr-namespace:SldFileViewer.Views.Controls"
              mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="800">
 
@@ -102,6 +103,18 @@
                             </StackPanel>
                         </Button>
 
+                        <!-- Vector CAD Typography Toggle (Lossless Vector Overlay) -->
+                        <Button Command="{Binding ToggleVectorOverlayCommand}"
+                                Visibility="{Binding HasVectorData, Converter={StaticResource BoolToVisibilityConverter}}"
+                                Style="{StaticResource Style.Button.Toolbar}"
+                                Padding="8,4" Margin="2,0"
+                                ToolTip="切换工程图 100% 矢量文字无损增强渲染 (媲美 eDrawings)">
+                            <StackPanel Orientation="Horizontal">
+                                <iconPacks:PackIconMaterial Kind="FormatLetterCase" Width="12" Height="12" Foreground="{StaticResource Brush.Figma.Ink}" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding VectorOverlayButtonText}" FontSize="11" FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </Button>
+
                         <!-- Export Image Button -->
                         <Button Command="{Binding ExportImageCommand}"
                                 Style="{StaticResource Style.Button.Toolbar}"
@@ -145,6 +158,8 @@
 
             <Grid.ContextMenu>
                 <ContextMenu>
+                    <MenuItem Header="矢量文字增强 (Vector CAD)" Command="{Binding ToggleVectorOverlayCommand}" Visibility="{Binding HasVectorData, Converter={StaticResource BoolToVisibilityConverter}}" />
+                    <Separator Visibility="{Binding HasVectorData, Converter={StaticResource BoolToVisibilityConverter}}" />
                     <MenuItem Header="自适应窗口大小 (Fit)" Command="{Binding FitToWindowCommand}" />
                     <MenuItem Header="1:1 实际尺寸 (100%)" Command="{Binding ResetTo100Command}" />
                     <Separator />
@@ -175,10 +190,21 @@
                         <DropShadowEffect BlurRadius="12" ShadowDepth="2" Opacity="0.15" Direction="270"/>
                     </Border.Effect>
 
-                    <Image x:Name="PreviewImageCtrl"
-                           Source="{Binding ImageSource}"
-                           Stretch="None"
-                           RenderOptions.BitmapScalingMode="{Binding ScalingMode}" />
+                    <Grid>
+                        <Image x:Name="PreviewImageCtrl"
+                               Source="{Binding ImageSource}"
+                               Stretch="None"
+                               RenderOptions.BitmapScalingMode="{Binding ScalingMode}" />
+
+                        <!-- Lossless CAD Vector Typography Layer -->
+                        <controls:DrawingVectorCanvas
+                            Width="{Binding PixelWidth}"
+                            Height="{Binding PixelHeight}"
+                            VectorData="{Binding VectorData}"
+                            IsOverlayEnabled="{Binding IsVectorOverlayEnabled}"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Top" />
+                    </Grid>
                 </Border>
             </Grid>
 
@@ -194,7 +220,7 @@
                     <DropShadowEffect BlurRadius="6" ShadowDepth="1" Opacity="0.1" Direction="270"/>
                 </Border.Effect>
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="💡 鼠标滚轮缩放 | 拖拽平移 | 双击自适应" FontSize="11" Foreground="{StaticResource Brush.Figma.Ink}" Opacity="0.8"/>
+                    <TextBlock Text="💡 鼠标滚轮缩放 | 拖拽平移 | 双击自适应 | 🔤 CAD 矢量增强" FontSize="11" Foreground="{StaticResource Brush.Figma.Ink}" Opacity="0.8"/>
                 </StackPanel>
             </Border>
 
