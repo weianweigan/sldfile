@@ -13,9 +13,11 @@ public static class DrawingGeometryReader
 {
     /// <summary>
     /// Extracts and constructs all 2D vector CAD line geometry and individual view geometries for a drawing sheet.
-    /// Combines standard sheet border frames, title block outer boundaries, and transformed view geometric wireframes.
+    /// Combines standard sheet border frames, title block outer boundaries, DisplayLists native 2D CAD line primitives,
+    /// and transformed view geometric wireframes.
     /// </summary>
     public static (IReadOnlyList<DrawingVectorLine> Lines, IReadOnlyList<DrawingViewGeometry> Views) ReadSheetGeometryAndViews(
+        byte[]? displayListsStream,
         byte[]? vbListsStream,
         byte[]? definitionStream,
         double paperWidthMm,
@@ -25,27 +27,69 @@ public static class DrawingGeometryReader
         double w = paperWidthMm > 50.0 ? paperWidthMm : 297.0;
         double h = paperHeightMm > 50.0 ? paperHeightMm : 210.0;
 
-        // 1. Standard Sheet Borders (GB / ISO / ASME Drawing Standard)
-        GenerateSheetBorders(allLines, w, h);
-
-        // 2. Standard Title Block & Tolerance Table Outer Frame
-        GenerateTitleBlockAndToleranceGrids(allLines, w, h);
-
-        // 3. Extract Views from Definition Stream
+        // 1. Extract Views from Definition Stream
         var views = new List<DrawingViewGeometry>();
         if (definitionStream != null && definitionStream.Length > 100)
         {
             views.AddRange(ExtractViewsFromDefinition(definitionStream, w, h));
         }
 
-        // 4. Extract View Geometry Wireframe from VBLists (uiViewBucket_c / uoTempBodyTessData_c)
-        if (vbListsStream != null && vbListsStream.Length > 50)
+        // 2. Primary: Extract 2D CAD Vector Geometry from Contents/DisplayLists (eDrawings native stream)
+        bool hasDisplayListLines = false;
+        if (displayListsStream != null && displayListsStream.Length > 100)
         {
-            var viewLines = ExtractViewGeometryFromVBLists(vbListsStream, views, w, h);
-            allLines.AddRange(viewLines);
+            var dlLines = ExtractLinesFromDisplayLists(displayListsStream, w, h);
+            if (dlLines.Count > 0)
+            {
+                allLines.AddRange(dlLines);
+                hasDisplayListLines = true;
+                AssignLinesToViews(dlLines, views);
+            }
+        }
+
+        // 3. Always include 4 clean paper edge boundaries
+        GenerateSheetOuterBorders(allLines, w, h);
+
+        // 4. Fallback: Generate synthetic inner borders and grids only if no native DisplayLists lines
+        if (!hasDisplayListLines)
+        {
+            GenerateSheetInnerBorders(allLines, w, h);
+            GenerateTitleBlockAndToleranceGrids(allLines, w, h);
+
+            if (vbListsStream != null && vbListsStream.Length > 50)
+            {
+                var viewLines = ExtractViewGeometryFromVBLists(vbListsStream, views, w, h);
+                allLines.AddRange(viewLines);
+            }
         }
 
         return (allLines.AsReadOnly(), views.AsReadOnly());
+    }
+
+    /// <summary>
+    /// Backwards compatible overload for ReadSheetGeometryAndViews without DisplayLists stream.
+    /// </summary>
+    public static (IReadOnlyList<DrawingVectorLine> Lines, IReadOnlyList<DrawingViewGeometry> Views) ReadSheetGeometryAndViews(
+        byte[]? vbListsStream,
+        byte[]? definitionStream,
+        double paperWidthMm,
+        double paperHeightMm)
+    {
+        return ReadSheetGeometryAndViews(null, vbListsStream, definitionStream, paperWidthMm, paperHeightMm);
+    }
+
+    /// <summary>
+    /// Extracts all 2D vector CAD line geometry for a drawing sheet with DisplayLists support.
+    /// </summary>
+    public static IReadOnlyList<DrawingVectorLine> ReadSheetGeometry(
+        byte[]? displayListsStream,
+        byte[]? vbListsStream,
+        byte[]? definitionStream,
+        double paperWidthMm,
+        double paperHeightMm)
+    {
+        var (lines, _) = ReadSheetGeometryAndViews(displayListsStream, vbListsStream, definitionStream, paperWidthMm, paperHeightMm);
+        return lines;
     }
 
     /// <summary>
@@ -57,18 +101,151 @@ public static class DrawingGeometryReader
         double paperWidthMm,
         double paperHeightMm)
     {
-        var (lines, _) = ReadSheetGeometryAndViews(vbListsStream, definitionStream, paperWidthMm, paperHeightMm);
+        var (lines, _) = ReadSheetGeometryAndViews(null, vbListsStream, definitionStream, paperWidthMm, paperHeightMm);
         return lines;
     }
 
-    private static void GenerateSheetBorders(List<DrawingVectorLine> lines, double w, double h)
+    private static void AssignLinesToViews(List<DrawingVectorLine> lines, List<DrawingViewGeometry> views)
+    {
+        if (views.Count == 0 || lines.Count == 0) return;
+
+        foreach (var view in views)
+        {
+            double left = view.LeftXMm - 5.0;
+            double right = view.RightXMm + 5.0;
+            double bottom = view.BottomYMm - 5.0;
+            double top = view.TopYMm + 5.0;
+
+            var matched = lines.Where(l =>
+                (l.X1 >= left && l.X1 <= right && l.Y1 >= bottom && l.Y1 <= top) ||
+                (l.X2 >= left && l.X2 <= right && l.Y2 >= bottom && l.Y2 <= top)).ToList();
+
+            if (matched.Count > 0)
+            {
+                view.Lines = matched;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Decodes high-precision 2D CAD vector line geometry directly from SolidWorks Contents/DisplayLists stream.
+    /// This is the exact native stream used by eDrawings to render clean, lossless, sub-millimeter 2D drawing views.
+    /// </summary>
+    public static List<DrawingVectorLine> ExtractLinesFromDisplayLists(
+        byte[] displayListsStream,
+        double paperWidthMm,
+        double paperHeightMm)
+    {
+        var lines = new List<DrawingVectorLine>();
+        if (displayListsStream == null || displayListsStream.Length < 96) return lines;
+
+        int startOffset = 0;
+        byte[] layerMgrTag = System.Text.Encoding.ASCII.GetBytes("uiLayerMgr_c");
+        for (int i = 0; i <= Math.Min(displayListsStream.Length - layerMgrTag.Length, 8192); i++)
+        {
+            bool match = true;
+            for (int j = 0; j < layerMgrTag.Length; j++)
+            {
+                if (displayListsStream[i + j] != layerMgrTag[j]) { match = false; break; }
+            }
+            if (match)
+            {
+                startOffset = i + layerMgrTag.Length;
+                break;
+            }
+        }
+
+        double maxAllowedW = Math.Max(paperWidthMm * 2.0, 1500.0);
+        double maxAllowedH = Math.Max(paperHeightMm * 2.0, 1500.0);
+
+        for (int i = startOffset; i <= displayListsStream.Length - 80; i++)
+        {
+            if (displayListsStream[i] == 0xFF && displayListsStream[i + 1] == 0xFE && displayListsStream[i + 2] == 0xFF)
+            {
+                int nameLen = displayListsStream[i + 3];
+                if (nameLen >= 3 && nameLen <= 32 && i + 4 + nameLen * 2 + 8 + 48 <= displayListsStream.Length)
+                {
+                    string styleName = System.Text.Encoding.Unicode.GetString(displayListsStream, i + 4, nameLen * 2);
+                    if (styleName.All(c => char.IsLetterOrDigit(c) || c == '_' || c == '-' || c >= 0x4e00))
+                    {
+                        int coordOff = i + 4 + nameLen * 2 + 8;
+                        double x1 = BitConverter.ToDouble(displayListsStream, coordOff);
+                        double y1 = BitConverter.ToDouble(displayListsStream, coordOff + 8);
+                        double z1 = BitConverter.ToDouble(displayListsStream, coordOff + 16);
+                        double x2 = BitConverter.ToDouble(displayListsStream, coordOff + 24);
+                        double y2 = BitConverter.ToDouble(displayListsStream, coordOff + 32);
+                        double z2 = BitConverter.ToDouble(displayListsStream, coordOff + 40);
+
+                        if (!double.IsNaN(x1) && !double.IsInfinity(x1) &&
+                            !double.IsNaN(y1) && !double.IsInfinity(y1) &&
+                            !double.IsNaN(x2) && !double.IsInfinity(x2) &&
+                            !double.IsNaN(y2) && !double.IsInfinity(y2))
+                        {
+                            double x1mm = x1 * 1000.0;
+                            double y1mm = y1 * 1000.0;
+                            double x2mm = x2 * 1000.0;
+                            double y2mm = y2 * 1000.0;
+
+                            if (x1mm >= -50.0 && x1mm <= maxAllowedW && y1mm >= -50.0 && y1mm <= maxAllowedH &&
+                                x2mm >= -50.0 && x2mm <= maxAllowedW && y2mm >= -50.0 && y2mm <= maxAllowedH)
+                            {
+                                // Clamp coordinates safely to paper boundary [0..paperWidth, 0..paperHeight]
+                                x1mm = Math.Max(0.0, Math.Min(paperWidthMm, x1mm));
+                                x2mm = Math.Max(0.0, Math.Min(paperWidthMm, x2mm));
+                                y1mm = Math.Max(0.0, Math.Min(paperHeightMm, y1mm));
+                                y2mm = Math.Max(0.0, Math.Min(paperHeightMm, y2mm));
+
+                                double dx = x2mm - x1mm;
+                                double dy = y2mm - y1mm;
+                                double len = Math.Sqrt(dx * dx + dy * dy);
+
+                                if (len > 0.05)
+                                {
+                                    DrawingLineKind kind = DrawingLineKind.SolidOutline;
+                                    double thickness = 0.35;
+
+                                    if (styleName.Contains("CENTER", StringComparison.OrdinalIgnoreCase) ||
+                                        styleName.Contains("中心"))
+                                    {
+                                        kind = DrawingLineKind.Centerline;
+                                        thickness = 0.20;
+                                    }
+                                    else if (styleName.Contains("HIDDEN", StringComparison.OrdinalIgnoreCase) ||
+                                             styleName.Contains("虚线"))
+                                    {
+                                        kind = DrawingLineKind.HiddenLine;
+                                        thickness = 0.20;
+                                    }
+                                    else if (styleName.Contains("CHAIN", StringComparison.OrdinalIgnoreCase) ||
+                                             styleName.Contains("折弯"))
+                                    {
+                                        kind = DrawingLineKind.ThinLine;
+                                        thickness = 0.25;
+                                    }
+
+                                    lines.Add(new DrawingVectorLine(x1mm, y1mm, x2mm, y2mm, kind, thickness));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return lines;
+    }
+
+    private static void GenerateSheetOuterBorders(List<DrawingVectorLine> lines, double w, double h)
     {
         // Outer paper edge boundary (fine line 0.25mm)
         lines.Add(new DrawingVectorLine(0.0, 0.0, w, 0.0, DrawingLineKind.SheetBorderOuter, 0.25));
         lines.Add(new DrawingVectorLine(w, 0.0, w, h, DrawingLineKind.SheetBorderOuter, 0.25));
         lines.Add(new DrawingVectorLine(w, h, 0.0, h, DrawingLineKind.SheetBorderOuter, 0.25));
         lines.Add(new DrawingVectorLine(0.0, h, 0.0, 0.0, DrawingLineKind.SheetBorderOuter, 0.25));
+    }
 
+    private static void GenerateSheetInnerBorders(List<DrawingVectorLine> lines, double w, double h)
+    {
         // Inner drawing frame (thick line 0.5mm, 25mm margin on left for binding edge, 5mm on top/bottom/right)
         double left = 25.0;
         double right = w - 5.0;
@@ -79,6 +256,12 @@ public static class DrawingGeometryReader
         lines.Add(new DrawingVectorLine(right, bottom, right, top, DrawingLineKind.SheetBorderInner, 0.5));
         lines.Add(new DrawingVectorLine(right, top, left, top, DrawingLineKind.SheetBorderInner, 0.5));
         lines.Add(new DrawingVectorLine(left, top, left, bottom, DrawingLineKind.SheetBorderInner, 0.5));
+    }
+
+    private static void GenerateSheetBorders(List<DrawingVectorLine> lines, double w, double h)
+    {
+        GenerateSheetOuterBorders(lines, w, h);
+        GenerateSheetInnerBorders(lines, w, h);
     }
 
     private static void GenerateTitleBlockAndToleranceGrids(List<DrawingVectorLine> lines, double w, double h)

@@ -17,7 +17,8 @@ internal static class DrawingReader
         Func<int, byte[]?> getSheetPreview,
         Func<int, byte[]?>? getHighResPreview = null,
         byte[]? definitionStream = null,
-        byte[]? vbListsStream = null)
+        byte[]? vbListsStream = null,
+        byte[]? displayListsStream = null)
     {
         var sheets = new List<DrawingSheetInfo>();
 
@@ -62,9 +63,10 @@ internal static class DrawingReader
                         byte[]? highRes = getHighResPreview?.Invoke(sheetIdx);
 
                         DrawingSheetVectorData? vectorData = null;
-                        if (definitionStream != null && definitionStream.Length > 0)
+                        if ((definitionStream != null && definitionStream.Length > 0) ||
+                            (displayListsStream != null && displayListsStream.Length > 0))
                         {
-                            vectorData = DrawingVectorReader.ReadVectorData(definitionStream, keywordsXml, sheetIdx, vbListsStream);
+                            vectorData = DrawingVectorReader.ReadVectorData(definitionStream, keywordsXml, sheetIdx, vbListsStream, displayListsStream);
                             byte[]? bestImage = highRes ?? preview;
                             if (bestImage != null && vectorData != null && vectorData.HasVectorData)
                             {
@@ -105,9 +107,10 @@ internal static class DrawingReader
                 byte[]? highRes = getHighResPreview?.Invoke(i);
 
                 DrawingSheetVectorData? vectorData = null;
-                if (definitionStream != null && definitionStream.Length > 0)
+                if ((definitionStream != null && definitionStream.Length > 0) ||
+                    (displayListsStream != null && displayListsStream.Length > 0))
                 {
-                    vectorData = DrawingVectorReader.ReadVectorData(definitionStream, keywordsXml, i, vbListsStream);
+                    vectorData = DrawingVectorReader.ReadVectorData(definitionStream, keywordsXml, i, vbListsStream, displayListsStream);
                     byte[]? bestImage = highRes ?? preview;
                     if (bestImage != null && vectorData != null && vectorData.HasVectorData)
                     {

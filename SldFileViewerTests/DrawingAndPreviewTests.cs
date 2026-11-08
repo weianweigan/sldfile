@@ -29,8 +29,9 @@ public class DrawingAndPreviewTests
             return true;
         }
 
+        public List<(string Title, string Message)> Errors { get; } = new();
         public void ShowInformation(string title, string message) { }
-        public void ShowError(string title, string message) { }
+        public void ShowError(string title, string message) => Errors.Add((title, message));
     }
 
     private readonly string _cubeDrawing = ViewerIntegrationTests.ResolveModelPath("cube.SLDDRW");
@@ -228,8 +229,41 @@ public class DrawingAndPreviewTests
         Assert.True(imgVm.VectorData!.HasLines, "Expected drawing to contain 2D CAD vector line geometry");
         Assert.True(imgVm.VectorData!.Lines.Count >= 10, $"Expected >=10 vector lines, got {imgVm.VectorData!.Lines.Count}");
         Assert.Contains(imgVm.VectorData!.Lines, l => l.Kind == SldFile.Drawing.Vector.DrawingLineKind.SheetBorderOuter);
-        Assert.Contains(imgVm.VectorData!.Lines, l => l.Kind == SldFile.Drawing.Vector.DrawingLineKind.SheetBorderInner);
+        Assert.Contains(imgVm.VectorData!.Lines, l => l.Kind == SldFile.Drawing.Vector.DrawingLineKind.SolidOutline);
+        Assert.Contains(imgVm.VectorData!.Lines, l => l.Kind == SldFile.Drawing.Vector.DrawingLineKind.Centerline);
 
+        mainVm.CloseFileCommand.Execute(null);
+    }
+
+    [Fact]
+    public async Task Drawing_RealPartFile_LoadsWithoutExceptions()
+    {
+        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDPRT";
+        if (!File.Exists(realPath)) return;
+
+        var docService = new SwDocumentService();
+        var dialogService = new MockDialogService();
+        var exportService = new ExportService();
+
+        var treeVm = new DocumentTreeViewModel(docService);
+        var sketchVm = new SketchCanvasViewModel();
+        var propsVm = new CustomPropsViewModel(docService, dialogService);
+        var eqVm = new EquationsViewModel(docService);
+        var bomVm = new BomViewModel(docService, exportService, dialogService);
+        var meshVm = new MeshViewerViewModel(docService, exportService, dialogService);
+        var imgVm = new ImagePreviewViewModel(docService, dialogService);
+        var featVm = new FeatureDetailViewModel();
+
+        var mainVm = new MainViewModel(docService, dialogService, treeVm, sketchVm, propsVm, eqVm, bomVm, meshVm, imgVm, featVm);
+
+        await mainVm.LoadDocumentAsync(realPath);
+
+        foreach (var err in dialogService.Errors)
+        {
+            Assert.Fail($"Dialog error: {err.Title} -> {err.Message}");
+        }
+
+        Assert.True(mainVm.IsFileLoaded);
         mainVm.CloseFileCommand.Execute(null);
     }
 

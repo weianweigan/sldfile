@@ -585,7 +585,8 @@ public abstract partial class SwFile
 
         RawStreams.TryGetValue("Contents/Definition", out var defnStream);
         RawStreams.TryGetValue("Contents/VBLists", out var vbListsStream);
-        return Drawing.DrawingReader.ReadSheets(keywordsXml, DrawingSheetNames, GetSheetPreviewPng, GetBestSheetPreviewImage, defnStream, vbListsStream);
+        RawStreams.TryGetValue("Contents/DisplayLists", out var displayListsStream);
+        return Drawing.DrawingReader.ReadSheets(keywordsXml, DrawingSheetNames, GetSheetPreviewPng, GetBestSheetPreviewImage, defnStream, vbListsStream, displayListsStream);
     }
 
     private void InitializeUserData(Dictionary<string, byte[]> streams)

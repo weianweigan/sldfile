@@ -33,6 +33,18 @@ public sealed class DrawingViewGeometry
     /// <summary>Calculated effective scale factor (Numerator / Denominator).</summary>
     public double Scale => (ScaleDenominator > 1e-6) ? (ScaleNumerator / ScaleDenominator) : 1.0;
 
+    /// <summary>Left X boundary of the view on the sheet (mm).</summary>
+    public double LeftXMm => CenterXMm - WidthMm / 2.0;
+
+    /// <summary>Right X boundary of the view on the sheet (mm).</summary>
+    public double RightXMm => CenterXMm + WidthMm / 2.0;
+
+    /// <summary>Bottom Y boundary of the view on the sheet (mm).</summary>
+    public double BottomYMm => CenterYMm - HeightMm / 2.0;
+
+    /// <summary>Top Y boundary of the view on the sheet (mm).</summary>
+    public double TopYMm => CenterYMm + HeightMm / 2.0;
+
     /// <summary>
     /// All 2D CAD vector line segments belonging to this view, mapped to physical sheet coordinates (mm).
     /// </summary>

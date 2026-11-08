@@ -25,12 +25,14 @@ public static class DrawingVectorReader
         byte[]? definitionStream,
         string? keywordsXml,
         int sheetIndex = 0,
-        byte[]? vbListsStream = null)
+        byte[]? vbListsStream = null,
+        byte[]? displayListsStream = null)
     {
         var vectorData = new DrawingSheetVectorData();
 
         bool hasStreamData = (definitionStream != null && definitionStream.Length > 0) ||
-                             (vbListsStream != null && vbListsStream.Length > 0);
+                             (vbListsStream != null && vbListsStream.Length > 0) ||
+                             (displayListsStream != null && displayListsStream.Length > 0);
 
         if (!hasStreamData)
         {
@@ -68,9 +70,12 @@ public static class DrawingVectorReader
         }
 
         // 3. Extract 2D CAD vector line geometry (sheet borders, title block, view geometry wireframes)
-        if ((vbListsStream != null && vbListsStream.Length > 0) || (definitionStream != null && definitionStream.Length > 0))
+        if ((displayListsStream != null && displayListsStream.Length > 0) ||
+            (vbListsStream != null && vbListsStream.Length > 0) ||
+            (definitionStream != null && definitionStream.Length > 0))
         {
             var (lines, views) = DrawingGeometryReader.ReadSheetGeometryAndViews(
+                displayListsStream,
                 vbListsStream,
                 definitionStream,
                 vectorData.PaperWidthMm,

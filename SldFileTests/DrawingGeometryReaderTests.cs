@@ -159,6 +159,27 @@ public class DrawingGeometryReaderTests
         }
 
         using var swFile = SwFile.Open(realPath, readOnly: true);
+        _output.WriteLine("=== ALL RAW STREAMS IN FILE ===");
+        foreach (var kvp in swFile.RawStreams)
+        {
+            _output.WriteLine($"Stream: '{kvp.Key}', Size: {kvp.Value.Length} bytes");
+        }
+        _output.WriteLine("=== ALL ZLB STREAMS IN FILE ===");
+        foreach (var kvp in swFile.ZlbContents)
+        {
+            _output.WriteLine($"Zlb: '{kvp.Key}', Size: {kvp.Value.DecompressedSize} bytes");
+        }
+
+        swFile.RawStreams.TryGetValue("Contents/DisplayLists", out var dlBytes);
+        Assert.NotNull(dlBytes);
+        Assert.True(dlBytes.Length > 1000);
+
+        var directLines = DrawingGeometryReader.ExtractLinesFromDisplayLists(dlBytes, 420.0, 297.0);
+        Assert.True(directLines.Count >= 300, $"Expected >=300 lines from DisplayLists, got {directLines.Count}");
+        Assert.True(directLines.Any(l => l.Kind == DrawingLineKind.SolidOutline));
+        Assert.True(directLines.Any(l => l.Kind == DrawingLineKind.Centerline));
+        _output.WriteLine($"Extracted {directLines.Count} direct CAD lines from DisplayLists (SolidOutline: {directLines.Count(l => l.Kind == DrawingLineKind.SolidOutline)}, Centerlines: {directLines.Count(l => l.Kind == DrawingLineKind.Centerline)})");
+
         var sheets = swFile.GetDrawingSheets();
 
         Assert.NotNull(sheets);
@@ -189,5 +210,24 @@ public class DrawingGeometryReaderTests
 
         Assert.True(minX >= 0.0 && maxX <= 420.0 + 1e-2, $"X range out of bounds: [{minX}, {maxX}]");
         Assert.True(minY >= 0.0 && maxY <= 297.0 + 1e-2, $"Y range out of bounds: [{minY}, {maxY}]");
+    }
+
+    [Fact]
+    public void OpenPart_D8001507933_SLDPRT_ReproduceIssue()
+    {
+        string partPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDPRT";
+        if (!File.Exists(partPath)) return;
+
+        using var swFile = SwFile.Open(partPath);
+        _output.WriteLine($"Opened Part: Kind={swFile.Kind}, Configs={swFile.Configurations.Count}");
+        
+        var features = swFile.Features;
+        _output.WriteLine($"Features count: {features.Count}");
+
+        for (int i = 0; i < swFile.Configurations.Count; i++)
+        {
+            var sketches = swFile.GetSketches(i);
+            _output.WriteLine($"Config {i} sketches count: {sketches.Count}");
+        }
     }
 }

@@ -260,9 +260,13 @@ public partial class ImagePreviewViewModel : ObservableObject
             if (VectorData != null && VectorData.HasVectorData)
             {
                 VectorData.CalculatePixelCoordinates(bmp.PixelWidth, bmp.PixelHeight);
-                if (VectorData.HasLines)
+                if (VectorData.HasLines && VectorData.Lines.Count >= 20)
                 {
                     OverlayMode = DrawingOverlayMode.PureVectorCad;
+                }
+                else
+                {
+                    OverlayMode = DrawingOverlayMode.SheetNotesOnly;
                 }
             }
 
