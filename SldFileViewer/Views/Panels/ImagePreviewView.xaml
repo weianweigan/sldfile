@@ -108,7 +108,7 @@
                                 Visibility="{Binding HasVectorData, Converter={StaticResource BoolToVisibilityConverter}}"
                                 Style="{StaticResource Style.Button.Toolbar}"
                                 Padding="8,4" Margin="2,0"
-                                ToolTip="循环切换工程图矢量文字增强模式 (图纸注释[无重影] / 全图 CAD / 关闭)">
+                                ToolTip="循环切换工程图矢量模式 (纯矢量 CAD[eDrawings 模式] / 图纸注释增强 / 全图 CAD / 关闭)">
                             <StackPanel Orientation="Horizontal">
                                 <iconPacks:PackIconMaterial Kind="FormatLetterCase" Width="12" Height="12" Foreground="{StaticResource Brush.Figma.Ink}" Margin="0,0,4,0" VerticalAlignment="Center"/>
                                 <TextBlock Text="{Binding VectorOverlayButtonText}" FontSize="11" FontWeight="SemiBold"/>
@@ -158,9 +158,10 @@
 
             <Grid.ContextMenu>
                 <ContextMenu>
-                    <MenuItem Header="🔤 矢量文字增强 (媲美 eDrawings)" Visibility="{Binding HasVectorData, Converter={StaticResource BoolToVisibilityConverter}}">
-                        <MenuItem Header="图纸与注释增强 (推荐，无重影)" Command="{Binding SetSheetNotesOnlyModeCommand}" />
-                        <MenuItem Header="全图 CAD 标注 (含模型尺寸)" Command="{Binding SetAllAnnotationsModeCommand}" />
+                    <MenuItem Header="🎨 矢量渲染模式 (eDrawings 引擎)" Visibility="{Binding HasVectorData, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <MenuItem Header="纯矢量 CAD 视图 (推荐，发丝级平滑无重影)" Command="{Binding SetPureVectorCadModeCommand}" />
+                        <MenuItem Header="图纸注释增强 (位图底图 + 矢量文字)" Command="{Binding SetSheetNotesOnlyModeCommand}" />
+                        <MenuItem Header="全图 CAD 标注" Command="{Binding SetAllAnnotationsModeCommand}" />
                         <MenuItem Header="关闭矢量增强 (原始位图)" Command="{Binding SetOverlayOffModeCommand}" />
                     </MenuItem>
                     <Separator Visibility="{Binding HasVectorData, Converter={StaticResource BoolToVisibilityConverter}}" />
@@ -198,6 +199,7 @@
                         <Image x:Name="PreviewImageCtrl"
                                Source="{Binding ImageSource}"
                                Stretch="None"
+                               Visibility="{Binding IsRasterImageVisible, Converter={StaticResource BoolToVisibilityConverter}}"
                                RenderOptions.BitmapScalingMode="{Binding ScalingMode}" />
 
                         <!-- Lossless CAD Vector Typography Layer -->

@@ -24,7 +24,8 @@ public static class DrawingVectorReader
     public static DrawingSheetVectorData ReadVectorData(
         byte[]? definitionStream,
         string? keywordsXml,
-        int sheetIndex = 0)
+        int sheetIndex = 0,
+        byte[]? vbListsStream = null)
     {
         var vectorData = new DrawingSheetVectorData();
 
@@ -57,6 +58,13 @@ public static class DrawingVectorReader
 
             vectorData.Texts = rawTexts;
         }
+
+        // 3. Extract 2D CAD vector line geometry (sheet borders, title block grids, view geometry)
+        vectorData.Lines = DrawingGeometryReader.ReadSheetGeometry(
+            vbListsStream,
+            definitionStream,
+            vectorData.PaperWidthMm,
+            vectorData.PaperHeightMm);
 
         return vectorData;
     }

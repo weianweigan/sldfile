@@ -4,8 +4,9 @@ using System.Collections.Generic;
 namespace SldFile.Drawing.Vector;
 
 /// <summary>
-/// Encapsulates full 2D vector graphic metadata extracted from a SolidWorks drawing sheet,
-/// enabling true lossless vector rendering at infinite zoom levels (like eDrawings).
+/// Encapsulates full 2D vector graphic metadata (lines, borders, title block grids, text annotations)
+/// extracted from SolidWorks drawing sheets, enabling true lossless vector rendering (eDrawings quality)
+/// at infinite zoom levels with zero raster pixelation.
 /// </summary>
 public sealed class DrawingSheetVectorData
 {
@@ -21,15 +22,25 @@ public sealed class DrawingSheetVectorData
     /// </summary>
     public IReadOnlyList<DrawingVectorText> Texts { get; set; } = Array.Empty<DrawingVectorText>();
 
-    public bool HasVectorData => Texts != null && Texts.Count > 0;
+    /// <summary>
+    /// All 2D CAD vector line segments (view outlines, sheet borders, title block grids, centerlines) on this sheet.
+    /// </summary>
+    public IReadOnlyList<DrawingVectorLine> Lines { get; set; } = Array.Empty<DrawingVectorLine>();
 
     /// <summary>
-    /// Computes pixel coordinates for all vector text elements mapped to a specific raster image resolution.
+    /// True if any vector CAD metadata (text or lines) is available for this sheet.
+    /// </summary>
+    public bool HasVectorData => (Texts != null && Texts.Count > 0) || (Lines != null && Lines.Count > 0);
+
+    public bool HasLines => Lines != null && Lines.Count > 0;
+
+    /// <summary>
+    /// Computes pixel coordinates for all vector text elements and geometry lines mapped to a specific viewport resolution.
     /// Uses isometric sheet aspect centering to ensure 100% accurate alignment with drawing lines.
     /// </summary>
     public void CalculatePixelCoordinates(int imageWidth, int imageHeight)
     {
-        if (imageWidth <= 0 || imageHeight <= 0 || Texts == null || Texts.Count == 0) return;
+        if (imageWidth <= 0 || imageHeight <= 0) return;
 
         double sheetAspect = (PaperHeightMm > 0) ? (PaperWidthMm / PaperHeightMm) : (297.0 / 210.0);
         if (sheetAspect <= 0.1 || double.IsNaN(sheetAspect)) sheetAspect = 297.0 / 210.0;
@@ -52,11 +63,25 @@ public sealed class DrawingSheetVectorData
         double scaleX = paperW / PaperWidthMm;
         double scaleY = paperH / PaperHeightMm;
 
-        foreach (var text in Texts)
+        if (Texts != null)
         {
-            text.PixelX = paperOriginX + text.X * scaleX;
-            text.PixelY = paperBottomY - text.Y * scaleY;
-            text.PixelHeight = Math.Max(1.0, text.HeightMm * scaleY);
+            foreach (var text in Texts)
+            {
+                text.PixelX = paperOriginX + text.X * scaleX;
+                text.PixelY = paperBottomY - text.Y * scaleY;
+                text.PixelHeight = Math.Max(1.0, text.HeightMm * scaleY);
+            }
+        }
+
+        if (Lines != null)
+        {
+            foreach (var line in Lines)
+            {
+                line.PixelX1 = paperOriginX + line.X1 * scaleX;
+                line.PixelY1 = paperBottomY - line.Y1 * scaleY;
+                line.PixelX2 = paperOriginX + line.X2 * scaleX;
+                line.PixelY2 = paperBottomY - line.Y2 * scaleY;
+            }
         }
     }
 }

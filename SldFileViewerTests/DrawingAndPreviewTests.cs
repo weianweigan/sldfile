@@ -143,18 +143,28 @@ public class DrawingAndPreviewTests
 
         Assert.True(imgVm.HasVectorData);
         Assert.True(imgVm.IsVectorOverlayEnabled);
-        Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.SheetNotesOnly, imgVm.OverlayMode);
-        Assert.Contains("矢量注释 (2 项图纸文字)", imgVm.VectorStatusText);
+        Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.PureVectorCad, imgVm.OverlayMode);
+        Assert.Equal("🎨 纯矢量 CAD", imgVm.VectorOverlayButtonText);
+
+        Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.PureVectorCad, imgVm.OverlayMode);
+        Assert.Equal("🎨 纯矢量 CAD", imgVm.VectorOverlayButtonText);
+        Assert.False(imgVm.IsRasterImageVisible);
+        Assert.Contains("纯矢量 CAD", imgVm.VectorStatusText);
+        Assert.Equal("🎨 纯矢量 CAD", imgVm.VectorOverlayButtonText);
         Assert.Contains("[矢量 CAD: 2 图元]", imgVm.ImageInfo);
-        Assert.Equal("矢量增强: 图纸注释", imgVm.VectorOverlayButtonText);
+
 
         // Toggle
         imgVm.ToggleVectorOverlayCommand.Execute(null);
         Assert.False(imgVm.IsVectorOverlayEnabled);
-        Assert.Equal("矢量增强: 关", imgVm.VectorOverlayButtonText);
+        Assert.Equal("🖼️ 矢量增强: 关", imgVm.VectorOverlayButtonText);
+        Assert.True(imgVm.IsRasterImageVisible);
 
         imgVm.ToggleVectorOverlayCommand.Execute(null);
         Assert.True(imgVm.IsVectorOverlayEnabled);
+        Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.PureVectorCad, imgVm.OverlayMode);
+        Assert.Equal("🎨 纯矢量 CAD", imgVm.VectorOverlayButtonText);
+
     }
 
     [Fact]
@@ -209,6 +219,12 @@ public class DrawingAndPreviewTests
         Assert.True(techNote.PixelX > 150 && techNote.PixelX < 400, $"Expected PixelX in [150, 400], got {techNote.PixelX}");
         Assert.True(techNote.PixelY > 400 && techNote.PixelY < 700, $"Expected PixelY in [400, 700], got {techNote.PixelY}");
         Assert.True(techNote.PixelY > 400 && techNote.PixelY < 700);
+
+        // Verify 2D CAD Vector Geometry Lines loaded!
+        Assert.True(imgVm.VectorData!.HasLines, "Expected drawing to contain 2D CAD vector line geometry");
+        Assert.True(imgVm.VectorData!.Lines.Count >= 10, $"Expected >=10 vector lines, got {imgVm.VectorData!.Lines.Count}");
+        Assert.Contains(imgVm.VectorData!.Lines, l => l.Kind == SldFile.Drawing.Vector.DrawingLineKind.SheetBorderOuter);
+        Assert.Contains(imgVm.VectorData!.Lines, l => l.Kind == SldFile.Drawing.Vector.DrawingLineKind.SheetBorderInner);
 
         mainVm.CloseFileCommand.Execute(null);
     }

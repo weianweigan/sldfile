@@ -16,7 +16,8 @@ internal static class DrawingReader
         IReadOnlyList<string> sheetNamesFromStream,
         Func<int, byte[]?> getSheetPreview,
         Func<int, byte[]?>? getHighResPreview = null,
-        byte[]? definitionStream = null)
+        byte[]? definitionStream = null,
+        byte[]? vbListsStream = null)
     {
         var sheets = new List<DrawingSheetInfo>();
 
@@ -63,7 +64,7 @@ internal static class DrawingReader
                         DrawingSheetVectorData? vectorData = null;
                         if (definitionStream != null && definitionStream.Length > 0)
                         {
-                            vectorData = DrawingVectorReader.ReadVectorData(definitionStream, keywordsXml, sheetIdx);
+                            vectorData = DrawingVectorReader.ReadVectorData(definitionStream, keywordsXml, sheetIdx, vbListsStream);
                             byte[]? bestImage = highRes ?? preview;
                             if (bestImage != null && vectorData != null && vectorData.HasVectorData)
                             {
@@ -106,7 +107,7 @@ internal static class DrawingReader
                 DrawingSheetVectorData? vectorData = null;
                 if (definitionStream != null && definitionStream.Length > 0)
                 {
-                    vectorData = DrawingVectorReader.ReadVectorData(definitionStream, keywordsXml, i);
+                    vectorData = DrawingVectorReader.ReadVectorData(definitionStream, keywordsXml, i, vbListsStream);
                     byte[]? bestImage = highRes ?? preview;
                     if (bestImage != null && vectorData != null && vectorData.HasVectorData)
                     {

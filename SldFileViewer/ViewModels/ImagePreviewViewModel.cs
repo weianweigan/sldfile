@@ -57,7 +57,10 @@ public partial class ImagePreviewViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(VectorOverlayButtonText))]
     [NotifyPropertyChangedFor(nameof(VectorStatusText))]
     [NotifyPropertyChangedFor(nameof(IsVectorOverlayEnabled))]
-    private DrawingOverlayMode _overlayMode = DrawingOverlayMode.SheetNotesOnly;
+    [NotifyPropertyChangedFor(nameof(IsRasterImageVisible))]
+    private DrawingOverlayMode _overlayMode = DrawingOverlayMode.PureVectorCad;
+
+    public bool IsRasterImageVisible => OverlayMode != DrawingOverlayMode.PureVectorCad;
 
     public bool IsVectorOverlayEnabled
     {
@@ -66,7 +69,7 @@ public partial class ImagePreviewViewModel : ObservableObject
         {
             if (value && OverlayMode == DrawingOverlayMode.Off)
             {
-                OverlayMode = DrawingOverlayMode.SheetNotesOnly;
+                OverlayMode = DrawingOverlayMode.PureVectorCad;
             }
             else if (!value)
             {
@@ -82,11 +85,13 @@ public partial class ImagePreviewViewModel : ObservableObject
         get
         {
             if (!HasVectorData) return "无矢量数据";
-            int sheetCount = VectorData!.Texts.Count(t => t.IsSheetLevelNote);
+            int lineCount = VectorData!.Lines?.Count ?? 0;
+            int textCount = VectorData!.Texts?.Count ?? 0;
             return OverlayMode switch
             {
-                DrawingOverlayMode.SheetNotesOnly => $"矢量注释 ({sheetCount} 项图纸文字)",
-                DrawingOverlayMode.AllAnnotations => $"全图 CAD ({VectorData!.Texts.Count} 图元)",
+                DrawingOverlayMode.PureVectorCad => $"纯矢量 CAD ({lineCount} 线条 + {textCount} 注释)",
+                DrawingOverlayMode.SheetNotesOnly => $"矢量注释 ({(VectorData!.Texts != null ? VectorData!.Texts.Count(t => t.IsSheetLevelNote) : 0)} 项图纸文字)",
+                DrawingOverlayMode.AllAnnotations => $"全图 CAD ({textCount} 图元)",
                 _ => "矢量增强: 关"
             };
         }
@@ -94,9 +99,10 @@ public partial class ImagePreviewViewModel : ObservableObject
 
     public string VectorOverlayButtonText => OverlayMode switch
     {
-        DrawingOverlayMode.SheetNotesOnly => "矢量增强: 图纸注释",
-        DrawingOverlayMode.AllAnnotations => "矢量增强: 全图 CAD",
-        _ => "矢量增强: 关"
+        DrawingOverlayMode.PureVectorCad => "🎨 纯矢量 CAD",
+        DrawingOverlayMode.SheetNotesOnly => "🔤 矢量增强: 图纸注释",
+        DrawingOverlayMode.AllAnnotations => "📐 矢量增强: 全图 CAD",
+        _ => "🖼️ 矢量增强: 关"
     };
 
     public BitmapScalingMode ScalingMode => IsSmoothFilter ? BitmapScalingMode.Fant : BitmapScalingMode.NearestNeighbor;
@@ -152,7 +158,7 @@ public partial class ImagePreviewViewModel : ObservableObject
     {
         if (OverlayMode == DrawingOverlayMode.Off)
         {
-            OverlayMode = DrawingOverlayMode.SheetNotesOnly;
+            OverlayMode = DrawingOverlayMode.PureVectorCad;
         }
         else
         {
@@ -165,11 +171,15 @@ public partial class ImagePreviewViewModel : ObservableObject
     {
         OverlayMode = OverlayMode switch
         {
+            DrawingOverlayMode.PureVectorCad => DrawingOverlayMode.SheetNotesOnly,
             DrawingOverlayMode.SheetNotesOnly => DrawingOverlayMode.AllAnnotations,
             DrawingOverlayMode.AllAnnotations => DrawingOverlayMode.Off,
-            _ => DrawingOverlayMode.SheetNotesOnly
+            _ => DrawingOverlayMode.PureVectorCad
         };
     }
+
+    [RelayCommand]
+    public void SetPureVectorCadMode() => OverlayMode = DrawingOverlayMode.PureVectorCad;
 
     [RelayCommand]
     public void SetSheetNotesOnlyMode() => OverlayMode = DrawingOverlayMode.SheetNotesOnly;

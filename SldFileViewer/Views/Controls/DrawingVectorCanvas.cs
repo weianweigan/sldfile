@@ -6,7 +6,7 @@ using SldFile.Drawing.Vector;
 namespace SldFileViewer.Views.Controls;
 
 /// <summary>
-/// Rendering mode for CAD vector typography overlay on drawing preview.
+/// Rendering mode for CAD vector typography and geometry on drawing preview.
 /// </summary>
 public enum DrawingOverlayMode
 {
@@ -16,26 +16,40 @@ public enum DrawingOverlayMode
     Off = 0,
 
     /// <summary>
-    /// Recommended default: lossless vector rendering for sheet format, title block,
-    /// tolerance tables and technical notes only. Filters out view dimensions and leader callouts
-    /// to completely eliminate visual ghosting over 2D model geometry.
+    /// Lossless vector typography for sheet format, title block, tolerance tables and technical notes only.
+    /// Filters out view dimensions to eliminate visual ghosting over raster view geometry.
     /// </summary>
     SheetNotesOnly = 1,
 
     /// <summary>
     /// Overlays all extracted CAD text elements, including drawing view dimensions and callouts.
     /// </summary>
-    AllAnnotations = 2
+    AllAnnotations = 2,
+
+    /// <summary>
+    /// Recommended eDrawings-quality mode: 100% pure vector CAD rendering.
+    /// Completely replaces raster preview bitmap with mathematical vector geometry (lines, borders, grids)
+    /// and typography. Delivers infinite lossless zoom with zero pixelation and zero ghosting.
+    /// </summary>
+    PureVectorCad = 3
 }
 
 /// <summary>
 /// High-performance WPF vector rendering canvas that overlays lossless CAD vector typography
-/// and graphics on top of drawing preview viewports with anti-ghosting background erasure.
+/// and renders pure 2D vector CAD wireframe geometry (sheet borders, title block grids, view geometry)
+/// delivering eDrawings-level clarity at infinite zoom.
 /// </summary>
 public sealed class DrawingVectorCanvas : FrameworkElement
 {
     private static readonly Brush TitleBlockBgBrush;
     private static readonly Brush PaperBgBrush;
+
+    // Pre-allocated frozen pens for optimal 60fps rendering
+    private static readonly Pen ThickOutlinePen;
+    private static readonly Pen ThinLinePen;
+    private static readonly Pen CenterlinePen;
+    private static readonly Pen BorderOuterPen;
+    private static readonly Pen TableGridPen;
 
     static DrawingVectorCanvas()
     {
@@ -43,9 +57,40 @@ public sealed class DrawingVectorCanvas : FrameworkElement
         tbBrush.Freeze();
         TitleBlockBgBrush = tbBrush;
 
-        var pBrush = new SolidColorBrush(Color.FromRgb(255, 251, 240));
+        var pBrush = new SolidColorBrush(Color.FromRgb(255, 253, 240));
         pBrush.Freeze();
         PaperBgBrush = pBrush;
+
+        // Pens
+        var blackBrush = new SolidColorBrush(Color.FromRgb(20, 20, 20));
+        blackBrush.Freeze();
+
+        var thickPen = new Pen(blackBrush, 1.8) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
+        thickPen.Freeze();
+        ThickOutlinePen = thickPen;
+
+        var thinPen = new Pen(blackBrush, 0.9) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
+        thinPen.Freeze();
+        ThinLinePen = thinPen;
+
+        var gridPen = new Pen(new SolidColorBrush(Color.FromRgb(40, 40, 40)), 0.8);
+        gridPen.Brush.Freeze();
+        gridPen.Freeze();
+        TableGridPen = gridPen;
+
+        var borderOuter = new Pen(blackBrush, 0.75);
+        borderOuter.Freeze();
+        BorderOuterPen = borderOuter;
+
+        // Centerline with dash-dot pattern (ISO / GB CAD standard)
+        var redOrGrey = new SolidColorBrush(Color.FromRgb(180, 40, 40));
+        redOrGrey.Freeze();
+        var cPen = new Pen(redOrGrey, 0.85)
+        {
+            DashStyle = new DashStyle(new double[] { 10, 3, 2, 3 }, 0)
+        };
+        cPen.Freeze();
+        CenterlinePen = cPen;
     }
 
     public static readonly DependencyProperty VectorDataProperty =
@@ -61,7 +106,7 @@ public sealed class DrawingVectorCanvas : FrameworkElement
             typeof(DrawingOverlayMode),
             typeof(DrawingVectorCanvas),
             new FrameworkPropertyMetadata(
-                DrawingOverlayMode.SheetNotesOnly,
+                DrawingOverlayMode.PureVectorCad,
                 FrameworkPropertyMetadataOptions.AffectsRender,
                 OnOverlayModeChanged));
 
@@ -143,7 +188,7 @@ public sealed class DrawingVectorCanvas : FrameworkElement
             }
             else if (isEnabled && canvas.OverlayMode == DrawingOverlayMode.Off)
             {
-                canvas.OverlayMode = DrawingOverlayMode.SheetNotesOnly;
+                canvas.OverlayMode = DrawingOverlayMode.PureVectorCad;
             }
         }
     }
@@ -165,6 +210,39 @@ public sealed class DrawingVectorCanvas : FrameworkElement
         double pixelsPerDip = VisualTreeHelper.GetDpi(this).PixelsPerDip;
         var defaultTypeface = new Typeface(new FontFamily("SimSun, Microsoft YaHei, Arial"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
 
+        bool isPureVector = (OverlayMode == DrawingOverlayMode.PureVectorCad);
+
+        // 1. In PureVectorCad mode: draw complete clean paper sheet canvas background
+        if (isPureVector)
+        {
+            double w = ActualWidth > 10 ? ActualWidth : (Width > 10 ? Width : 1420);
+            double h = ActualHeight > 10 ? ActualHeight : (Height > 10 ? Height : 710);
+            dc.DrawRectangle(PaperBgBrush, null, new Rect(0, 0, w, h));
+        }
+
+        // 2. Render 2D CAD Vector Geometry Lines (Borders, Grids, View Wireframe)
+        if ((isPureVector || OverlayMode == DrawingOverlayMode.AllAnnotations) && VectorData.HasLines)
+        {
+            foreach (var line in VectorData.Lines)
+            {
+                if (line.PixelX1 <= 0 && line.PixelY1 <= 0 && line.PixelX2 <= 0 && line.PixelY2 <= 0)
+                    continue;
+
+                Pen pen = line.Kind switch
+                {
+                    DrawingLineKind.SheetBorderOuter => BorderOuterPen,
+                    DrawingLineKind.SheetBorderInner => ThickOutlinePen,
+                    DrawingLineKind.TableGrid => TableGridPen,
+                    DrawingLineKind.SolidOutline => ThickOutlinePen,
+                    DrawingLineKind.Centerline => CenterlinePen,
+                    _ => ThinLinePen
+                };
+
+                dc.DrawLine(pen, new Point(line.PixelX1, line.PixelY1), new Point(line.PixelX2, line.PixelY2));
+            }
+        }
+
+        // 3. Render 2D CAD Vector Typography (Title block, tolerance, notes, dimensions)
         foreach (var text in VectorData.Texts)
         {
             if (string.IsNullOrWhiteSpace(text.CleanText))
@@ -174,7 +252,7 @@ public sealed class DrawingVectorCanvas : FrameworkElement
             if (text.Category == DrawingVectorTextCategory.Metadata)
                 continue;
 
-            // In SheetNotesOnly mode (default), filter out view dimensions and callouts to eliminate ghosting
+            // In SheetNotesOnly mode, filter out view dimensions and callouts to eliminate ghosting
             if (OverlayMode == DrawingOverlayMode.SheetNotesOnly && !text.IsSheetLevelNote)
                 continue;
 
@@ -212,8 +290,8 @@ public sealed class DrawingVectorCanvas : FrameworkElement
                 dc.PushTransform(new RotateTransform(angleDeg, text.PixelX, text.PixelY));
             }
 
-            // Anti-ghosting background mask: erase blurry raster text from preview bitmap underneath
-            if (EnableBackgroundErasing && text.IsSheetLevelNote)
+            // In overlay mode, erase blurry raster text from preview bitmap underneath
+            if (!isPureVector && EnableBackgroundErasing && text.IsSheetLevelNote)
             {
                 Brush bgBrush = (text.Category == DrawingVectorTextCategory.TitleBlock) ? TitleBlockBgBrush : PaperBgBrush;
                 double padX = 1.5;
