@@ -1,4 +1,8 @@
 using System;
+using System.Collections.Generic;
+using SldFile;
+using SldFile.Sketches;
+using SldFile.Drawing.Vector;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -143,16 +147,16 @@ public class DrawingAndPreviewTests
 
         Assert.True(imgVm.HasVectorData);
         Assert.True(imgVm.IsVectorOverlayEnabled);
-        Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.PureVectorCad, imgVm.OverlayMode);
-        Assert.Equal("🎨 纯矢量 CAD", imgVm.VectorOverlayButtonText);
+        Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.SheetNotesOnly, imgVm.OverlayMode);
+        Assert.Equal("🔤 矢量增强: 图纸注释", imgVm.VectorOverlayButtonText);
+        Assert.True(imgVm.IsRasterImageVisible);
+        Assert.Contains("矢量注释", imgVm.VectorStatusText);
 
+        // Switch to PureVectorCad
+        imgVm.SetPureVectorCadMode();
         Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.PureVectorCad, imgVm.OverlayMode);
         Assert.Equal("🎨 纯矢量 CAD", imgVm.VectorOverlayButtonText);
-        Assert.False(imgVm.IsRasterImageVisible);
         Assert.Contains("纯矢量 CAD", imgVm.VectorStatusText);
-        Assert.Equal("🎨 纯矢量 CAD", imgVm.VectorOverlayButtonText);
-        Assert.Contains("[矢量 CAD: 2 图元]", imgVm.ImageInfo);
-
 
         // Toggle
         imgVm.ToggleVectorOverlayCommand.Execute(null);
@@ -162,8 +166,8 @@ public class DrawingAndPreviewTests
 
         imgVm.ToggleVectorOverlayCommand.Execute(null);
         Assert.True(imgVm.IsVectorOverlayEnabled);
-        Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.PureVectorCad, imgVm.OverlayMode);
-        Assert.Equal("🎨 纯矢量 CAD", imgVm.VectorOverlayButtonText);
+        Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.SheetNotesOnly, imgVm.OverlayMode);
+        Assert.Equal("🔤 矢量增强: 图纸注释", imgVm.VectorOverlayButtonText);
 
     }
 
@@ -227,5 +231,75 @@ public class DrawingAndPreviewTests
         Assert.Contains(imgVm.VectorData!.Lines, l => l.Kind == SldFile.Drawing.Vector.DrawingLineKind.SheetBorderInner);
 
         mainVm.CloseFileCommand.Execute(null);
+    }
+
+    [Fact]
+    public void DocumentTreeViewModel_WithDuplicateSketchNames_DoesNotThrowDuplicateKeyException()
+    {
+        var mockService = new DuplicateSketchDocService();
+        var vm = new SldFileViewer.ViewModels.DocumentTreeViewModel(mockService);
+
+        var ex = Record.Exception(() => vm.UpdatePartSketches(0));
+        Assert.Null(ex);
+    }
+
+    [Theory]
+    [InlineData("2-10*50", false)]
+    [InlineData("5-15*25", false)]
+    [InlineData("A", false)]
+    [InlineData("局部视图 A", false)]
+    [InlineData("比例 1 : 2", false)]
+    [InlineData("173.0", false)]
+    [InlineData("24.0", false)]
+    [InlineData("技术要求", true)]
+    [InlineData("Drawing No./图号", true)]
+    [InlineData("未注公差", true)]
+    public void DrawingVectorReader_AntiGhosting_ClassifiesViewDimensionsCorrectly(string text, bool expectedSheetNote)
+    {
+        var texts = new List<DrawingVectorText>
+        {
+            new DrawingVectorText(text, 100.0, 20.0, 0.0, "Arial", 5.0, 0.0)
+        };
+
+        var classifyMethod = typeof(DrawingVectorReader).GetMethod("ClassifyTexts",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        Assert.NotNull(classifyMethod);
+        classifyMethod.Invoke(null, new object[] { texts, 420.0, 297.0 });
+
+        Assert.Equal(expectedSheetNote, texts[0].IsSheetLevelNote);
+    }
+
+    private class DuplicateSketchDocService : SldFileViewer.Services.ISwDocumentService
+    {
+        public SwFile? CurrentFile => null;
+        public string? CurrentFilePath => "test.sldprt";
+        public bool IsOpen => true;
+        public Task<SwFile?> OpenAsync(string filePath) => Task.FromResult<SwFile?>(null);
+        public void Close() { }
+        public void Dispose() { }
+        public DisplayMesh? GetDisplayMesh() => null;
+        public IReadOnlyList<Configuration> GetConfigurations() => Array.Empty<Configuration>();
+        public IReadOnlyList<Feature> GetFeatures() => new List<Feature>
+        {
+            new Feature("折弯-线2", FeatureKind.Sketch)
+        };
+        public IReadOnlyList<SketchFeature> GetSketches(int configIndex = 0) => new List<SketchFeature>
+        {
+            new SketchFeature("草图1"),
+            new SketchFeature("折弯-线2"),
+            new SketchFeature("折弯-线2"),
+            new SketchFeature("折弯-线1")
+        };
+        public IReadOnlyList<AssemblyComponentNode> GetAssemblyTree(string? configName = null) => Array.Empty<AssemblyComponentNode>();
+        public IReadOnlyList<BomItem> GetBom(string? configName = null) => Array.Empty<BomItem>();
+        public IReadOnlyList<CustomPropertyItem> GetCustomProperties(string? configName = null) => Array.Empty<CustomPropertyItem>();
+        public IReadOnlyList<EquationItem> GetEquations() => Array.Empty<EquationItem>();
+        public byte[]? GetPreviewPng(int configIndex = 0) => null;
+        public byte[]? GetPreviewBitmap(int configIndex = 0) => null;
+        public byte[]? GetBestPreviewImage(int configIndex = 0) => null;
+        public IReadOnlyList<DrawingSheetInfo> GetDrawingSheets() => Array.Empty<DrawingSheetInfo>();
+        public byte[]? GetSheetPreviewPng(int sheetIndex) => null;
+        public byte[]? GetBestSheetPreviewImage(int sheetIndex) => null;
+        public void SaveCustomProperties(IEnumerable<CustomPropertyItem> properties, string? configName = null) { }
     }
 }

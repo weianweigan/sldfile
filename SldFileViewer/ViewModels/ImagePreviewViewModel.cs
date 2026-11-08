@@ -58,9 +58,9 @@ public partial class ImagePreviewViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(VectorStatusText))]
     [NotifyPropertyChangedFor(nameof(IsVectorOverlayEnabled))]
     [NotifyPropertyChangedFor(nameof(IsRasterImageVisible))]
-    private DrawingOverlayMode _overlayMode = DrawingOverlayMode.PureVectorCad;
+    private DrawingOverlayMode _overlayMode = DrawingOverlayMode.SheetNotesOnly;
 
-    public bool IsRasterImageVisible => OverlayMode != DrawingOverlayMode.PureVectorCad;
+    public bool IsRasterImageVisible => true;
 
     public bool IsVectorOverlayEnabled
     {
@@ -69,7 +69,7 @@ public partial class ImagePreviewViewModel : ObservableObject
         {
             if (value && OverlayMode == DrawingOverlayMode.Off)
             {
-                OverlayMode = DrawingOverlayMode.PureVectorCad;
+                OverlayMode = DrawingOverlayMode.SheetNotesOnly;
             }
             else if (!value)
             {
@@ -158,7 +158,7 @@ public partial class ImagePreviewViewModel : ObservableObject
     {
         if (OverlayMode == DrawingOverlayMode.Off)
         {
-            OverlayMode = DrawingOverlayMode.PureVectorCad;
+            OverlayMode = DrawingOverlayMode.SheetNotesOnly;
         }
         else
         {
@@ -171,10 +171,10 @@ public partial class ImagePreviewViewModel : ObservableObject
     {
         OverlayMode = OverlayMode switch
         {
-            DrawingOverlayMode.PureVectorCad => DrawingOverlayMode.SheetNotesOnly,
-            DrawingOverlayMode.SheetNotesOnly => DrawingOverlayMode.AllAnnotations,
+            DrawingOverlayMode.SheetNotesOnly => DrawingOverlayMode.PureVectorCad,
+            DrawingOverlayMode.PureVectorCad => DrawingOverlayMode.AllAnnotations,
             DrawingOverlayMode.AllAnnotations => DrawingOverlayMode.Off,
-            _ => DrawingOverlayMode.PureVectorCad
+            _ => DrawingOverlayMode.SheetNotesOnly
         };
     }
 

@@ -99,7 +99,7 @@ public void RequestComponentAction(AssemblyComponentNode comp, ComponentTreeActi
     {
         var features = _docService.GetFeatures();
         var sketches = _docService.GetSketches(configIndex);
-        var sketchDict = sketches.ToDictionary(s => s.Name, StringComparer.OrdinalIgnoreCase);
+        var sketchDict = CreateSketchDictionary(sketches);
 
         // FeatureManager Tree Branch
         var featTree = CreateNode("特征管理器 (FeatureManager)", TreeNodeKind.FeatureFolder, null, $"{features.Count} 个特征");
@@ -305,7 +305,7 @@ public void RequestComponentAction(AssemblyComponentNode comp, ComponentTreeActi
     {
         if (_featTreeFolder == null || _currentSwFile == null) return;
         var sketches = _docService.GetSketches(configIndex);
-        var sketchDict = sketches.ToDictionary(s => s.Name, StringComparer.OrdinalIgnoreCase);
+        var sketchDict = CreateSketchDictionary(sketches);
 
         void UpdateSketchTags(TreeNodeModel node)
         {
@@ -369,6 +369,19 @@ public void RequestComponentAction(AssemblyComponentNode comp, ComponentTreeActi
         {
             NodeSelected?.Invoke(value);
         }
+    }
+
+    private static Dictionary<string, SketchFeature> CreateSketchDictionary(IReadOnlyList<SketchFeature> sketches)
+    {
+        var dict = new Dictionary<string, SketchFeature>(StringComparer.OrdinalIgnoreCase);
+        foreach (var sk in sketches)
+        {
+            if (!string.IsNullOrEmpty(sk.Name))
+            {
+                dict[sk.Name] = sk;
+            }
+        }
+        return dict;
     }
 }
 

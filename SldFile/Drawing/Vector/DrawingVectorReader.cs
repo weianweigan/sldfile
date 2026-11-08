@@ -29,6 +29,14 @@ public static class DrawingVectorReader
     {
         var vectorData = new DrawingSheetVectorData();
 
+        bool hasStreamData = (definitionStream != null && definitionStream.Length > 0) ||
+                             (vbListsStream != null && vbListsStream.Length > 0);
+
+        if (!hasStreamData)
+        {
+            return vectorData;
+        }
+
         // 1. Parse sheet metadata from KeyWords XML
         ParseSheetMetadata(keywordsXml, sheetIndex, vectorData);
 
@@ -60,11 +68,14 @@ public static class DrawingVectorReader
         }
 
         // 3. Extract 2D CAD vector line geometry (sheet borders, title block grids, view geometry)
-        vectorData.Lines = DrawingGeometryReader.ReadSheetGeometry(
-            vbListsStream,
-            definitionStream,
-            vectorData.PaperWidthMm,
-            vectorData.PaperHeightMm);
+        if (vbListsStream != null && vbListsStream.Length > 0)
+        {
+            vectorData.Lines = DrawingGeometryReader.ReadSheetGeometry(
+                vbListsStream,
+                definitionStream,
+                vectorData.PaperWidthMm,
+                vectorData.PaperHeightMm);
+        }
 
         return vectorData;
     }
@@ -100,41 +111,104 @@ public static class DrawingVectorReader
                 continue;
             }
 
+            // 优先检查：是否属于视图内部的尺寸、视图标号、孔标注等（防止与底图产生重影）
+            if (IsLikelyViewAnnotation(text.CleanText))
+            {
+                text.Category = DrawingVectorTextCategory.ViewAnnotation;
+                continue;
+            }
+
+            // 检查是否明确是技术要求
+            if (text.CleanText.StartsWith("技术要求", StringComparison.OrdinalIgnoreCase) ||
+                text.CleanText.Contains("锐边倒角") || text.CleanText.Contains("未注折弯") ||
+                text.CleanText.Contains("表面处理") || text.CleanText.Contains("去毛刺"))
+            {
+                text.Category = DrawingVectorTextCategory.TechnicalNote;
+                continue;
+            }
+
             // If in bottom zone (Y <= sheetNoteMaxY)
             if (text.Y <= sheetNoteMaxY)
             {
-                // Lower-left quadrant: General technical requirements & notes
-                if (text.X < paperWidth * 0.5)
-                {
-                    text.Category = DrawingVectorTextCategory.TechnicalNote;
-                }
                 // Lower-right quadrant: Check if it's tolerance table or title block
-                else if (text.CleanText.Contains("公差") || text.CleanText.Contains("Tolerance") ||
-                         text.CleanText == "±" || text.CleanText == "≤" || text.CleanText == "＞" ||
-                         text.CleanText.Contains("specify deviations") ||
-                         (text.Y >= 35.0 && text.X >= paperWidth * 0.75))
+                if (text.X >= paperWidth * 0.45)
                 {
-                    text.Category = DrawingVectorTextCategory.ToleranceTable;
+                    if (text.CleanText.Contains("公差") || text.CleanText.Contains("Tolerance") ||
+                        text.CleanText == "±" || text.CleanText == "≤" || text.CleanText == "＞" ||
+                        text.CleanText.Contains("specify deviations") ||
+                        (text.Y >= 35.0 && text.X >= paperWidth * 0.75))
+                    {
+                        text.Category = DrawingVectorTextCategory.ToleranceTable;
+                    }
+                    else
+                    {
+                        text.Category = DrawingVectorTextCategory.TitleBlock;
+                    }
                 }
                 else
                 {
-                    text.Category = DrawingVectorTextCategory.TitleBlock;
+                    // Lower-left quadrant: General technical requirements & notes
+                    text.Category = DrawingVectorTextCategory.TechnicalNote;
                 }
             }
             else
             {
                 // Higher up on sheet: drawing views, dimensions, hole callouts
-                if (text.CleanText.StartsWith("技术要求", StringComparison.OrdinalIgnoreCase) ||
-                    text.CleanText.Contains("锐边倒角"))
-                {
-                    text.Category = DrawingVectorTextCategory.TechnicalNote;
-                }
-                else
-                {
-                    text.Category = DrawingVectorTextCategory.ViewAnnotation;
-                }
+                text.Category = DrawingVectorTextCategory.ViewAnnotation;
             }
         }
+    }
+
+    private static bool IsLikelyViewAnnotation(string cleanText)
+    {
+        if (string.IsNullOrWhiteSpace(cleanText)) return false;
+        string s = cleanText.Trim();
+
+        // 1. 独立单字母视图/剖面标号，如 "A", "B", "C", "D", "E", "F"
+        if (s.Length == 1 && char.IsLetter(s[0]))
+            return true;
+
+        // 2. 视图标题与比例标注，如 "局部视图 A", "向视图 B", "剖面 A-A", "比例 1 : 2", "Detail A", "Section A-A", "SCALE 1:2"
+        if (s.StartsWith("局部视图", StringComparison.OrdinalIgnoreCase) ||
+            s.StartsWith("向视图", StringComparison.OrdinalIgnoreCase) ||
+            s.StartsWith("剖面", StringComparison.OrdinalIgnoreCase) ||
+            s.StartsWith("视图", StringComparison.OrdinalIgnoreCase) ||
+            s.StartsWith("Detail", StringComparison.OrdinalIgnoreCase) ||
+            s.StartsWith("Section", StringComparison.OrdinalIgnoreCase) ||
+            s.StartsWith("View", StringComparison.OrdinalIgnoreCase) ||
+            s.StartsWith("比例", StringComparison.OrdinalIgnoreCase) ||
+            s.StartsWith("SCALE", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // 3. 典型孔特征/阵列尺寸标注，如 "2-10*50", "5-15*25", "4-M6", "4-Φ10", "2-R5"
+        if (s.Contains("*") || s.Contains("×") || (s.Contains("-") && char.IsDigit(s[0])))
+        {
+            if (System.Text.RegularExpressions.Regex.IsMatch(s, @"^\d+[-*xX×\d\.\s]+$") ||
+                System.Text.RegularExpressions.Regex.IsMatch(s, @"^\d+-[A-Za-zΦφ]"))
+            {
+                return true;
+            }
+        }
+
+        // 4. 纯尺寸数值，如 "24.0", "139.0", "173.0", "10", "100", "220.0" 等
+        if (System.Text.RegularExpressions.Regex.IsMatch(s, @"^[<>]?\s*(\d+(\.\d+)?)\s*(°|mm|deg)?$"))
+        {
+            return true;
+        }
+
+        // 5. 常见公差/尺寸符号：带直径、半径、倒角、角度前缀的尺寸，如 "Φ20", "R15", "C2", "SR10", "45°"
+        if (System.Text.RegularExpressions.Regex.IsMatch(s, @"^[ΦφRrCcMm](\d+(\.\d+)?)|^\d+(\.\d+)?°$"))
+        {
+            return true;
+        }
+
+        // 6. 尺寸基准或形位公差标记、基准指示箭头
+        if (s == "↑" || s == "↓" || s == "←" || s == "→")
+            return true;
+
+        return false;
     }
 
     private static void ParseSheetMetadata(string? keywordsXml, int sheetIndex, DrawingSheetVectorData data)

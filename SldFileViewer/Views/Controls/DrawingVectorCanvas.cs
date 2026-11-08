@@ -212,20 +212,21 @@ public sealed class DrawingVectorCanvas : FrameworkElement
 
         bool isPureVector = (OverlayMode == DrawingOverlayMode.PureVectorCad);
 
-        // 1. In PureVectorCad mode: draw complete clean paper sheet canvas background
-        if (isPureVector)
-        {
-            double w = ActualWidth > 10 ? ActualWidth : (Width > 10 ? Width : 1420);
-            double h = ActualHeight > 10 ? ActualHeight : (Height > 10 ? Height : 710);
-            dc.DrawRectangle(PaperBgBrush, null, new Rect(0, 0, w, h));
-        }
-
-        // 2. Render 2D CAD Vector Geometry Lines (Borders, Grids, View Wireframe)
+        // 1. Render 2D CAD Vector Geometry Lines (Borders, View Wireframe)
+        // TableGrid and inner binding margins are skipped to prevent crossing title block text or creating spurious lines over the real sheet.
         if ((isPureVector || OverlayMode == DrawingOverlayMode.AllAnnotations) && VectorData.HasLines)
         {
             foreach (var line in VectorData.Lines)
             {
                 if (line.PixelX1 <= 0 && line.PixelY1 <= 0 && line.PixelX2 <= 0 && line.PixelY2 <= 0)
+                    continue;
+
+                // Avoid synthetic grid lines that cut through real drawing title block text
+                if (line.Kind == DrawingLineKind.TableGrid)
+                    continue;
+
+                // Avoid synthetic 25mm binding margin vertical line if it creates a spurious border over drawing content
+                if (line.Kind == DrawingLineKind.SheetBorderInner && Math.Abs(line.X1 - 25.0) < 1e-2 && Math.Abs(line.X2 - 25.0) < 1e-2)
                     continue;
 
                 Pen pen = line.Kind switch
