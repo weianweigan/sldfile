@@ -67,14 +67,16 @@ public static class DrawingVectorReader
             vectorData.Texts = rawTexts;
         }
 
-        // 3. Extract 2D CAD vector line geometry (sheet borders, title block grids, view geometry)
-        if (vbListsStream != null && vbListsStream.Length > 0)
+        // 3. Extract 2D CAD vector line geometry (sheet borders, title block, view geometry wireframes)
+        if ((vbListsStream != null && vbListsStream.Length > 0) || (definitionStream != null && definitionStream.Length > 0))
         {
-            vectorData.Lines = DrawingGeometryReader.ReadSheetGeometry(
+            var (lines, views) = DrawingGeometryReader.ReadSheetGeometryAndViews(
                 vbListsStream,
                 definitionStream,
                 vectorData.PaperWidthMm,
                 vectorData.PaperHeightMm);
+            vectorData.Lines = lines;
+            vectorData.Views = views;
         }
 
         return vectorData;

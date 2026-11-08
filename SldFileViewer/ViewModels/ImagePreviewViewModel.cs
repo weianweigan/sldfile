@@ -60,7 +60,10 @@ public partial class ImagePreviewViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsRasterImageVisible))]
     private DrawingOverlayMode _overlayMode = DrawingOverlayMode.SheetNotesOnly;
 
-    public bool IsRasterImageVisible => true;
+    public bool IsRasterImageVisible =>
+        OverlayMode != DrawingOverlayMode.PureVectorCad ||
+        VectorData == null ||
+        !VectorData.HasLines;
 
     public bool IsVectorOverlayEnabled
     {
@@ -257,10 +260,18 @@ public partial class ImagePreviewViewModel : ObservableObject
             if (VectorData != null && VectorData.HasVectorData)
             {
                 VectorData.CalculatePixelCoordinates(bmp.PixelWidth, bmp.PixelHeight);
+                if (VectorData.HasLines)
+                {
+                    OverlayMode = DrawingOverlayMode.PureVectorCad;
+                }
             }
 
             string hdTag = IsHighDefinition ? " [高清]" : "";
-            string vectorTag = (VectorData != null && VectorData.HasVectorData) ? $" [矢量 CAD: {VectorData.Texts.Count} 图元]" : "";
+            string vectorTag = (VectorData != null && VectorData.HasVectorData)
+                ? (VectorData.HasLines
+                    ? $" [矢量 CAD: {VectorData.Lines.Count} 线条, {VectorData.Texts.Count} 注释]"
+                    : $" [矢量 CAD: {VectorData.Texts.Count} 图元]")
+                : "";
             ImageInfo = $"{description}{hdTag}{vectorTag} - 分辨率: {bmp.PixelWidth} x {bmp.PixelHeight} px ({(imageBytes.Length + 1023) / 1024} KB)";
 
             // 图像更新后请求视口自适应

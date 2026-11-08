@@ -212,6 +212,14 @@ public sealed class DrawingVectorCanvas : FrameworkElement
 
         bool isPureVector = (OverlayMode == DrawingOverlayMode.PureVectorCad);
 
+        // 0. In pure vector CAD mode, draw the solid drawing paper background
+        if (isPureVector)
+        {
+            double pWidth = (ActualWidth > 0) ? ActualWidth : (Width > 0 ? Width : 1420);
+            double pHeight = (ActualHeight > 0) ? ActualHeight : (Height > 0 ? Height : 710);
+            dc.DrawRectangle(PaperBgBrush, null, new Rect(0, 0, pWidth, pHeight));
+        }
+
         // 1. Render 2D CAD Vector Geometry Lines (Borders, View Wireframe)
         // TableGrid and inner binding margins are skipped to prevent crossing title block text or creating spurious lines over the real sheet.
         if ((isPureVector || OverlayMode == DrawingOverlayMode.AllAnnotations) && VectorData.HasLines)

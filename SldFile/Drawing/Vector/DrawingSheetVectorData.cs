@@ -28,6 +28,11 @@ public sealed class DrawingSheetVectorData
     public IReadOnlyList<DrawingVectorLine> Lines { get; set; } = Array.Empty<DrawingVectorLine>();
 
     /// <summary>
+    /// Individual 2D drawing view geometries extracted and transformed on this sheet.
+    /// </summary>
+    public IReadOnlyList<DrawingViewGeometry> Views { get; set; } = Array.Empty<DrawingViewGeometry>();
+
+    /// <summary>
     /// True if any vector CAD metadata (text or lines) is available for this sheet.
     /// </summary>
     public bool HasVectorData => (Texts != null && Texts.Count > 0) || (Lines != null && Lines.Count > 0);

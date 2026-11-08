@@ -1,18 +1,55 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace SldFile.Drawing.Vector;
 
 /// <summary>
 /// High-performance parser and generator for 2D CAD vector line geometry (sheet borders, title block grids,
-/// view outlines and wireframe primitives) extracted from SolidWorks drawing streams (e.g. VBLists, Definition).
-/// Powers lossless vector rendering in eDrawings-quality mode.
+/// view outlines, silhouettes, and wireframe primitives) extracted from SolidWorks drawing streams (e.g. VBLists, Definition).
+/// Powers true lossless mathematical vector CAD rendering in eDrawings-quality mode.
 /// </summary>
 public static class DrawingGeometryReader
 {
     /// <summary>
-    /// Extracts and constructs all 2D vector CAD line geometry for a drawing sheet.
-    /// Combines standard sheet border frames, title block grids, and view geometric wireframe.
+    /// Extracts and constructs all 2D vector CAD line geometry and individual view geometries for a drawing sheet.
+    /// Combines standard sheet border frames, title block outer boundaries, and transformed view geometric wireframes.
+    /// </summary>
+    public static (IReadOnlyList<DrawingVectorLine> Lines, IReadOnlyList<DrawingViewGeometry> Views) ReadSheetGeometryAndViews(
+        byte[]? vbListsStream,
+        byte[]? definitionStream,
+        double paperWidthMm,
+        double paperHeightMm)
+    {
+        var allLines = new List<DrawingVectorLine>();
+        double w = paperWidthMm > 50.0 ? paperWidthMm : 297.0;
+        double h = paperHeightMm > 50.0 ? paperHeightMm : 210.0;
+
+        // 1. Standard Sheet Borders (GB / ISO / ASME Drawing Standard)
+        GenerateSheetBorders(allLines, w, h);
+
+        // 2. Standard Title Block & Tolerance Table Outer Frame
+        GenerateTitleBlockAndToleranceGrids(allLines, w, h);
+
+        // 3. Extract Views from Definition Stream
+        var views = new List<DrawingViewGeometry>();
+        if (definitionStream != null && definitionStream.Length > 100)
+        {
+            views.AddRange(ExtractViewsFromDefinition(definitionStream, w, h));
+        }
+
+        // 4. Extract View Geometry Wireframe from VBLists (uiViewBucket_c / uoTempBodyTessData_c)
+        if (vbListsStream != null && vbListsStream.Length > 50)
+        {
+            var viewLines = ExtractViewGeometryFromVBLists(vbListsStream, views, w, h);
+            allLines.AddRange(viewLines);
+        }
+
+        return (allLines.AsReadOnly(), views.AsReadOnly());
+    }
+
+    /// <summary>
+    /// Extracts all 2D vector CAD line geometry for a drawing sheet (backwards compatible).
     /// </summary>
     public static IReadOnlyList<DrawingVectorLine> ReadSheetGeometry(
         byte[]? vbListsStream,
@@ -20,23 +57,8 @@ public static class DrawingGeometryReader
         double paperWidthMm,
         double paperHeightMm)
     {
-        var lines = new List<DrawingVectorLine>();
-        double w = paperWidthMm > 50.0 ? paperWidthMm : 297.0;
-        double h = paperHeightMm > 50.0 ? paperHeightMm : 210.0;
-
-        // 1. Standard Sheet Borders (GB / ISO / ASME Drawing Standard)
-        GenerateSheetBorders(lines, w, h);
-
-        // 2. Standard Title Block & Tolerance Table Grid Lines
-        GenerateTitleBlockAndToleranceGrids(lines, w, h);
-
-        // 3. Extract View Geometry Wireframe from VBLists (uiViewBucket_c / uoTempBodyTessData_c)
-        if (vbListsStream != null && vbListsStream.Length > 100)
-        {
-            ExtractViewGeometryFromVBLists(lines, vbListsStream, w, h);
-        }
-
-        return lines.AsReadOnly();
+        var (lines, _) = ReadSheetGeometryAndViews(vbListsStream, definitionStream, paperWidthMm, paperHeightMm);
+        return lines;
     }
 
     private static void GenerateSheetBorders(List<DrawingVectorLine> lines, double w, double h)
@@ -75,22 +97,7 @@ public static class DrawingGeometryReader
         lines.Add(new DrawingVectorLine(tbX0, tbY0, tbX0, tbY1, DrawingLineKind.SheetBorderInner, 0.5));
         lines.Add(new DrawingVectorLine(tbX0, tbY1, tbX1, tbY1, DrawingLineKind.SheetBorderInner, 0.5));
 
-        // Horizontal partition rows inside title block (fine line 0.25mm)
-        double[] rows = { bottom + 7.5, bottom + 15.0, bottom + 22.5, bottom + 30.0, bottom + 37.5 };
-        foreach (double y in rows)
-        {
-            lines.Add(new DrawingVectorLine(tbX0, y, tbX1, y, DrawingLineKind.TableGrid, 0.25));
-        }
-
-        // Vertical column dividers
-        double col1 = tbX0 + 35.0; // Designed / Checked labels
-        double col2 = tbX0 + 65.0; // Signatures
-        double col3 = tbX0 + 95.0; // Dates / Properties
-        lines.Add(new DrawingVectorLine(col1, tbY0, col1, tbY0 + 30.0, DrawingLineKind.TableGrid, 0.25));
-        lines.Add(new DrawingVectorLine(col2, tbY0, col2, tbY0 + 30.0, DrawingLineKind.TableGrid, 0.25));
-        lines.Add(new DrawingVectorLine(col3, tbY0, col3, tbY1, DrawingLineKind.TableGrid, 0.25));
-
-        // Tolerance table boundary (above title block on the right: 50mm x 15mm)
+        // Tolerance table boundary (above title block on the right: 55mm x 15mm)
         double tolW = 55.0;
         double tolH = 15.0;
         double tolX0 = right - tolW;
@@ -100,99 +107,203 @@ public static class DrawingGeometryReader
 
         lines.Add(new DrawingVectorLine(tolX0, tolY0, tolX0, tolY1, DrawingLineKind.SheetBorderInner, 0.5));
         lines.Add(new DrawingVectorLine(tolX0, tolY1, tolX1, tolY1, DrawingLineKind.SheetBorderInner, 0.5));
-
-        // Tolerance table inner grid
-        lines.Add(new DrawingVectorLine(tolX0, tolY0 + 5.0, tolX1, tolY0 + 5.0, DrawingLineKind.TableGrid, 0.25));
-        lines.Add(new DrawingVectorLine(tolX0, tolY0 + 10.0, tolX1, tolY0 + 10.0, DrawingLineKind.TableGrid, 0.25));
     }
 
-    private static void ExtractViewGeometryFromVBLists(
-        List<DrawingVectorLine> lines,
-        byte[] data,
-        double paperWidthMm,
-        double paperHeightMm)
+    /// <summary>
+    /// Scans the Definition stream for drawing view bounding boxes and locations serialized as MFC view objects.
+    /// </summary>
+    public static List<DrawingViewGeometry> ExtractViewsFromDefinition(byte[] defBytes, double paperW, double paperH)
     {
-        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var views = new List<DrawingViewGeometry>();
+        var seenBoxes = new HashSet<string>(StringComparer.Ordinal);
 
-        // 1. Scan single-precision float line segments
-        int maxFloat = data.Length - 24;
-        for (int i = 0; i < maxFloat; i += 12)
+        // Scan for 4-tuple of doubles: (xMin, yMin, xMax, yMax) in meters
+        for (int i = 0; i <= defBytes.Length - 32; i += 8)
         {
-            float x1 = BitConverter.ToSingle(data, i);
-            float y1 = BitConverter.ToSingle(data, i + 4);
-            float z1 = BitConverter.ToSingle(data, i + 8);
-            float x2 = BitConverter.ToSingle(data, i + 12);
-            float y2 = BitConverter.ToSingle(data, i + 16);
-            float z2 = BitConverter.ToSingle(data, i + 20);
+            double x1 = BitConverter.ToDouble(defBytes, i);
+            double y1 = BitConverter.ToDouble(defBytes, i + 8);
+            double x2 = BitConverter.ToDouble(defBytes, i + 16);
+            double y2 = BitConverter.ToDouble(defBytes, i + 24);
 
-            if (IsValidPoint(x1, y1, z1, paperWidthMm, paperHeightMm) &&
-                IsValidPoint(x2, y2, z2, paperWidthMm, paperHeightMm))
+            if (double.IsNaN(x1) || double.IsNaN(y1) || double.IsNaN(x2) || double.IsNaN(y2))
+                continue;
+
+            // In sheet range in meters
+            if (x1 >= 0.02 && x1 <= (paperW - 10.0) / 1000.0 &&
+                x2 >= 0.02 && x2 <= (paperW - 10.0) / 1000.0 &&
+                y1 >= 0.02 && y1 <= (paperH - 10.0) / 1000.0 &&
+                y2 >= 0.02 && y2 <= (paperH - 10.0) / 1000.0)
             {
-                double px1 = x1 * 1000.0, py1 = y1 * 1000.0;
-                double px2 = x2 * 1000.0, py2 = y2 * 1000.0;
-                double len = Math.Sqrt(Math.Pow(px2 - px1, 2) + Math.Pow(py2 - py1, 2));
+                double minX = Math.Min(x1, x2) * 1000.0;
+                double maxX = Math.Max(x1, x2) * 1000.0;
+                double minY = Math.Min(y1, y2) * 1000.0;
+                double maxY = Math.Max(y1, y2) * 1000.0;
 
-                if (len >= 0.5 && len <= 550.0)
+                double w = maxX - minX;
+                double h = maxY - minY;
+
+                // View bounding box should have reasonable span (e.g. width >= 10mm or height >= 10mm)
+                if ((w >= 10.0 || h >= 10.0) && w <= paperW && h <= paperH)
                 {
-                    string key = $"{Math.Round(Math.Min(px1, px2), 1)}_{Math.Round(Math.Min(py1, py2), 1)}_{Math.Round(Math.Max(px1, px2), 1)}_{Math.Round(Math.Max(py1, py2), 1)}";
-                    if (seen.Add(key))
+                    string key = $"{Math.Round(minX, 0)}_{Math.Round(minY, 0)}_{Math.Round(maxX, 0)}_{Math.Round(maxY, 0)}";
+                    if (seenBoxes.Add(key))
                     {
-                        DrawingLineKind kind = (len > 35.0) ? DrawingLineKind.SolidOutline : DrawingLineKind.ThinLine;
-                        double weight = (kind == DrawingLineKind.SolidOutline) ? 0.45 : 0.25;
-                        lines.Add(new DrawingVectorLine(px1, py1, px2, py2, kind, weight));
+                        double cx = (minX + maxX) / 2.0;
+                        double cy = (minY + maxY) / 2.0;
+                        views.Add(new DrawingViewGeometry($"View_{views.Count + 1}", cx, cy, w, h));
                     }
                 }
             }
         }
 
-        // 2. Scan double-precision line segments
-        int maxDouble = data.Length - 48;
-        for (int i = 0; i < maxDouble; i += 24)
+        return views;
+    }
+
+    /// <summary>
+    /// Extracts 2D wireframe contours and tessellated line segments from the VBLists stream,
+    /// transforming local model coordinates into physical sheet coordinates.
+    /// </summary>
+    public static List<DrawingVectorLine> ExtractViewGeometryFromVBLists(
+        byte[] vbBytes,
+        List<DrawingViewGeometry> views,
+        double paperW,
+        double paperH)
+    {
+        var lines = new List<DrawingVectorLine>();
+        var seenLines = new HashSet<string>(StringComparer.Ordinal);
+
+        // Locate bucket partition boundaries in VBLists
+        var bucketOffsets = new List<int> { 0x4 };
+        for (int i = 0; i < vbBytes.Length - 1; i++)
         {
-            double x1 = BitConverter.ToDouble(data, i);
-            double y1 = BitConverter.ToDouble(data, i + 8);
-            double z1 = BitConverter.ToDouble(data, i + 16);
-            double x2 = BitConverter.ToDouble(data, i + 24);
-            double y2 = BitConverter.ToDouble(data, i + 32);
-            double z2 = BitConverter.ToDouble(data, i + 40);
-
-            if (IsValidPointD(x1, y1, z1, paperWidthMm, paperHeightMm) &&
-                IsValidPointD(x2, y2, z2, paperWidthMm, paperHeightMm))
+            if (vbBytes[i] == 0x01 && vbBytes[i + 1] == 0x80)
             {
-                double px1 = x1 * 1000.0, py1 = y1 * 1000.0;
-                double px2 = x2 * 1000.0, py2 = y2 * 1000.0;
-                double len = Math.Sqrt(Math.Pow(px2 - px1, 2) + Math.Pow(py2 - py1, 2));
+                bucketOffsets.Add(i);
+            }
+        }
+        bucketOffsets.Add(vbBytes.Length);
 
-                if (len >= 0.5 && len <= 550.0)
+        for (int b = 0; b < bucketOffsets.Count - 1; b++)
+        {
+            int start = bucketOffsets[b];
+            int end = bucketOffsets[b + 1];
+
+            var rawLines = new List<(double x1, double y1, double x2, double y2)>();
+
+            // 1. Scan single-precision float line segments (12-byte vertex stride)
+            for (int i = start; i <= end - 24; i += 12)
+            {
+                float x1 = BitConverter.ToSingle(vbBytes, i);
+                float y1 = BitConverter.ToSingle(vbBytes, i + 4);
+                float z1 = BitConverter.ToSingle(vbBytes, i + 8);
+                float x2 = BitConverter.ToSingle(vbBytes, i + 12);
+                float y2 = BitConverter.ToSingle(vbBytes, i + 16);
+                float z2 = BitConverter.ToSingle(vbBytes, i + 20);
+
+                if (!float.IsNaN(x1) && !float.IsInfinity(x1) &&
+                    !float.IsNaN(y1) && !float.IsInfinity(y1) &&
+                    !float.IsNaN(x2) && !float.IsInfinity(x2) &&
+                    !float.IsNaN(y2) && !float.IsInfinity(y2))
                 {
-                    string key = $"{Math.Round(Math.Min(px1, px2), 1)}_{Math.Round(Math.Min(py1, py2), 1)}_{Math.Round(Math.Max(px1, px2), 1)}_{Math.Round(Math.Max(py1, py2), 1)}";
-                    if (seen.Add(key))
+                    if (Math.Abs(x1) <= 10.0f && Math.Abs(y1) <= 10.0f && Math.Abs(z1) <= 1.0f &&
+                        Math.Abs(x2) <= 10.0f && Math.Abs(y2) <= 10.0f && Math.Abs(z2) <= 1.0f)
                     {
-                        DrawingLineKind kind = (len > 35.0) ? DrawingLineKind.SolidOutline : DrawingLineKind.ThinLine;
-                        double weight = (kind == DrawingLineKind.SolidOutline) ? 0.45 : 0.25;
-                        lines.Add(new DrawingVectorLine(px1, py1, px2, py2, kind, weight));
+                        double len = Math.Sqrt(Math.Pow(x2 - x1, 2) + Math.Pow(y2 - y1, 2));
+                        if (len >= 0.0005 && len <= 10.0)
+                        {
+                            rawLines.Add((x1, y1, x2, y2));
+                        }
                     }
                 }
             }
+
+            // 2. Scan double-precision line segments (24-byte vertex stride)
+            for (int i = start; i <= end - 48; i += 24)
+            {
+                double x1 = BitConverter.ToDouble(vbBytes, i);
+                double y1 = BitConverter.ToDouble(vbBytes, i + 8);
+                double z1 = BitConverter.ToDouble(vbBytes, i + 16);
+                double x2 = BitConverter.ToDouble(vbBytes, i + 24);
+                double y2 = BitConverter.ToDouble(vbBytes, i + 32);
+                double z2 = BitConverter.ToDouble(vbBytes, i + 40);
+
+                if (!double.IsNaN(x1) && !double.IsInfinity(x1) &&
+                    !double.IsNaN(y1) && !double.IsInfinity(y1) &&
+                    !double.IsNaN(x2) && !double.IsInfinity(x2) &&
+                    !double.IsNaN(y2) && !double.IsInfinity(y2))
+                {
+                    if (Math.Abs(x1) <= 10.0 && Math.Abs(y1) <= 10.0 && Math.Abs(z1) <= 1.0 &&
+                        Math.Abs(x2) <= 10.0 && Math.Abs(y2) <= 10.0 && Math.Abs(z2) <= 1.0)
+                    {
+                        double len = Math.Sqrt(Math.Pow(x2 - x1, 2) + Math.Pow(y2 - y1, 2));
+                        if (len >= 0.0005 && len <= 10.0)
+                        {
+                            rawLines.Add((x1, y1, x2, y2));
+                        }
+                    }
+                }
+            }
+
+            if (rawLines.Count == 0) continue;
+
+            double srcXMin = rawLines.Min(l => Math.Min(l.x1, l.x2));
+            double srcXMax = rawLines.Max(l => Math.Max(l.x1, l.x2));
+            double srcYMin = rawLines.Min(l => Math.Min(l.y1, l.y2));
+            double srcYMax = rawLines.Max(l => Math.Max(l.y1, l.y2));
+
+            double srcW = srcXMax - srcXMin;
+            double srcH = srcYMax - srcYMin;
+            if (srcW <= 1e-4) srcW = 1.0;
+            if (srcH <= 1e-4) srcH = 1.0;
+
+            DrawingViewGeometry? targetView = (b < views.Count) ? views[b] : null;
+
+            double targetCenterX = targetView?.CenterXMm ?? (paperW / 2.0);
+            double targetCenterY = targetView?.CenterYMm ?? (paperH / 2.0);
+            double targetW = targetView?.WidthMm ?? (paperW * 0.5);
+            double targetH = targetView?.HeightMm ?? (paperH * 0.5);
+
+            double scale = Math.Min(targetW / (srcW * 1000.0), targetH / (srcH * 1000.0));
+            if (scale <= 1e-5 || double.IsInfinity(scale)) scale = 1.0 / 50.0;
+
+            double srcCenterX = (srcXMin + srcXMax) / 2.0;
+            double srcCenterY = (srcYMin + srcYMax) / 2.0;
+
+            var currentViewLines = new List<DrawingVectorLine>();
+
+            foreach (var rl in rawLines)
+            {
+                double px1 = targetCenterX + (rl.x1 - srcCenterX) * 1000.0 * scale;
+                double py1 = targetCenterY + (rl.y1 - srcCenterY) * 1000.0 * scale;
+                double px2 = targetCenterX + (rl.x2 - srcCenterX) * 1000.0 * scale;
+                double py2 = targetCenterY + (rl.y2 - srcCenterY) * 1000.0 * scale;
+
+                // Ensure within physical paper boundaries
+                if (px1 < 2.0 || px1 > paperW - 2.0 || py1 < 2.0 || py1 > paperH - 2.0 ||
+                    px2 < 2.0 || px2 > paperW - 2.0 || py2 < 2.0 || py2 > paperH - 2.0)
+                    continue;
+
+                double lenMm = Math.Sqrt(Math.Pow(px2 - px1, 2) + Math.Pow(py2 - py1, 2));
+                if (lenMm < 0.2 || lenMm > 400.0) continue;
+
+                // Deduplicate coincident or reversed line segments with spatial hash
+                string key = $"{Math.Round(Math.Min(px1, px2), 1)}_{Math.Round(Math.Min(py1, py2), 1)}_{Math.Round(Math.Max(px1, px2), 1)}_{Math.Round(Math.Max(py1, py2), 1)}";
+                if (seenLines.Add(key))
+                {
+                    var kind = (lenMm > 12.0) ? DrawingLineKind.SolidOutline : DrawingLineKind.ThinLine;
+                    double weight = (kind == DrawingLineKind.SolidOutline) ? 0.45 : 0.25;
+                    var line = new DrawingVectorLine(px1, py1, px2, py2, kind, weight);
+                    lines.Add(line);
+                    currentViewLines.Add(line);
+                }
+            }
+
+            if (targetView != null)
+            {
+                targetView.Lines = currentViewLines.AsReadOnly();
+            }
         }
-    }
 
-    private static bool IsValidPoint(float x, float y, float z, double paperW, double paperH)
-    {
-        if (float.IsNaN(x) || float.IsInfinity(x) || float.IsNaN(y) || float.IsInfinity(y) || float.IsNaN(z) || float.IsInfinity(z))
-            return false;
-        // In sheet range in meters
-        return x >= 0.005f && x <= (paperW - 2.0) / 1000.0f &&
-               y >= 0.005f && y <= (paperH - 2.0) / 1000.0f &&
-               Math.Abs(z) < 0.25f;
-    }
-
-    private static bool IsValidPointD(double x, double y, double z, double paperW, double paperH)
-    {
-        if (double.IsNaN(x) || double.IsInfinity(x) || double.IsNaN(y) || double.IsInfinity(y) || double.IsNaN(z) || double.IsInfinity(z))
-            return false;
-        return x >= 0.005 && x <= (paperW - 2.0) / 1000.0 &&
-               y >= 0.005 && y <= (paperH - 2.0) / 1000.0 &&
-               Math.Abs(z) < 0.25;
+        return lines;
     }
 }
