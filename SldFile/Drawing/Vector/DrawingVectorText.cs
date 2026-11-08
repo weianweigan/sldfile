@@ -4,12 +4,46 @@ using System.Text.RegularExpressions;
 namespace SldFile.Drawing.Vector;
 
 /// <summary>
+/// Categorization of drawing text elements to separate sheet-level format notes (title block, tolerance, general notes)
+/// from drawing view annotations (model dimensions, leader callouts) to prevent ghosting over view geometry.
+/// </summary>
+public enum DrawingVectorTextCategory
+{
+    TitleBlock,      // Title block fields (Part Name, Drawing No, Material, Designer, Date, etc.)
+    ToleranceTable,  // Unmarked tolerance tables and limits
+    TechnicalNote,   // General technical requirements and notes (usually lower-left)
+    SheetFormat,     // Sheet borders, zone markers and sheet-level properties
+    ViewAnnotation,  // Dimensions, hole callouts and annotations belonging to drawing views
+    Metadata         // Internal system tokens, layer names or unplaced text
+}
+
+/// <summary>
 /// Represents a 2D vector text element (e.g. note, dimension label, title block field)
 /// extracted from SolidWorks drawing definition streams.
 /// </summary>
 public sealed class DrawingVectorText
 {
     private static readonly Regex FontTagRegex = new Regex(@"<[^>]+>", RegexOptions.Compiled);
+
+    /// <summary>
+    /// Classification of this text element.
+    /// </summary>
+    public DrawingVectorTextCategory Category { get; internal set; } = DrawingVectorTextCategory.SheetFormat;
+
+    /// <summary>
+    /// True if this text belongs to sheet-level documentation (title block, tolerance tables, technical notes).
+    /// Rendering these losslessly enhances drawing readability without interfering with view geometry.
+    /// </summary>
+    public bool IsSheetLevelNote =>
+        Category == DrawingVectorTextCategory.TitleBlock ||
+        Category == DrawingVectorTextCategory.ToleranceTable ||
+        Category == DrawingVectorTextCategory.TechnicalNote ||
+        Category == DrawingVectorTextCategory.SheetFormat;
+
+    /// <summary>
+    /// True if this text is a dimension or leader callout attached to a model drawing view.
+    /// </summary>
+    public bool IsViewAnnotation => Category == DrawingVectorTextCategory.ViewAnnotation;
 
     /// <summary>
     /// Raw text content as stored in the drawing (may contain format tags like &lt;FONT size=5PTS&gt;).

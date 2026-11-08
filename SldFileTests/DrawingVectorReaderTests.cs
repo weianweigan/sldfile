@@ -112,4 +112,46 @@ public class DrawingVectorReaderTests
             Assert.True(sheet0.VectorData.PaperHeightMm > 0);
         }
     }
+
+    [Fact]
+    public void DrawingVectorReader_ClassifiesTextsAccurately_PreventingViewGhosting()
+    {
+        var ms = new MemoryStream();
+        void WriteText(string txt, double xM, double yM)
+        {
+            ms.WriteByte(0xFF); ms.WriteByte(0xFE); ms.WriteByte(0xFF);
+            byte[] bytes = Encoding.Unicode.GetBytes(txt);
+            ms.WriteByte((byte)txt.Length);
+            ms.Write(bytes, 0, bytes.Length);
+            ms.Write(BitConverter.GetBytes(xM), 0, 8);
+            ms.Write(BitConverter.GetBytes(yM), 0, 8);
+            ms.Write(BitConverter.GetBytes(0.0), 0, 8);
+            ms.Write(new byte[16]);
+        }
+
+        WriteText("技术要求", 0.012, 0.024);
+        WriteText("Drawing No./图号", 0.227, 0.021);
+        WriteText("Tolerance not marked/未注公差", 0.252, 0.049);
+        WriteText("2-10*50", 0.220, 0.137);
+
+        var result = DrawingVectorReader.ReadVectorData(ms.ToArray(), null);
+        Assert.NotNull(result);
+        Assert.Equal(4, result.Texts.Count);
+
+        var tech = result.Texts.First(t => t.CleanText == "技术要求");
+        Assert.Equal(DrawingVectorTextCategory.TechnicalNote, tech.Category);
+        Assert.True(tech.IsSheetLevelNote);
+
+        var title = result.Texts.First(t => t.CleanText.Contains("Drawing No"));
+        Assert.Equal(DrawingVectorTextCategory.TitleBlock, title.Category);
+        Assert.True(title.IsSheetLevelNote);
+
+        var tol = result.Texts.First(t => t.CleanText.Contains("未注公差"));
+        Assert.Equal(DrawingVectorTextCategory.ToleranceTable, tol.Category);
+        Assert.True(tol.IsSheetLevelNote);
+
+        var view = result.Texts.First(t => t.CleanText == "2-10*50");
+        Assert.Equal(DrawingVectorTextCategory.ViewAnnotation, view.Category);
+        Assert.False(view.IsSheetLevelNote);
+    }
 }

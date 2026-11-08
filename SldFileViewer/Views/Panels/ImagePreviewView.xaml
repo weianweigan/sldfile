@@ -104,11 +104,11 @@
                         </Button>
 
                         <!-- Vector CAD Typography Toggle (Lossless Vector Overlay) -->
-                        <Button Command="{Binding ToggleVectorOverlayCommand}"
+                        <Button Command="{Binding CycleOverlayModeCommand}"
                                 Visibility="{Binding HasVectorData, Converter={StaticResource BoolToVisibilityConverter}}"
                                 Style="{StaticResource Style.Button.Toolbar}"
                                 Padding="8,4" Margin="2,0"
-                                ToolTip="切换工程图 100% 矢量文字无损增强渲染 (媲美 eDrawings)">
+                                ToolTip="循环切换工程图矢量文字增强模式 (图纸注释[无重影] / 全图 CAD / 关闭)">
                             <StackPanel Orientation="Horizontal">
                                 <iconPacks:PackIconMaterial Kind="FormatLetterCase" Width="12" Height="12" Foreground="{StaticResource Brush.Figma.Ink}" Margin="0,0,4,0" VerticalAlignment="Center"/>
                                 <TextBlock Text="{Binding VectorOverlayButtonText}" FontSize="11" FontWeight="SemiBold"/>
@@ -158,7 +158,11 @@
 
             <Grid.ContextMenu>
                 <ContextMenu>
-                    <MenuItem Header="矢量文字增强 (Vector CAD)" Command="{Binding ToggleVectorOverlayCommand}" Visibility="{Binding HasVectorData, Converter={StaticResource BoolToVisibilityConverter}}" />
+                    <MenuItem Header="🔤 矢量文字增强 (媲美 eDrawings)" Visibility="{Binding HasVectorData, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <MenuItem Header="图纸与注释增强 (推荐，无重影)" Command="{Binding SetSheetNotesOnlyModeCommand}" />
+                        <MenuItem Header="全图 CAD 标注 (含模型尺寸)" Command="{Binding SetAllAnnotationsModeCommand}" />
+                        <MenuItem Header="关闭矢量增强 (原始位图)" Command="{Binding SetOverlayOffModeCommand}" />
+                    </MenuItem>
                     <Separator Visibility="{Binding HasVectorData, Converter={StaticResource BoolToVisibilityConverter}}" />
                     <MenuItem Header="自适应窗口大小 (Fit)" Command="{Binding FitToWindowCommand}" />
                     <MenuItem Header="1:1 实际尺寸 (100%)" Command="{Binding ResetTo100Command}" />
@@ -201,6 +205,7 @@
                             Width="{Binding PixelWidth}"
                             Height="{Binding PixelHeight}"
                             VectorData="{Binding VectorData}"
+                            OverlayMode="{Binding OverlayMode}"
                             IsOverlayEnabled="{Binding IsVectorOverlayEnabled}"
                             HorizontalAlignment="Left"
                             VerticalAlignment="Top" />

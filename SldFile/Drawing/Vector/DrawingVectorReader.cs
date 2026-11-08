@@ -52,10 +52,81 @@ public static class DrawingVectorReader
                 }
             }
 
+            // Classify texts into SheetFormat, TitleBlock, ToleranceTable, TechnicalNote vs ViewAnnotation
+            ClassifyTexts(rawTexts, vectorData.PaperWidthMm, vectorData.PaperHeightMm);
+
             vectorData.Texts = rawTexts;
         }
 
         return vectorData;
+    }
+
+    private static void ClassifyTexts(IReadOnlyList<DrawingVectorText> texts, double paperWidth, double paperHeight)
+    {
+        double sheetNoteMaxY = Math.Max(55.0, paperHeight * 0.28);
+
+        foreach (var text in texts)
+        {
+            if (string.IsNullOrWhiteSpace(text.CleanText) ||
+                text.CleanText.StartsWith("$PRP", StringComparison.OrdinalIgnoreCase))
+            {
+                text.Category = DrawingVectorTextCategory.Metadata;
+                continue;
+            }
+
+            // Outside paper boundary or negative coordinates
+            if (text.X <= 0.5 || text.Y <= 0.5 || text.X > paperWidth + 5.0 || text.Y > paperHeight + 5.0)
+            {
+                text.Category = DrawingVectorTextCategory.Metadata;
+                continue;
+            }
+
+            // CAD layer or system tokens
+            if (text.CleanText == "mm" || text.CleanText == "m" || text.CleanText == "cm" || text.CleanText == "km" ||
+                text.CleanText == "CENTER" || text.CleanText == "HIDDEN" || text.CleanText == "CONTINUOUS" ||
+                text.CleanText == "PHANTOM" || text.CleanText == "粗实线" || text.CleanText == "细/粗_点画线" ||
+                text.CleanText == "点画线" || text.CleanText == "双点画线" || text.CleanText == "中心线" ||
+                text.CleanText == "2细线层" || text.CleanText == "DUMMYTHREAD" || text.CleanText.StartsWith("细节项目", StringComparison.Ordinal))
+            {
+                text.Category = DrawingVectorTextCategory.Metadata;
+                continue;
+            }
+
+            // If in bottom zone (Y <= sheetNoteMaxY)
+            if (text.Y <= sheetNoteMaxY)
+            {
+                // Lower-left quadrant: General technical requirements & notes
+                if (text.X < paperWidth * 0.5)
+                {
+                    text.Category = DrawingVectorTextCategory.TechnicalNote;
+                }
+                // Lower-right quadrant: Check if it's tolerance table or title block
+                else if (text.CleanText.Contains("公差") || text.CleanText.Contains("Tolerance") ||
+                         text.CleanText == "±" || text.CleanText == "≤" || text.CleanText == "＞" ||
+                         text.CleanText.Contains("specify deviations") ||
+                         (text.Y >= 35.0 && text.X >= paperWidth * 0.75))
+                {
+                    text.Category = DrawingVectorTextCategory.ToleranceTable;
+                }
+                else
+                {
+                    text.Category = DrawingVectorTextCategory.TitleBlock;
+                }
+            }
+            else
+            {
+                // Higher up on sheet: drawing views, dimensions, hole callouts
+                if (text.CleanText.StartsWith("技术要求", StringComparison.OrdinalIgnoreCase) ||
+                    text.CleanText.Contains("锐边倒角"))
+                {
+                    text.Category = DrawingVectorTextCategory.TechnicalNote;
+                }
+                else
+                {
+                    text.Category = DrawingVectorTextCategory.ViewAnnotation;
+                }
+            }
+        }
     }
 
     private static void ParseSheetMetadata(string? keywordsXml, int sheetIndex, DrawingSheetVectorData data)

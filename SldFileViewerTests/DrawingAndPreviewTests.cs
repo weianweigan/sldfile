@@ -124,8 +124,8 @@ public class DrawingAndPreviewTests
         var vectorData = new SldFile.Drawing.Vector.DrawingSheetVectorData();
         vectorData.Texts = new[]
         {
-            new SldFile.Drawing.Vector.DrawingVectorText("未注公差", 250, 49),
-            new SldFile.Drawing.Vector.DrawingVectorText("技术要求", 12, 24)
+            new SldFile.Drawing.Vector.DrawingVectorText("未注公差", 250, 49) { Category = SldFile.Drawing.Vector.DrawingVectorTextCategory.ToleranceTable },
+            new SldFile.Drawing.Vector.DrawingVectorText("技术要求", 12, 24) { Category = SldFile.Drawing.Vector.DrawingVectorTextCategory.TechnicalNote }
         };
 
         // Synthesize 100x100 BMP
@@ -143,9 +143,10 @@ public class DrawingAndPreviewTests
 
         Assert.True(imgVm.HasVectorData);
         Assert.True(imgVm.IsVectorOverlayEnabled);
-        Assert.Contains("矢量 CAD (2 图元)", imgVm.VectorStatusText);
+        Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.SheetNotesOnly, imgVm.OverlayMode);
+        Assert.Contains("矢量注释 (2 项图纸文字)", imgVm.VectorStatusText);
         Assert.Contains("[矢量 CAD: 2 图元]", imgVm.ImageInfo);
-        Assert.Equal("矢量增强: 开", imgVm.VectorOverlayButtonText);
+        Assert.Equal("矢量增强: 图纸注释", imgVm.VectorOverlayButtonText);
 
         // Toggle
         imgVm.ToggleVectorOverlayCommand.Execute(null);
@@ -193,6 +194,15 @@ public class DrawingAndPreviewTests
         Assert.Contains(texts, t => t.CleanText.Contains("未注公差"));
         Assert.Contains(texts, t => t.CleanText.Contains("D8001507933"));
         Assert.Contains(texts, t => t.CleanText.Contains("锐边倒角去毛刺"));
+
+        // Anti-ghosting verification: View dimension 2-10*50 is classified as ViewAnnotation and not SheetLevelNote
+        var holeCallout = texts.FirstOrDefault(t => t.CleanText == "2-10*50");
+        Assert.NotNull(holeCallout);
+        Assert.Equal(SldFile.Drawing.Vector.DrawingVectorTextCategory.ViewAnnotation, holeCallout.Category);
+        Assert.False(holeCallout.IsSheetLevelNote);
+
+        var tech = texts.First(t => t.CleanText.Contains("技术要求"));
+        Assert.True(tech.IsSheetLevelNote);
 
         // Verify coordinates mapped
         var techNote = texts.First(t => t.CleanText.Contains("技术要求"));
