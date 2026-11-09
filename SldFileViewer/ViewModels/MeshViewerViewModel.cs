@@ -398,6 +398,8 @@ public void LoadMesh(int configIndex = 0)
 
 {
 
+ClearComponentHighlight();
+
 CurrentConfigIndex = configIndex;
 
 var mesh = _docService.GetDisplayMesh();
@@ -533,10 +535,10 @@ public void ZoomToFit()
     RequestZoomToFit?.Invoke();
 }
 
-[RelayCommand]
+[RelayCommand(CanExecute = nameof(CanZoomToComponent))]
 public void ZoomToComponent()
 {
-    RequestZoomToComponent?.Invoke();
+    if (CanZoomToComponent()) RequestZoomToComponent?.Invoke();
 }
 
 [RelayCommand]
@@ -562,80 +564,43 @@ public void SetDisplayStyle(ModelDisplayStyle style)
 public void HighlightComponent(AssemblyComponentNode? comp)
 {
     SelectedAssemblyComponent = comp;
-    if (comp == null)
-    {
-        HighlightedComponentName = null;
-        WpfComponentHighlightMesh = null;
-        return;
-    }
+    WpfComponentHighlightMesh = null;
+    HighlightedComponentName = comp == null ? null : string.IsNullOrWhiteSpace(comp.InstanceName)
+        ? comp.Name : $"{comp.Name} ({comp.InstanceName})";
+    if (comp == null || Mesh == null) return;
 
-    HighlightedComponentName = string.IsNullOrWhiteSpace(comp.InstanceName)
-        ? comp.Name
-        : $"{comp.Name} ({comp.InstanceName})";
-
-    if (Mesh == null || Mesh.Positions.Count == 0)
-    {
-        WpfComponentHighlightMesh = null;
-        return;
-    }
-
-    var (center, min, max, matched) = FindComponentBounds(comp);
+    var componentMesh = _docService.GetComponentDisplayMesh(comp);
+    if (componentMesh == null || componentMesh.VertexCount == 0) return;
 
     var geo = new MeshGeometry3D();
     var meshCenter = GetMeshCenter();
-
-    // 1. 若找到了匹配的表面面片，把这些面片提取到高亮网格
-    if (matched.Count > 0)
+    foreach (var p in componentMesh.Positions)
     {
-        foreach (var part in matched)
-        {
-            int vStart = part.VertexStart;
-            int vCount = part.VertexCount;
-            int tStart = part.TriangleStart * 3;
-            int tCount = part.TriangleCount * 3;
-
-            int baseIndex = geo.Positions.Count;
-            for (int i = 0; i < vCount; i++)
-            {
-                var p = Mesh.Positions[vStart + i] - meshCenter;
-                geo.Positions.Add(new Point3D(p.X, p.Y, p.Z));
-                if (vStart + i < Mesh.Normals.Count)
-                {
-                    var n = Mesh.Normals[vStart + i];
-                    geo.Normals.Add(new Vector3D(n.X, n.Y, n.Z));
-                }
-            }
-            for (int i = 0; i < tCount; i += 3)
-            {
-                int i0 = Mesh.TriangleIndices[tStart + i] - vStart + baseIndex;
-                int i1 = Mesh.TriangleIndices[tStart + i + 1] - vStart + baseIndex;
-                int i2 = Mesh.TriangleIndices[tStart + i + 2] - vStart + baseIndex;
-                geo.TriangleIndices.Add(i0);
-                geo.TriangleIndices.Add(i1);
-                geo.TriangleIndices.Add(i2);
-            }
-        }
+        var centered = p - meshCenter;
+        geo.Positions.Add(new Point3D(centered.X, centered.Y, centered.Z));
     }
-    else
-    {
-        // 2. 若未按名称直接匹配到 Part，使用包围盒线框与光标标记
-        double thick = Math.Max(ComputeScaleFactor() * 1.5, 0.5);
-        var boxMesh = MeshGeometryHelper.CreateBoundingBoxWireframe(
-            new Point3D(min.X, min.Y, min.Z),
-            new Point3D(max.X, max.Y, max.Z),
-            thick);
-        if (boxMesh != null)
-        {
-            AppendMesh(geo, boxMesh);
-        }
-    }
-
+    foreach (var index in componentMesh.TriangleIndices)
+        geo.TriangleIndices.Add(index);
     geo.Freeze();
-    WpfComponentHighlightMesh = geo.Positions.Count > 0 ? geo : null;
+    WpfComponentHighlightMesh = geo.TriangleIndices.Count > 0 ? geo : null;
 }
+
+partial void OnMeshChanged(DisplayMesh? value)
+{
+    ClearComponentHighlight();
+}
+
+partial void OnWpfComponentHighlightMeshChanged(MeshGeometry3D? value)
+{
+    ZoomToComponentCommand.NotifyCanExecuteChanged();
+}
+
+private bool CanZoomToComponent() => SelectedAssemblyComponent != null && WpfComponentHighlightMesh != null;
 
 public void HighlightFeature(Feature? feature)
 {
+    SelectedAssemblyComponent = null;
+    ZoomToComponentCommand.NotifyCanExecuteChanged();
     if (feature == null || Mesh == null || Mesh.Positions.Count == 0)
     {
         HighlightedComponentName = null;
@@ -705,89 +670,10 @@ public void HighlightFeature(Feature? feature)
     }
 }
 
-public (System.Numerics.Vector3 Center, System.Numerics.Vector3 Min, System.Numerics.Vector3 Max, List<DisplayMeshPart> MatchedParts) FindComponentBounds(AssemblyComponentNode comp)
+public bool TryGetComponentBounds(out Rect3D bounds)
 {
-    var matched = new List<DisplayMeshPart>();
-    string compName = comp.Name;
-    string instName = comp.InstanceName;
-
-    if (Mesh != null && Mesh.Parts != null)
-    {
-        foreach (var part in Mesh.Parts)
-        {
-            bool isMatch = false;
-            if (!string.IsNullOrEmpty(part.AppearanceName) &&
-                (part.AppearanceName.Contains(compName, StringComparison.OrdinalIgnoreCase) ||
-                 (!string.IsNullOrEmpty(instName) && part.AppearanceName.Contains(instName, StringComparison.OrdinalIgnoreCase))))
-            {
-                isMatch = true;
-            }
-            if (!isMatch && part.SurfaceReferences != null)
-            {
-                foreach (var sr in part.SurfaceReferences)
-                {
-                    if (!string.IsNullOrEmpty(sr.Identity) &&
-                        (sr.Identity.Contains(compName, StringComparison.OrdinalIgnoreCase) ||
-                         (!string.IsNullOrEmpty(instName) && sr.Identity.Contains(instName, StringComparison.OrdinalIgnoreCase))))
-                    {
-                        isMatch = true;
-                        break;
-                    }
-                }
-            }
-            if (isMatch)
-            {
-                matched.Add(part);
-            }
-        }
-    }
-
-    System.Numerics.Vector3 min = new(float.PositiveInfinity, float.PositiveInfinity, float.PositiveInfinity);
-    System.Numerics.Vector3 max = new(float.NegativeInfinity, float.NegativeInfinity, float.NegativeInfinity);
-    var meshCenter = GetMeshCenter();
-
-    if (matched.Count > 0 && Mesh != null)
-    {
-        foreach (var p in matched)
-        {
-            int start = p.VertexStart;
-            int count = p.VertexCount;
-            for (int i = 0; i < count; i++)
-            {
-                var pt = Mesh.Positions[start + i] - meshCenter;
-                min = System.Numerics.Vector3.Min(min, pt);
-                max = System.Numerics.Vector3.Max(max, pt);
-            }
-        }
-    }
-    else
-    {
-        // 从组件变换矩阵推导中心 (SolidWorks 矩阵位移量单位通常为米，转换为毫米)
-        float tx = comp.Transform.M41 * 1000f - meshCenter.X;
-        float ty = comp.Transform.M42 * 1000f - meshCenter.Y;
-        float tz = comp.Transform.M43 * 1000f - meshCenter.Z;
-
-        float defaultHalfDim = Math.Max(ComputeScaleFactor() * 20f, 10f);
-        if (float.IsFinite(tx) && float.IsFinite(ty) && float.IsFinite(tz) &&
-            Math.Abs(tx) < 100000 && Math.Abs(ty) < 100000 && Math.Abs(tz) < 100000)
-        {
-            min = new System.Numerics.Vector3(tx - defaultHalfDim, ty - defaultHalfDim, tz - defaultHalfDim);
-            max = new System.Numerics.Vector3(tx + defaultHalfDim, ty + defaultHalfDim, tz + defaultHalfDim);
-        }
-        else if (Mesh != null && Mesh.Positions.Count > 0)
-        {
-            min = Mesh.Min - meshCenter;
-            max = Mesh.Max - meshCenter;
-        }
-        else
-        {
-            min = new System.Numerics.Vector3(-10, -10, -10);
-            max = new System.Numerics.Vector3(10, 10, 10);
-        }
-    }
-
-    System.Numerics.Vector3 center = (min + max) * 0.5f;
-    return (center, min, max, matched);
+    bounds = WpfComponentHighlightMesh?.Bounds ?? Rect3D.Empty;
+    return SelectedAssemblyComponent != null && !bounds.IsEmpty;
 }
 
 private System.Numerics.Vector3 GetMeshCenter() =>

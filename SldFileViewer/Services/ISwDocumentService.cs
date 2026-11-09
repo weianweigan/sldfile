@@ -22,6 +22,8 @@ public interface ISwDocumentService : IDisposable
     IReadOnlyList<Feature> GetFeatures();
     IReadOnlyList<SketchFeature> GetSketches(int configIndex = 0);
     DisplayMesh? GetDisplayMesh();
+    // Returns the selected instance geometry in assembly coordinates (millimeters).
+    DisplayMesh? GetComponentDisplayMesh(AssemblyComponentNode component);
     IReadOnlyList<AssemblyComponentNode> GetAssemblyTree(string? configName = null);
     IReadOnlyList<BomItem> GetBom(string? configName = null);
     IReadOnlyList<CustomPropertyItem> GetCustomProperties(string? configName = null);

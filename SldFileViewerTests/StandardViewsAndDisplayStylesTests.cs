@@ -99,7 +99,7 @@ public class StandardViewsAndDisplayStylesTests
     }
 
     [Fact]
-    public void HighlightComponent_WithTransform_BuildsHighlightBox_AndCanClear()
+    public void HighlightComponent_WithoutGeometry_DoesNotGuessBounds_AndCanClear()
     {
         var vm = CreateViewModel();
 
@@ -127,14 +127,15 @@ public class StandardViewsAndDisplayStylesTests
 
         Assert.NotNull(vm.SelectedAssemblyComponent);
         Assert.Equal("Bracket (Bracket-1)", vm.HighlightedComponentName);
-        Assert.NotNull(vm.WpfComponentHighlightMesh);
-        Assert.True(vm.WpfComponentHighlightMesh!.Positions.Count > 0);
+        Assert.Null(vm.WpfComponentHighlightMesh);
+        Assert.False(vm.TryGetComponentBounds(out _));
+        Assert.False(vm.ZoomToComponentCommand.CanExecute(null));
 
         // 测试定位事件
         bool zoomFired = false;
         vm.RequestZoomToComponent += () => zoomFired = true;
         vm.ZoomToComponentCommand.Execute(null);
-        Assert.True(zoomFired);
+        Assert.False(zoomFired);
 
         // 测试清空高亮
         vm.ClearComponentHighlightCommand.Execute(null);
