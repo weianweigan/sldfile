@@ -16,6 +16,10 @@ using Xunit;
 
 namespace SldFileViewerTests;
 
+[CollectionDefinition("Viewer interaction UI", DisableParallelization = true)]
+public class ViewerInteractionUiCollection { }
+
+[Collection("Viewer interaction UI")]
 public class ViewerInteractionRegressionTests
 {
     private sealed class Dialogs : IDialogService
