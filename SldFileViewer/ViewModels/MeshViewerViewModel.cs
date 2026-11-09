@@ -70,6 +70,29 @@ private MeshGeometry3D? _wpfEdgeMesh;
 
 private bool _showEdges = true;
 
+// ── 显示模式 (Display Styles) 与标准视角 (Standard Views) ──
+
+[ObservableProperty]
+private ModelDisplayStyle _displayStyle = ModelDisplayStyle.ShadedWithEdges;
+
+[ObservableProperty]
+private StandardViewType _currentStandardView = StandardViewType.Isometric;
+
+public event Action<StandardViewType>? RequestStandardView;
+public event Action? RequestZoomToFit;
+public event Action? RequestZoomToComponent;
+
+// ── 装配体组件与特征 3D 联动高亮 ──
+
+[ObservableProperty]
+private AssemblyComponentNode? _selectedAssemblyComponent;
+
+[ObservableProperty]
+private string? _highlightedComponentName;
+
+[ObservableProperty]
+private MeshGeometry3D? _wpfComponentHighlightMesh;
+
 // ── 剖视图 (Cross-Section View) 状态与属性 ──
 
 [ObservableProperty]
@@ -375,6 +398,8 @@ public void LoadMesh(int configIndex = 0)
 
 {
 
+ClearComponentHighlight();
+
 CurrentConfigIndex = configIndex;
 
 var mesh = _docService.GetDisplayMesh();
@@ -482,6 +507,184 @@ private void ResetSectionOffset()
 {
 
 SectionOffsetPercent = 0.0;
+
+}
+
+partial void OnDisplayStyleChanged(ModelDisplayStyle value)
+{
+    if (value == ModelDisplayStyle.Shaded)
+    {
+        ShowEdges = false;
+    }
+    else if (value == ModelDisplayStyle.ShadedWithEdges || value == ModelDisplayStyle.TechnicalWhite)
+    {
+        ShowEdges = true;
+    }
+}
+
+[RelayCommand]
+public void SetStandardView(StandardViewType viewType)
+{
+    CurrentStandardView = viewType;
+    RequestStandardView?.Invoke(viewType);
+}
+
+[RelayCommand]
+public void ZoomToFit()
+{
+    RequestZoomToFit?.Invoke();
+}
+
+[RelayCommand(CanExecute = nameof(CanZoomToComponent))]
+public void ZoomToComponent()
+{
+    if (CanZoomToComponent()) RequestZoomToComponent?.Invoke();
+}
+
+[RelayCommand]
+public void ClearComponentHighlight()
+{
+    HighlightComponent(null);
+}
+
+[RelayCommand]
+public void SetDisplayStyle(ModelDisplayStyle style)
+{
+    DisplayStyle = style;
+    if (style == ModelDisplayStyle.Shaded)
+    {
+        ShowEdges = false;
+    }
+    else if (style == ModelDisplayStyle.ShadedWithEdges || style == ModelDisplayStyle.TechnicalWhite)
+    {
+        ShowEdges = true;
+    }
+}
+
+public void HighlightComponent(AssemblyComponentNode? comp)
+{
+    SelectedAssemblyComponent = comp;
+    WpfComponentHighlightMesh = null;
+    HighlightedComponentName = comp == null ? null : string.IsNullOrWhiteSpace(comp.InstanceName)
+        ? comp.Name : $"{comp.Name} ({comp.InstanceName})";
+    if (comp == null || Mesh == null) return;
+
+    var componentMesh = _docService.GetComponentDisplayMesh(comp);
+    if (componentMesh == null || componentMesh.VertexCount == 0) return;
+
+    var geo = new MeshGeometry3D();
+    var meshCenter = GetMeshCenter();
+    foreach (var p in componentMesh.Positions)
+    {
+        var centered = p - meshCenter;
+        geo.Positions.Add(new Point3D(centered.X, centered.Y, centered.Z));
+    }
+    foreach (var index in componentMesh.TriangleIndices)
+        geo.TriangleIndices.Add(index);
+    geo.Freeze();
+    WpfComponentHighlightMesh = geo.TriangleIndices.Count > 0 ? geo : null;
+}
+
+partial void OnMeshChanged(DisplayMesh? value)
+{
+    ClearComponentHighlight();
+}
+
+partial void OnWpfComponentHighlightMeshChanged(MeshGeometry3D? value)
+{
+    ZoomToComponentCommand.NotifyCanExecuteChanged();
+}
+
+private bool CanZoomToComponent() => SelectedAssemblyComponent != null && WpfComponentHighlightMesh != null;
+
+public void HighlightFeature(Feature? feature)
+{
+    SelectedAssemblyComponent = null;
+    ZoomToComponentCommand.NotifyCanExecuteChanged();
+    if (feature == null || Mesh == null || Mesh.Positions.Count == 0)
+    {
+        HighlightedComponentName = null;
+        WpfComponentHighlightMesh = null;
+        return;
+    }
+
+    HighlightedComponentName = $"特征: {feature.Name}";
+
+    var matched = new List<DisplayMeshPart>();
+    if (Mesh.Parts != null)
+    {
+        foreach (var part in Mesh.Parts)
+        {
+            if (part.SurfaceReferences != null)
+            {
+                foreach (var sr in part.SurfaceReferences)
+                {
+                    if (feature.Id.HasValue && feature.Id.Value > 0 && sr.FeatureSourceId == (uint)feature.Id.Value)
+                    {
+                        matched.Add(part);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    if (matched.Count > 0)
+    {
+        var geo = new MeshGeometry3D();
+        var meshCenter = GetMeshCenter();
+        foreach (var part in matched)
+        {
+            int vStart = part.VertexStart;
+            int vCount = part.VertexCount;
+            int tStart = part.TriangleStart * 3;
+            int tCount = part.TriangleCount * 3;
+
+            int baseIndex = geo.Positions.Count;
+            for (int i = 0; i < vCount; i++)
+            {
+                var p = Mesh.Positions[vStart + i] - meshCenter;
+                geo.Positions.Add(new Point3D(p.X, p.Y, p.Z));
+                if (vStart + i < Mesh.Normals.Count)
+                {
+                    var n = Mesh.Normals[vStart + i];
+                    geo.Normals.Add(new Vector3D(n.X, n.Y, n.Z));
+                }
+            }
+            for (int i = 0; i < tCount; i += 3)
+            {
+                int i0 = Mesh.TriangleIndices[tStart + i] - vStart + baseIndex;
+                int i1 = Mesh.TriangleIndices[tStart + i + 1] - vStart + baseIndex;
+                int i2 = Mesh.TriangleIndices[tStart + i + 2] - vStart + baseIndex;
+                geo.TriangleIndices.Add(i0);
+                geo.TriangleIndices.Add(i1);
+                geo.TriangleIndices.Add(i2);
+            }
+        }
+        geo.Freeze();
+        WpfComponentHighlightMesh = geo.Positions.Count > 0 ? geo : null;
+    }
+    else
+    {
+        WpfComponentHighlightMesh = null;
+    }
+}
+
+public bool TryGetComponentBounds(out Rect3D bounds)
+{
+    bounds = WpfComponentHighlightMesh?.Bounds ?? Rect3D.Empty;
+    return SelectedAssemblyComponent != null && !bounds.IsEmpty;
+}
+
+private System.Numerics.Vector3 GetMeshCenter() =>
+    Mesh != null ? (Mesh.Min + Mesh.Max) * 0.5f : System.Numerics.Vector3.Zero;
+
+private float ComputeScaleFactor()
+{
+    if (Mesh == null || Mesh.Positions.Count == 0) return 1.0f;
+    var size = Mesh.Max - Mesh.Min;
+    double maxDim = Math.Max(size.X, Math.Max(size.Y, size.Z));
+    return (float)Math.Clamp(maxDim * 0.0012, 0.05, 5.0);
 
 }
 

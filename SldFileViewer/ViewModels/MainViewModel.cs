@@ -341,12 +341,29 @@ public partial class MainViewModel : ObservableObject
                 break;
 
             case TreeNodeKind.FeatureExtrude:
+            case TreeNodeKind.FeatureCut:
+            case TreeNodeKind.FeatureRevolve:
+            case TreeNodeKind.FeatureSweep:
+            case TreeNodeKind.FeatureLoft:
+            case TreeNodeKind.FeatureFillet:
+            case TreeNodeKind.FeatureChamfer:
+            case TreeNodeKind.FeatureHole:
+            case TreeNodeKind.FeaturePattern:
+            case TreeNodeKind.FeatureMirror:
+            case TreeNodeKind.FeatureRib:
+            case TreeNodeKind.FeatureShell:
+            case TreeNodeKind.FeatureDraft:
+            case TreeNodeKind.FeatureThread:
             case TreeNodeKind.FeaturePlane:
             case TreeNodeKind.FeatureOrigin:
             case TreeNodeKind.FeatureGeneric:
                 if (node.Tag is Feature f)
                 {
                     FeatureDetail.LoadFeature(f);
+                    if (MeshViewer.HasMesh)
+                    {
+                        MeshViewer.HighlightFeature(f);
+                    }
                 }
                 else
                 {
@@ -360,8 +377,17 @@ public partial class MainViewModel : ObservableObject
                 {
                     FeatureDetail.LoadGeneric(comp.Name, "Assembly Component",
                         comp.IsVirtual ? "虚拟组件" : $"配置: {comp.ConfigurationName}, 引用: {comp.FilePath}");
+
+                    if (MeshViewer.HasMesh)
+                    {
+                        MeshViewer.HighlightComponent(comp);
+                        CurrentView = MeshViewer;
+                    }
+                    else
+                    {
+                        CurrentView = FeatureDetail;
+                    }
                 }
-                CurrentView = FeatureDetail;
                 break;
 
             default:

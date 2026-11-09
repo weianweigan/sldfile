@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Media3D;
+using SldFileViewer.Models;
 using SldFileViewer.ViewModels;
 
 namespace SldFileViewer.Views.Panels;
@@ -49,6 +50,9 @@ public partial class Mesh3DView : UserControl
         if (VM != null)
         {
             VM.PropertyChanged += OnViewModelPropertyChanged;
+            VM.RequestStandardView += OnRequestStandardView;
+            VM.RequestZoomToFit += OnRequestZoomToFit;
+            VM.RequestZoomToComponent += OnRequestZoomToComponent;
             UpdateMesh(resetCamera: true);
             UpdateSectionVisuals();
         }
@@ -65,6 +69,9 @@ public partial class Mesh3DView : UserControl
         if (VM != null)
         {
             VM.PropertyChanged -= OnViewModelPropertyChanged;
+            VM.RequestStandardView -= OnRequestStandardView;
+            VM.RequestZoomToFit -= OnRequestZoomToFit;
+            VM.RequestZoomToComponent -= OnRequestZoomToComponent;
         }
         if (_parentWindow != null)
         {
@@ -79,10 +86,76 @@ public partial class Mesh3DView : UserControl
 
     private void OnWindowPreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Escape && VM != null && VM.IsMeasureModeEnabled)
+        if (e.Key == Key.Escape)
         {
-            VM.CancelOrExitMeasure();
-            e.Handled = true;
+            if (VM != null && VM.IsMeasureModeEnabled)
+            {
+                VM.CancelOrExitMeasure();
+                e.Handled = true;
+                return;
+            }
+            if (VM?.HighlightedComponentName != null)
+            {
+                VM.ClearComponentHighlight();
+                e.Handled = true;
+                return;
+            }
+        }
+
+        if (Keyboard.Modifiers == ModifierKeys.Control)
+        {
+            switch (e.Key)
+            {
+                case Key.D1:
+                case Key.NumPad1:
+                    SetStandardView(StandardViewType.Front);
+                    e.Handled = true;
+                    return;
+                case Key.D2:
+                case Key.NumPad2:
+                    SetStandardView(StandardViewType.Back);
+                    e.Handled = true;
+                    return;
+                case Key.D3:
+                case Key.NumPad3:
+                    SetStandardView(StandardViewType.Left);
+                    e.Handled = true;
+                    return;
+                case Key.D4:
+                case Key.NumPad4:
+                    SetStandardView(StandardViewType.Right);
+                    e.Handled = true;
+                    return;
+                case Key.D5:
+                case Key.NumPad5:
+                    SetStandardView(StandardViewType.Top);
+                    e.Handled = true;
+                    return;
+                case Key.D6:
+                case Key.NumPad6:
+                    SetStandardView(StandardViewType.Bottom);
+                    e.Handled = true;
+                    return;
+                case Key.D7:
+                case Key.NumPad7:
+                    SetStandardView(StandardViewType.Isometric);
+                    e.Handled = true;
+                    return;
+                case Key.D8:
+                case Key.NumPad8:
+                    SetStandardView(StandardViewType.NormalTo);
+                    e.Handled = true;
+                    return;
+            }
+        }
+        else if (Keyboard.Modifiers == ModifierKeys.None)
+        {
+            if (e.Key == Key.F && !(FocusManager.GetFocusedElement(Window.GetWindow(this)) is TextBox))
+            {
+                ZoomToFit();
+                e.Handled = true;
+                return;
+            }
         }
     }
 
@@ -130,6 +203,15 @@ public partial class Mesh3DView : UserControl
         {
             UpdateSectionVisuals();
         }
+        else if (e.PropertyName == nameof(MeshViewerViewModel.DisplayStyle))
+        {
+            UpdateMesh(resetCamera: false);
+            UpdateEdgeVisual();
+        }
+        else if (e.PropertyName == nameof(MeshViewerViewModel.WpfComponentHighlightMesh))
+        {
+            UpdateComponentHighlightVisual();
+        }
     }
 
     private void UpdateMesh(bool resetCamera)
@@ -139,30 +221,53 @@ public partial class Mesh3DView : UserControl
         {
             UpdateEdgeVisual();
             UpdateSectionVisuals();
+            UpdateComponentHighlightVisual();
             return;
         }
 
         var group = new Model3DGroup();
 
-        // CAD 金属漆面着色材质
-        var materialGroup = new MaterialGroup();
-        materialGroup.Children.Add(new DiffuseMaterial(new SolidColorBrush(Color.FromRgb(145, 158, 172))));
-        materialGroup.Children.Add(new SpecularMaterial(new SolidColorBrush(Color.FromRgb(105, 115, 125)), 35.0));
-
-        var backMaterial = new DiffuseMaterial(new SolidColorBrush(Color.FromRgb(125, 135, 148)));
-
-        var surfaceModel = new GeometryModel3D
+        // Transparent wireframe surfaces preserve the original triangle indices for picking.
         {
-            Geometry = VM.WpfMesh,
-            Material = materialGroup,
-            BackMaterial = backMaterial
-        };
+            Material material;
+            Material backMaterial;
 
-        group.Children.Add(surfaceModel);
+            if (VM.DisplayStyle == ModelDisplayStyle.Wireframe)
+            {
+                material = backMaterial = new DiffuseMaterial(Brushes.Transparent);
+            }
+            else if (VM.DisplayStyle == ModelDisplayStyle.TechnicalWhite)
+            {
+                // 消除隐藏线白模 / 纯白工程纸感
+                var whiteMat = new DiffuseMaterial(new SolidColorBrush(Color.FromRgb(245, 247, 250)));
+                material = whiteMat;
+                backMaterial = new DiffuseMaterial(new SolidColorBrush(Color.FromRgb(225, 228, 233)));
+            }
+            else
+            {
+                // CAD 金属漆面着色材质
+                var materialGroup = new MaterialGroup();
+                materialGroup.Children.Add(new DiffuseMaterial(new SolidColorBrush(Color.FromRgb(145, 158, 172))));
+                materialGroup.Children.Add(new SpecularMaterial(new SolidColorBrush(Color.FromRgb(105, 115, 125)), 35.0));
+                material = materialGroup;
+                backMaterial = new DiffuseMaterial(new SolidColorBrush(Color.FromRgb(125, 135, 148)));
+            }
+
+            var surfaceModel = new GeometryModel3D
+            {
+                Geometry = VM.WpfMesh,
+                Material = material,
+                BackMaterial = backMaterial
+            };
+
+            group.Children.Add(surfaceModel);
+        }
+
         ModelVisual.Content = group;
 
         UpdateEdgeVisual();
         UpdateSectionVisuals();
+        UpdateComponentHighlightVisual();
 
         if (resetCamera)
         {
@@ -173,9 +278,15 @@ public partial class Mesh3DView : UserControl
     private void UpdateEdgeVisual()
     {
         EdgeVisual.Content = null;
-        if (VM == null || !VM.ShowEdges || VM.WpfEdgeMesh == null) return;
+        if (VM == null || VM.WpfEdgeMesh == null) return;
+        if (VM.DisplayStyle == ModelDisplayStyle.Shaded) return;
+        if (!VM.ShowEdges && VM.DisplayStyle != ModelDisplayStyle.Wireframe) return;
 
-        var edgeMaterial = new EmissiveMaterial(new SolidColorBrush(Color.FromRgb(35, 39, 46)));
+        Color edgeColor = (VM.DisplayStyle == ModelDisplayStyle.Wireframe || VM.DisplayStyle == ModelDisplayStyle.TechnicalWhite)
+            ? Color.FromRgb(15, 23, 42) // 纯黑高对比工程边线
+            : Color.FromRgb(35, 39, 46); // 标准深色轮廓边线
+
+        var edgeMaterial = new EmissiveMaterial(new SolidColorBrush(edgeColor));
         var edgeModel = new GeometryModel3D
         {
             Geometry = VM.WpfEdgeMesh,
@@ -976,6 +1087,187 @@ public partial class Mesh3DView : UserControl
     private void OnResetViewClick(object sender, RoutedEventArgs e)
     {
         ResetCamera();
+    }
+
+    private void OnRequestStandardView(StandardViewType viewType) => SetStandardView(viewType);
+    private void OnRequestZoomToFit() => ZoomToFit();
+
+    public void SetStandardView(StandardViewType viewType)
+    {
+        if (VM == null) return;
+        VM.CurrentStandardView = viewType;
+
+        if (viewType == StandardViewType.NormalTo)
+        {
+            ApplyNormalToView();
+            return;
+        }
+
+        _target = new Point3D(0, 0, 0);
+
+        switch (viewType)
+        {
+            case StandardViewType.Isometric:
+                _theta = 45.0;
+                _phi = 55.0;
+                UpdateCameraPosition();
+                break;
+
+            case StandardViewType.Front: // 前视 / 主视 (XY 面，朝 -Z 观察)
+                _theta = 0.0;
+                _phi = 90.0;
+                UpdateCameraPosition();
+                break;
+
+            case StandardViewType.Back: // 后视 (XY 面，朝 +Z 观察)
+                _theta = 180.0;
+                _phi = 90.0;
+                UpdateCameraPosition();
+                break;
+
+            case StandardViewType.Left: // 左视 (YZ 面，朝 +X 观察)
+                _theta = -90.0;
+                _phi = 90.0;
+                UpdateCameraPosition();
+                break;
+
+            case StandardViewType.Right: // 右视 (YZ 面，朝 -X 观察)
+                _theta = 90.0;
+                _phi = 90.0;
+                UpdateCameraPosition();
+                break;
+
+            case StandardViewType.Top: // 俯视 / 上视 (自 +Y 向下看，XZ 面)
+                _theta = 0.0;
+                _phi = 0.0001;
+                Camera.Position = new Point3D(_target.X, _target.Y + _cameraDistance, _target.Z);
+                Camera.LookDirection = new Vector3D(0, -_cameraDistance, 0);
+                Camera.UpDirection = new Vector3D(0, 0, -1);
+                Camera.Width = _cameraWidth;
+                UpdateCalloutPosition();
+                break;
+
+            case StandardViewType.Bottom: // 仰视 / 下视 (自 -Y 向上看)
+                _theta = 0.0;
+                _phi = 179.9999;
+                Camera.Position = new Point3D(_target.X, _target.Y - _cameraDistance, _target.Z);
+                Camera.LookDirection = new Vector3D(0, _cameraDistance, 0);
+                Camera.UpDirection = new Vector3D(0, 0, 1);
+                Camera.Width = _cameraWidth;
+                UpdateCalloutPosition();
+                break;
+        }
+    }
+
+    private static Vector3D? GetElementNormal(MeasureElement? elem)
+    {
+        if (elem == null) return null;
+        if (elem.Type == MeasureElementType.Face && elem.FaceNormal.LengthSquared > 1e-6)
+            return elem.FaceNormal;
+        if (elem.Type == MeasureElementType.Circle && elem.AxisDirection.LengthSquared > 1e-6)
+            return elem.AxisDirection;
+        return null;
+    }
+
+    private void ApplyNormalToView()
+    {
+        Vector3D? normal = GetElementNormal(VM?.SelectedElement1)
+                        ?? GetElementNormal(VM?.SelectedElement2)
+                        ?? GetElementNormal(VM?.HoveredElement);
+
+        if (!normal.HasValue || normal.Value.LengthSquared < 1e-6)
+        {
+            SetStandardView(StandardViewType.Isometric);
+            return;
+        }
+
+        var n = normal.Value;
+        n.Normalize();
+
+        Camera.Position = new Point3D(_target.X + n.X * _cameraDistance, _target.Y + n.Y * _cameraDistance, _target.Z + n.Z * _cameraDistance);
+        Camera.LookDirection = new Vector3D(-n.X * _cameraDistance, -n.Y * _cameraDistance, -n.Z * _cameraDistance);
+
+        Vector3D up = Math.Abs(n.Y) < 0.9 ? new Vector3D(0, 1, 0) : new Vector3D(0, 0, -1);
+        Vector3D right = Vector3D.CrossProduct(Camera.LookDirection, up);
+        if (right.LengthSquared < 1e-6) right = new Vector3D(1, 0, 0);
+        right.Normalize();
+        Camera.UpDirection = Vector3D.CrossProduct(right, Camera.LookDirection);
+        Camera.UpDirection.Normalize();
+
+        _phi = Math.Acos(Math.Clamp(n.Y, -1.0, 1.0)) * 180.0 / Math.PI;
+        _theta = Math.Atan2(n.X, n.Z) * 180.0 / Math.PI;
+
+        UpdateCalloutPosition();
+    }
+
+    public void ZoomToFit()
+    {
+        _target = new Point3D(0, 0, 0);
+        if (VM?.Mesh != null && VM.Mesh.VertexCount > 0)
+        {
+            var size = VM.Mesh.Max - VM.Mesh.Min;
+            double maxDim = Math.Max(size.X, Math.Max(size.Y, size.Z));
+            if (maxDim <= 0.001) maxDim = 100.0;
+            _cameraDistance = Math.Max(maxDim * 2.5, 100.0);
+            _cameraWidth = maxDim * 1.8;
+        }
+        UpdateCameraPosition();
+    }
+
+    private void OnRequestZoomToComponent()
+    {
+        if (VM == null || !VM.TryGetComponentBounds(out var bounds)) return;
+        _target = new Point3D(bounds.X + bounds.SizeX * 0.5,
+            bounds.Y + bounds.SizeY * 0.5, bounds.Z + bounds.SizeZ * 0.5);
+        double maxDim = Math.Max(bounds.SizeX, Math.Max(bounds.SizeY, bounds.SizeZ));
+        if (maxDim > 0.01)
+        {
+            _cameraWidth = maxDim * 2.2;
+        }
+        UpdateCameraPosition();
+    }
+
+    private void UpdateComponentHighlightVisual()
+    {
+        ComponentHighlightVisual.Content = null;
+        if (VM?.WpfComponentHighlightMesh == null) return;
+
+        var matGroup = new MaterialGroup();
+        matGroup.Children.Add(new DiffuseMaterial(new SolidColorBrush(Color.FromArgb(140, 2, 132, 199))));
+        matGroup.Children.Add(new EmissiveMaterial(new SolidColorBrush(Color.FromArgb(90, 56, 189, 248))));
+
+        var model = new GeometryModel3D
+        {
+            Geometry = VM.WpfComponentHighlightMesh,
+            Material = matGroup,
+            BackMaterial = matGroup
+        };
+        ComponentHighlightVisual.Content = model;
+    }
+
+    private void OnViewsButtonClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement fe && fe.ContextMenu != null)
+        {
+            fe.ContextMenu.PlacementTarget = fe;
+            fe.ContextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            fe.ContextMenu.IsOpen = true;
+        }
+    }
+
+    private void OnDisplayStyleButtonClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement fe && fe.ContextMenu != null)
+        {
+            fe.ContextMenu.PlacementTarget = fe;
+            fe.ContextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            fe.ContextMenu.IsOpen = true;
+        }
+    }
+
+    private void OnZoomToFitClick(object sender, RoutedEventArgs e)
+    {
+        ZoomToFit();
     }
 
     private void OnViewportMouseDown(object sender, MouseButtonEventArgs e)
