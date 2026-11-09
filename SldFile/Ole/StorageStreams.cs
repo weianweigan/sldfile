@@ -37,7 +37,7 @@ internal static class StorageStreams
                         if (count == 0) throw new EndOfStreamException($"Cannot read document data: {path}");
                         position += count;
                     }
-                    result.Add(path, bytes);
+                    result[path] = bytes;
                 }
             }
         }

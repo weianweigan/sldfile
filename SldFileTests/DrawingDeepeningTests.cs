@@ -17,6 +17,343 @@ public class DrawingDeepeningTests
     }
 
     [Fact]
+    public void InspectVBListsBinary()
+    {
+        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
+        if (!File.Exists(realPath)) return;
+
+        using var swFile = SwFile.Open(realPath, readOnly: true);
+        if (!swFile.RawStreams.TryGetValue("Contents/VBLists", out var vbBytes)) return;
+
+        _output.WriteLine($"VBLists size: {vbBytes.Length} bytes");
+        // Print first 64 bytes
+        _output.WriteLine("First 64 bytes of VBLists:");
+        for (int i = 0; i < 64; i += 16)
+        {
+            string hex = BitConverter.ToString(vbBytes, i, 16).Replace("-", " ");
+            _output.WriteLine($"  +{i:X2}: {hex}");
+        }
+
+        // Check if VBLists can be parsed as MfcDocument
+        var doc = SldFile.Mfc.MfcDocument.Parse(vbBytes);
+        _output.WriteLine($"MFC Elements in VBLists: {doc.AllElements.Count}");
+        foreach (var elem in doc.AllElements)
+        {
+            if (!string.IsNullOrEmpty(elem.ClassName))
+            {
+                _output.WriteLine($"  [{elem.ClassName}] TagOff=0x{elem.TagOffset:X}, Len={elem.DataLength}");
+            }
+        }
+    }
+
+    [Fact]
+    public void TestBestSheetPreviewImageDecoding()
+    {
+        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
+        if (!File.Exists(realPath)) return;
+
+        using var swFile = SwFile.Open(realPath, readOnly: true);
+        var bytes = swFile.GetBestSheetPreviewImage(0);
+        _output.WriteLine($"BestSheetPreviewImage bytes: {bytes?.Length}");
+        if (bytes != null)
+        {
+            var (w, h) = SwFile.GetImageDimensions(bytes);
+            _output.WriteLine($"Dimensions: {w} x {h}");
+            _output.WriteLine($"Header: {bytes[0]:X2} {bytes[1]:X2} {bytes[2]:X2} {bytes[3]:X2}");
+        }
+    }
+
+    [Fact]
+    public void InspectCadLineClusters()
+    {
+        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
+        if (!File.Exists(realPath)) return;
+
+        using var swFile = SwFile.Open(realPath, readOnly: true);
+        if (!swFile.RawStreams.TryGetValue("Contents/DisplayLists", out var dlBytes)) return;
+
+        var lines = SldFile.Binary.DisplayListsSchemaMapper.ExtractCadLines(dlBytes, null, 420.0, 297.0);
+        _output.WriteLine($"Extracted {lines.Count} lines from DisplayLists");
+
+        // Group lines by Y coordinate intervals (each view corresponds to a horizontal band)
+        var yBands = lines.GroupBy(l => (int)(Math.Min(l.Y1, l.Y2) / 20.0) * 20)
+            .OrderBy(g => g.Key);
+
+        foreach (var b in yBands)
+        {
+            double minX = b.Min(l => Math.Min(l.X1, l.X2));
+            double maxX = b.Max(l => Math.Max(l.X1, l.X2));
+            double minY = b.Min(l => Math.Min(l.Y1, l.Y2));
+            double maxY = b.Max(l => Math.Max(l.Y1, l.Y2));
+            _output.WriteLine($"Band Y=[{minY:F1}..{maxY:F1}], X=[{minX:F1}..{maxX:F1}], Count={b.Count()}");
+        }
+    }
+
+    [Fact]
+    public void TestProjectMeshOutlineEdgesToViews()
+    {
+        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
+        if (!File.Exists(realPath)) return;
+
+        using var swFile = SwFile.Open(realPath, readOnly: true);
+        if (!swFile.RawStreams.TryGetValue("Contents/VBLists", out var vbBytes)) return;
+
+        var mesh = SldFile.Binary.DisplayMeshReader.ReadMesh(vbBytes);
+        Assert.NotNull(mesh);
+
+        _output.WriteLine($"Source mesh outline edges: {mesh.OutlineEdges.Count}");
+        
+        // 1. Front View (moAbsoluteView / 工程图视图1)
+        var allProjectedLines = new List<(double x1, double y1, double x2, double y2)>();
+        double cx1 = 162.8, cy1 = 133.6;
+        double scaleX1 = 156.0 / (mesh.Max.X - mesh.Min.X);
+        double scaleY1 = 18.8 / (mesh.Max.Z - mesh.Min.Z);
+        double midX = (mesh.Min.X + mesh.Max.X) / 2.0;
+        double midZ = (mesh.Min.Z + mesh.Max.Z) / 2.0;
+        double midY = (mesh.Min.Y + mesh.Max.Y) / 2.0;
+
+        var seen = new HashSet<string>();
+        foreach (var edge in mesh.OutlineEdges)
+        {
+            var p1 = mesh.Positions[edge.Start];
+            var p2 = mesh.Positions[edge.End];
+
+            double x1 = cx1 + (p1.X - midX) * scaleX1;
+            double y1 = cy1 - (p1.Z - midZ) * scaleY1;
+            double x2 = cx1 + (p2.X - midX) * scaleX1;
+            double y2 = cy1 - (p2.Z - midZ) * scaleY1;
+
+            if (Math.Sqrt(Math.Pow(x2 - x1, 2) + Math.Pow(y2 - y1, 2)) > 0.05)
+            {
+                string key = $"{Math.Round(x1, 1)}_{Math.Round(y1, 1)}_{Math.Round(x2, 1)}_{Math.Round(y2, 1)}";
+                if (seen.Add(key)) allProjectedLines.Add((x1, y1, x2, y2));
+            }
+        }
+
+        // 2. Top View (moUnfoldedView / 顶部长梁)
+        double cx2 = 162.8, cy2 = 173.6;
+        double scaleY2 = 1.7 / (mesh.Max.Y - mesh.Min.Y);
+        foreach (var edge in mesh.OutlineEdges)
+        {
+            var p1 = mesh.Positions[edge.Start];
+            var p2 = mesh.Positions[edge.End];
+
+            double x1 = cx2 + (p1.X - midX) * scaleX1;
+            double y1 = cy2 + (p1.Y - midY) * scaleY2;
+            double x2 = cx2 + (p2.X - midX) * scaleX1;
+            double y2 = cy2 + (p2.Y - midY) * scaleY2;
+
+            if (Math.Sqrt(Math.Pow(x2 - x1, 2) + Math.Pow(y2 - y1, 2)) > 0.05)
+            {
+                string key = $"{Math.Round(x1, 1)}_{Math.Round(y1, 1)}_{Math.Round(x2, 1)}_{Math.Round(y2, 1)}";
+                if (seen.Add(key)) allProjectedLines.Add((x1, y1, x2, y2));
+            }
+        }
+
+        // 3. Bottom View (仰视图 / 底部长梁)
+        double cx3 = 162.8, cy3 = 98.1;
+        double scaleY3 = 1.7 / (mesh.Max.Y - mesh.Min.Y);
+        foreach (var edge in mesh.OutlineEdges)
+        {
+            var p1 = mesh.Positions[edge.Start];
+            var p2 = mesh.Positions[edge.End];
+
+            double x1 = cx3 + (p1.X - midX) * scaleX1;
+            double y1 = cy3 - (p1.Y - midY) * scaleY3;
+            double x2 = cx3 + (p2.X - midX) * scaleX1;
+            double y2 = cy3 - (p2.Y - midY) * scaleY3;
+
+            if (Math.Sqrt(Math.Pow(x2 - x1, 2) + Math.Pow(y2 - y1, 2)) > 0.05)
+            {
+                string key = $"{Math.Round(x1, 1)}_{Math.Round(y1, 1)}_{Math.Round(x2, 1)}_{Math.Round(y2, 1)}";
+                if (seen.Add(key)) allProjectedLines.Add((x1, y1, x2, y2));
+            }
+        }
+
+        // 4. Section / Left Profile View (槽钢截面)
+        double cx4 = 52.0, cy4 = 133.6;
+        double scaleX4 = 1.7 / (mesh.Max.Y - mesh.Min.Y);
+        foreach (var edge in mesh.OutlineEdges)
+        {
+            var p1 = mesh.Positions[edge.Start];
+            var p2 = mesh.Positions[edge.End];
+
+            double x1 = cx4 + (p1.Y - midY) * scaleX4;
+            double y1 = cy4 - (p1.Z - midZ) * scaleY1;
+            double x2 = cx4 + (p2.Y - midY) * scaleX4;
+            double y2 = cy4 - (p2.Z - midZ) * scaleY1;
+
+            if (Math.Sqrt(Math.Pow(x2 - x1, 2) + Math.Pow(y2 - y1, 2)) > 0.05)
+            {
+                string key = $"{Math.Round(x1, 1)}_{Math.Round(y1, 1)}_{Math.Round(x2, 1)}_{Math.Round(y2, 1)}";
+                if (seen.Add(key)) allProjectedLines.Add((x1, y1, x2, y2));
+            }
+        }
+
+        _output.WriteLine($"Total projected 2D wireframe lines across all views: {allProjectedLines.Count}");
+        Assert.True(allProjectedLines.Count >= 700);
+    }
+
+    [Fact]
+    public void TestExtractViewsFromDefinition()
+    {
+        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
+        if (!File.Exists(realPath)) return;
+
+        using var swFile = SwFile.Open(realPath, readOnly: true);
+        if (!swFile.RawStreams.TryGetValue("Contents/Definition", out var defBytes)) return;
+
+        var views = SldFile.Drawing.Vector.DrawingGeometryReader.ExtractViewsFromDefinition(defBytes, 420.0, 297.0);
+        _output.WriteLine($"Extracted {views.Count} views from Definition:");
+        foreach (var v in views)
+        {
+            _output.WriteLine($"  {v.Name}: Center=({v.CenterXMm:F1}, {v.CenterYMm:F1}), Size=({v.WidthMm:F1} x {v.HeightMm:F1}) mm");
+        }
+    }
+
+    [Fact]
+    public void InspectViewBBoxesAndDimensions()
+    {
+        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
+        if (!File.Exists(realPath)) return;
+
+        using var swFile = SwFile.Open(realPath, readOnly: true);
+        if (!swFile.RawStreams.TryGetValue("Contents/Definition", out var defBytes)) return;
+
+        var doc = SldFile.Mfc.MfcDocument.Parse(defBytes);
+        var viewClasses = new[] { "moAbsoluteView", "moUnfoldedView", "moDetailView", "moView_c" };
+
+        foreach (var vc in viewClasses)
+        {
+            var views = doc.FindAll(vc);
+            foreach (var v in views)
+            {
+                _output.WriteLine($"=== View: [{v.ClassName}] TagOff=0x{v.TagOffset:X}, Len={v.DataLength} ===");
+                byte[] vBytes = new byte[v.DataLength];
+                Array.Copy(defBytes, v.TagOffset, vBytes, 0, v.DataLength);
+
+                for (int off = 0; off <= v.DataLength - 32; off += 8)
+                {
+                    double x1 = BitConverter.ToDouble(vBytes, off);
+                    double y1 = BitConverter.ToDouble(vBytes, off + 8);
+                    double x2 = BitConverter.ToDouble(vBytes, off + 16);
+                    double y2 = BitConverter.ToDouble(vBytes, off + 24);
+
+                    if (x1 >= 0.01 && x1 <= 0.42 && x2 >= 0.01 && x2 <= 0.42 &&
+                        y1 >= 0.01 && y1 <= 0.297 && y2 >= 0.01 && y2 <= 0.297)
+                    {
+                        _output.WriteLine($"    BBox @ +0x{off:X2}: ({x1*1000:F1}, {y1*1000:F1}) to ({x2*1000:F1}, {y2*1000:F1}) mm");
+                    }
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public void TestDisplayMeshFromVBLists()
+    {
+        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
+        if (!File.Exists(realPath)) return;
+
+        using var swFile = SwFile.Open(realPath, readOnly: true);
+        if (!swFile.RawStreams.TryGetValue("Contents/VBLists", out var vbBytes)) return;
+
+        var mesh = SldFile.Binary.DisplayMeshReader.ReadMesh(vbBytes);
+        _output.WriteLine($"Mesh is null? {mesh == null}");
+        if (mesh != null)
+        {
+            _output.WriteLine($"Positions: {mesh.Positions.Count}");
+            _output.WriteLine($"TriangleCount: {mesh.TriangleCount}");
+            _output.WriteLine($"OutlineEdges: {mesh.OutlineEdges.Count}");
+            _output.WriteLine($"Min: {mesh.Min}, Max: {mesh.Max}");
+        }
+    }
+
+    [Fact]
+    public void TestDisplayMeshFromDrawing()
+    {
+        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
+        if (!File.Exists(realPath)) return;
+
+        using var swFile = SwFile.Open(realPath, readOnly: true);
+        var mesh = swFile.GetDisplayMesh();
+        _output.WriteLine($"Mesh is null? {mesh == null}");
+        if (mesh != null)
+        {
+            _output.WriteLine($"Positions: {mesh.Positions.Count}");
+            _output.WriteLine($"TriangleCount: {mesh.TriangleCount}");
+            _output.WriteLine($"OutlineEdges: {mesh.OutlineEdges.Count}");
+            _output.WriteLine($"Min: {mesh.Min}, Max: {mesh.Max}");
+        }
+    }
+
+    [Fact]
+    public void InspectDisplayListsTrailingData()
+    {
+        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
+        if (!File.Exists(realPath)) return;
+
+        using var swFile = SwFile.Open(realPath, readOnly: true);
+        if (!swFile.RawStreams.TryGetValue("Contents/DisplayLists", out var dlBytes)) return;
+
+        int afterMfc = 0xD7AB;
+        _output.WriteLine($"Total size: {dlBytes.Length}, after MFC: {dlBytes.Length - afterMfc} bytes");
+
+        // Hex dump first 256 bytes after MFC
+        _output.WriteLine("First 128 bytes after MFC:");
+        for (int i = 0; i < 128; i += 16)
+        {
+            string hex = BitConverter.ToString(dlBytes, afterMfc + i, 16).Replace("-", " ");
+            _output.WriteLine($"  +{i:X2} (0x{afterMfc+i:X4}): {hex}");
+        }
+
+        // Count double values in paper coordinate range (0..420 mm -> 0..0.42 meters)
+        int doubleMatches = 0;
+        for (int i = 0; i <= dlBytes.Length - 16; i += 8)
+        {
+            double d = BitConverter.ToDouble(dlBytes, i);
+            if (!double.IsNaN(d) && !double.IsInfinity(d) && d >= 0.005 && d <= 0.450)
+            {
+                doubleMatches++;
+            }
+        }
+        _output.WriteLine($"Double coordinates in 0.005..0.450m range across entire stream: {doubleMatches}");
+
+        // Also check single precision float matches
+        int floatMatches = 0;
+        for (int i = 0; i <= dlBytes.Length - 8; i += 4)
+        {
+            float f = BitConverter.ToSingle(dlBytes, i);
+            if (!float.IsNaN(f) && !float.IsInfinity(f) && f >= 0.005f && f <= 0.450f)
+            {
+                floatMatches++;
+            }
+        }
+        _output.WriteLine($"Float coordinates in 0.005..0.450m range: {floatMatches}");
+    }
+
+    [Fact]
+    public void InspectDisplayListsStructure()
+    {
+        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
+        if (!File.Exists(realPath)) return;
+
+        using var swFile = SwFile.Open(realPath, readOnly: true);
+        if (!swFile.RawStreams.TryGetValue("Contents/DisplayLists", out var dlBytes)) return;
+
+        _output.WriteLine($"DisplayLists size: {dlBytes.Length} bytes");
+        var doc = SldFile.Mfc.MfcDocument.Parse(dlBytes);
+        _output.WriteLine($"MFC Elements count: {doc.AllElements.Count}");
+        foreach (var elem in doc.AllElements)
+        {
+            if (!string.IsNullOrEmpty(elem.ClassName))
+            {
+                _output.WriteLine($"  [{elem.ClassName}] TagOff=0x{elem.TagOffset:X}, Len={elem.DataLength}");
+            }
+        }
+    }
+
+    [Fact]
     public void DumpMfcViewHierarchies()
     {
         string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
@@ -284,6 +621,12 @@ public class DrawingDeepeningTests
         Assert.Contains(sheet0.TechnicalNotes, n => n.Contains("锐边倒角去毛刺"));
         Assert.NotEmpty(sheet0.TitleBlockProperties);
         Assert.Contains(sheet0.TitleBlockProperties.Keys, k => k.Contains("比例"));
+
+        // 6. Verify 3D Model Wireframe Lines projected from VBLists (eDrawings quality)
+        Assert.NotNull(sheet0.VectorData);
+        Assert.True(sheet0.VectorData.HasLines);
+        _output.WriteLine($"Total VectorData.Lines count in sheet0: {sheet0.VectorData.Lines.Count}");
+        Assert.True(sheet0.VectorData.Lines.Count >= 2000, $"Expected >= 2000 vector CAD lines, but got {sheet0.VectorData.Lines.Count}");
     }
 
     [Fact]

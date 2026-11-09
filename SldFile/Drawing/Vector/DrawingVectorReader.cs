@@ -75,11 +75,11 @@ public static class DrawingVectorReader
             (definitionStream != null && definitionStream.Length > 0))
         {
             var (lines, views) = DrawingGeometryReader.ReadSheetGeometryAndViews(
-                displayListsStream,
-                vbListsStream,
-                definitionStream,
-                vectorData.PaperWidthMm,
-                vectorData.PaperHeightMm);
+                displayListsStream: displayListsStream,
+                vbListsStream: vbListsStream,
+                definitionStream: definitionStream,
+                paperWidthMm: vectorData.PaperWidthMm,
+                paperHeightMm: vectorData.PaperHeightMm);
             vectorData.Lines = lines;
             vectorData.Views = views;
         }

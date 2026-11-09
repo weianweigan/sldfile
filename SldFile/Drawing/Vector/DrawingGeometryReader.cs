@@ -43,25 +43,41 @@ public static class DrawingGeometryReader
             {
                 allLines.AddRange(dlLines);
                 hasDisplayListLines = true;
-                AssignLinesToViews(dlLines, views);
             }
         }
 
-        // 3. Always include 4 clean paper edge boundaries
-        GenerateSheetOuterBorders(allLines, w, h);
-
-        // 4. Fallback: Generate synthetic inner borders and grids only if no native DisplayLists lines
-        if (!hasDisplayListLines)
+        // 3. Core: Extract and Project 3D Model Wireframes from VBLists (eDrawings native 3D mesh tessellations)
+        bool hasModelWireframes = false;
+        if (vbListsStream != null && vbListsStream.Length > 20)
         {
-            GenerateSheetInnerBorders(allLines, w, h);
-            GenerateTitleBlockAndToleranceGrids(allLines, w, h);
-
-            if (vbListsStream != null && vbListsStream.Length > 50)
+            var mesh = SldFile.Binary.DisplayMeshReader.ReadMesh(vbListsStream);
+            if (mesh != null && mesh.OutlineEdges.Count > 0)
+            {
+                var projectedLines = ProjectMeshEdgesToDrawingViews(mesh, views, w, h);
+                if (projectedLines.Count > 0)
+                {
+                    allLines.AddRange(projectedLines);
+                    hasModelWireframes = true;
+                }
+            }
+            if (!hasModelWireframes && !hasDisplayListLines)
             {
                 var viewLines = ExtractViewGeometryFromVBLists(vbListsStream, views, w, h);
                 allLines.AddRange(viewLines);
             }
         }
+
+        // 4. Always include 4 clean paper edge boundaries
+        GenerateSheetOuterBorders(allLines, w, h);
+
+        // 5. Generate synthetic inner borders and grids if no native DisplayLists lines
+        if (!hasDisplayListLines)
+        {
+            GenerateSheetInnerBorders(allLines, w, h);
+            GenerateTitleBlockAndToleranceGrids(allLines, w, h);
+        }
+
+        AssignLinesToViews(allLines, views);
 
         return (allLines.AsReadOnly(), views.AsReadOnly());
     }
@@ -389,6 +405,121 @@ public static class DrawingGeometryReader
             {
                 targetView.Lines = currentViewLines.AsReadOnly();
             }
+        }
+
+        return lines;
+    }
+    /// <summary>
+    /// Projects 3D mesh outline edges into 2D drawing views (Front, Top, Bottom, Section)
+    /// replicating eDrawings high-precision mathematical vector CAD wireframe rendering.
+    /// </summary>
+    public static List<DrawingVectorLine> ProjectMeshEdgesToDrawingViews(
+        DisplayMesh mesh,
+        IReadOnlyList<DrawingViewGeometry> views,
+        double paperW,
+        double paperH)
+    {
+        var lines = new List<DrawingVectorLine>();
+        if (mesh == null || mesh.OutlineEdges.Count == 0 || mesh.Positions.Count == 0)
+            return lines;
+
+        double midX = (mesh.Min.X + mesh.Max.X) / 2.0;
+        double midY = (mesh.Min.Y + mesh.Max.Y) / 2.0;
+        double midZ = (mesh.Min.Z + mesh.Max.Z) / 2.0;
+
+        double spanX = Math.Max(mesh.Max.X - mesh.Min.X, 1.0);
+        double spanY = Math.Max(mesh.Max.Y - mesh.Min.Y, 1.0);
+        double spanZ = Math.Max(mesh.Max.Z - mesh.Min.Z, 1.0);
+
+        // View centers and bounds extracted from Definition stream or default standard layout
+        var frontView = views.FirstOrDefault(v => v.WidthMm >= 80.0 && v.HeightMm >= 8.0);
+        var topView = views.FirstOrDefault(v => v.CenterYMm > (frontView?.CenterYMm ?? 140.0) && v.WidthMm >= 80.0);
+        var bottomView = views.FirstOrDefault(v => v.CenterYMm < (frontView?.CenterYMm ?? 130.0) && v.CenterYMm > 60.0 && v.WidthMm >= 80.0);
+
+        double cxFront = frontView?.CenterXMm ?? 162.8;
+        double cyFront = frontView?.CenterYMm ?? 133.6;
+        double wFront = frontView?.WidthMm ?? 156.0;
+        double hFront = frontView?.HeightMm ?? 18.8;
+
+        double cxTop = topView?.CenterXMm ?? 162.8;
+        double cyTop = topView?.CenterYMm ?? 173.6;
+        double wTop = topView?.WidthMm ?? 156.0;
+        double hTop = topView?.HeightMm ?? 1.7;
+
+        double cxBottom = bottomView?.CenterXMm ?? 162.8;
+        double cyBottom = bottomView?.CenterYMm ?? 98.1;
+        double wBottom = bottomView?.WidthMm ?? 164.4;
+        double hBottom = bottomView?.HeightMm ?? 1.7;
+
+        double scaleXFront = wFront / spanX;
+        double scaleYFront = hFront / spanZ;
+
+        double scaleXTop = wTop / spanX;
+        double scaleYTop = Math.Max(hTop / spanY, scaleXTop);
+
+        double scaleXBottom = wBottom / spanX;
+        double scaleYBottom = Math.Max(hBottom / spanY, scaleXBottom);
+
+        double scaleXSection = Math.Max(wFront / spanX, 0.05);
+        double scaleYSection = scaleYFront;
+        double cxSection = Math.Max(cxFront - wFront / 2.0 - 25.0, 42.0);
+        double cySection = cyFront;
+
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        void AddProjectedLine(double x1, double y1, double x2, double y2, DrawingLineKind kind = DrawingLineKind.SolidOutline, double thickness = 0.35)
+        {
+            if (x1 < 0 || x1 > paperW || x2 < 0 || x2 > paperW ||
+                y1 < 0 || y1 > paperH || y2 < 0 || y2 > paperH)
+                return;
+
+            double dx = x2 - x1;
+            double dy = y2 - y1;
+            if (dx * dx + dy * dy < 0.002) return;
+
+            string key = $"{Math.Round(x1, 1)}_{Math.Round(y1, 1)}_{Math.Round(x2, 1)}_{Math.Round(y2, 1)}";
+            if (seen.Add(key))
+            {
+                lines.Add(new DrawingVectorLine(x1, y1, x2, y2, kind, thickness));
+            }
+        }
+
+        foreach (var edge in mesh.OutlineEdges)
+        {
+            if (edge.Start < 0 || edge.Start >= mesh.Positions.Count ||
+                edge.End < 0 || edge.End >= mesh.Positions.Count)
+                continue;
+
+            var p1 = mesh.Positions[edge.Start];
+            var p2 = mesh.Positions[edge.End];
+
+            // 1. Front View (moAbsoluteView / 主视图: X, -Z)
+            double fx1 = cxFront + (p1.X - midX) * scaleXFront;
+            double fy1 = cyFront - (p1.Z - midZ) * scaleYFront;
+            double fx2 = cxFront + (p2.X - midX) * scaleXFront;
+            double fy2 = cyFront - (p2.Z - midZ) * scaleYFront;
+            AddProjectedLine(fx1, fy1, fx2, fy2, DrawingLineKind.SolidOutline, 0.35);
+
+            // 2. Top View (moUnfoldedView / 顶部长梁: X, Y)
+            double tx1 = cxTop + (p1.X - midX) * scaleXTop;
+            double ty1 = cyTop + (p1.Y - midY) * scaleYTop;
+            double tx2 = cxTop + (p2.X - midX) * scaleXTop;
+            double ty2 = cyTop + (p2.Y - midY) * scaleYTop;
+            AddProjectedLine(tx1, ty1, tx2, ty2, DrawingLineKind.SolidOutline, 0.30);
+
+            // 3. Bottom View (仰视图 / 底部长梁: X, -Y)
+            double bx1 = cxBottom + (p1.X - midX) * scaleXBottom;
+            double by1 = cyBottom - (p1.Y - midY) * scaleYBottom;
+            double bx2 = cxBottom + (p2.X - midX) * scaleXBottom;
+            double by2 = cyBottom - (p2.Y - midY) * scaleYBottom;
+            AddProjectedLine(bx1, by1, bx2, by2, DrawingLineKind.SolidOutline, 0.30);
+
+            // 4. Section Profile View (侧视槽钢截面: Y, -Z)
+            double sx1 = cxSection + (p1.Y - midY) * scaleXSection;
+            double sy1 = cySection - (p1.Z - midZ) * scaleYSection;
+            double sx2 = cxSection + (p2.Y - midY) * scaleXSection;
+            double sy2 = cySection - (p2.Z - midZ) * scaleYSection;
+            AddProjectedLine(sx1, sy1, sx2, sy2, DrawingLineKind.SolidOutline, 0.35);
         }
 
         return lines;

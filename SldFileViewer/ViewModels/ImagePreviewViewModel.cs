@@ -261,7 +261,9 @@ public partial class ImagePreviewViewModel : ObservableObject
             if (VectorData != null && VectorData.HasVectorData)
             {
                 VectorData.CalculatePixelCoordinates(bmp.PixelWidth, bmp.PixelHeight);
-                OverlayMode = DrawingOverlayMode.SheetNotesOnly;
+                OverlayMode = (VectorData.HasLines && VectorData.Lines.Count >= 2000)
+                    ? DrawingOverlayMode.PureVectorCad
+                    : (VectorData.HasLines ? DrawingOverlayMode.AllAnnotations : DrawingOverlayMode.SheetNotesOnly);
             }
 
             string hdTag = IsHighDefinition ? " [高清]" : "";
