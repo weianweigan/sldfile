@@ -19,6 +19,7 @@ public sealed class SwDocumentService : ISwDocumentService
     private SwFile? _currentFile;
     private string? _currentFilePath;
     private readonly Dictionary<AssemblyComponentNode, Matrix4x4> _componentTransforms = new();
+    private readonly Dictionary<string, IReadOnlyList<AssemblyComponentNode>> _componentTrees = new(StringComparer.OrdinalIgnoreCase);
 
     public SwFile? CurrentFile => _currentFile;
     public string? CurrentFilePath => _currentFilePath;
@@ -52,6 +53,7 @@ public sealed class SwDocumentService : ISwDocumentService
     public void Close()
     {
         _componentTransforms.Clear();
+        _componentTrees.Clear();
         if (_currentFile != null)
         {
             _currentFile.Dispose();
@@ -85,24 +87,38 @@ public sealed class SwDocumentService : ISwDocumentService
 
     public DisplayMesh? GetDisplayMesh()
     {
-        return _currentFile?.GetDisplayMesh();
+        DisplayMesh? mesh = null;
+        if (_currentFile != null && _currentFile.Kind == DocumentKind.Assembly)
+        {
+            // 对于装配体，若外部子零件文件存在，优先使用动态拼装网格，确保所有实例精确位于装配物理空间
+            mesh = _currentFile.StitchAssemblyMeshFromComponents();
+        }
+
+        if (mesh == null)
+        {
+            mesh = _currentFile?.GetDisplayMesh();
+        }
+
+        return mesh;
     }
 
     public IReadOnlyList<AssemblyComponentNode> GetAssemblyTree(string? configName = null)
     {
         if (_currentFile == null) return Array.Empty<AssemblyComponentNode>();
+        string key = configName ?? string.Empty;
+        if (_componentTrees.TryGetValue(key, out var cached)) return cached;
         var tree = _currentFile.GetAssemblyTree(configName);
-        _componentTransforms.Clear();
-        void Register(IReadOnlyList<AssemblyComponentNode> nodes, Matrix4x4 parent)
+        void Register(IReadOnlyList<AssemblyComponentNode> nodes)
         {
             foreach (var node in nodes)
             {
-                var world = node.Transform * parent;
-                _componentTransforms[node] = world;
-                Register(node.Children, world);
+                // AssemblyTreeReader already accumulates transforms into world space.
+                _componentTransforms[node] = node.Transform;
+                Register(node.Children);
             }
         }
-        Register(tree, Matrix4x4.Identity);
+        Register(tree);
+        _componentTrees[key] = tree;
         return tree;
     }
 
@@ -300,6 +316,7 @@ public sealed class SwDocumentService : ISwDocumentService
 
     public byte[]? GetPreviewPng(int configIndex = 0) => _currentFile?.GetPreviewPng(configIndex);
     public byte[]? GetPreviewBitmap(int configIndex = 0) => _currentFile?.GetPreviewBitmap(configIndex);
+    public byte[]? GetBestPreviewImage(int configIndex = 0) => _currentFile?.GetBestPreviewImage(configIndex);
 
     public IReadOnlyList<DrawingSheetInfo> GetDrawingSheets()
     {
@@ -309,6 +326,11 @@ public sealed class SwDocumentService : ISwDocumentService
     public byte[]? GetSheetPreviewPng(int sheetIndex)
     {
         return _currentFile?.GetSheetPreviewPng(sheetIndex);
+    }
+
+    public byte[]? GetBestSheetPreviewImage(int sheetIndex)
+    {
+        return _currentFile?.GetBestSheetPreviewImage(sheetIndex);
     }
 
     public void SaveCustomProperties(IEnumerable<CustomPropertyItem> properties, string? configName = null)

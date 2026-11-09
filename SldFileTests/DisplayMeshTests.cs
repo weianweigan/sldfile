@@ -97,12 +97,29 @@ public class DisplayMeshTests
     }
 
     [Fact]
-    public void DisplayMesh_2026Assembly_ReturnsNullWhenNoEmbeddedTessellation()
+    public void DisplayMesh_2026Assembly_ExtractsModernFaceTessellations()
     {
         using var file = SwFile.Open(TestFileProvider.Assembly2026, readOnly: true);
         var mesh = file.GetDisplayMesh();
-        // 2026 sample assembly has no embedded tessellation (references components externally)
-        Assert.Null(mesh);
+        // 2026 sample assembly stores tessellation in modern FaceTessellations streams
+        Assert.NotNull(mesh);
+        Assert.True(mesh!.VertexCount > 0);
+        Assert.True(mesh.TriangleCount > 0);
+        Assert.NotEmpty(mesh.Parts);
+    }
+
+    [Fact]
+    public void DisplayMesh_MirrorAssembly_IfPresent_ExtractsMesh()
+    {
+        string realPath = @"E:\01_Work\93_开拔\21_镜像\AA\镜向001A.SLDASM";
+        if (File.Exists(realPath))
+        {
+            using var file = SwFile.Open(realPath, readOnly: true);
+            var mesh = file.GetDisplayMesh();
+            Assert.NotNull(mesh);
+            Assert.True(mesh!.VertexCount > 8000);
+            Assert.True(mesh.TriangleCount > 5000);
+        }
     }
 
     [Fact]

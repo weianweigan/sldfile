@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Linq;
+using System.Threading.Tasks;
 using SldFile.Binary;
 
 namespace SldFile;
@@ -61,6 +62,48 @@ public abstract partial class SwFile
         return DibBitmapConverter.ConvertToBmp(PreviewImage);
     }
 
+    /// <summary>
+    /// Returns the best available preview image data (preferring high-resolution BMP over thumbnail PNG, or vice versa).
+    /// </summary>
+    public byte[]? GetBestPreviewImage(int configIndex = 0)
+    {
+        var bmp = GetPreviewBitmap(configIndex);
+        var png = GetPreviewPng(configIndex);
+        if (bmp != null && png != null)
+        {
+            var (bw, bh) = GetImageDimensions(bmp);
+            var (pw, ph) = GetImageDimensions(png);
+            return (bw * (long)bh >= pw * (long)ph) ? bmp : png;
+        }
+        return bmp ?? png;
+    }
+
+    /// <summary>
+    /// Parses width and height from PNG (IHDR) or BMP headers.
+    /// </summary>
+    public static (int width, int height) GetImageDimensions(byte[]? imageBytes)
+    {
+        if (imageBytes == null || imageBytes.Length < 24) return (0, 0);
+
+        // PNG signature: 89 50 4E 47
+        if (imageBytes.Length >= 24 && imageBytes[0] == 0x89 && imageBytes[1] == 0x50 && imageBytes[2] == 0x4E && imageBytes[3] == 0x47)
+        {
+            int w = (imageBytes[16] << 24) | (imageBytes[17] << 16) | (imageBytes[18] << 8) | imageBytes[19];
+            int h = (imageBytes[20] << 24) | (imageBytes[21] << 16) | (imageBytes[22] << 8) | imageBytes[23];
+            return (Math.Max(0, w), Math.Max(0, h));
+        }
+
+        // BMP signature: 42 4D ('BM')
+        if (imageBytes.Length >= 26 && imageBytes[0] == 0x42 && imageBytes[1] == 0x4D)
+        {
+            int w = BitConverter.ToInt32(imageBytes, 18);
+            int h = Math.Abs(BitConverter.ToInt32(imageBytes, 22));
+            return (Math.Max(0, w), Math.Max(0, h));
+        }
+
+        return (0, 0);
+    }
+
     /// <summary>Returns a copy of the raw Preview stream bytes (4-byte length prefix + DIB), or null when none is present.</summary>
     public byte[]? GetRawPreviewDib() => PreviewImage == null ? null : (byte[])PreviewImage.Clone();
 
@@ -74,13 +117,327 @@ public abstract partial class SwFile
                 dlBytes = zlb.RawData;
         }
         if (dlBytes == null || dlBytes.Length == 0)
+        {
+            foreach (var kvp in ZlbContents)
+            {
+                if (kvp.Key.EndsWith("DisplayLists__ZLB", StringComparison.OrdinalIgnoreCase) && kvp.Value.RawData != null && kvp.Value.RawData.Length > 0)
+                {
+                    dlBytes = kvp.Value.RawData;
+                    break;
+                }
+            }
+        }
+        if (dlBytes == null || dlBytes.Length == 0)
+        {
+            foreach (var kvp in RawStreams)
+            {
+                if (kvp.Key.EndsWith("DisplayLists", StringComparison.OrdinalIgnoreCase) && kvp.Value != null && kvp.Value.Length > 0)
+                {
+                    dlBytes = kvp.Value;
+                    break;
+                }
+            }
+        }
+        if (dlBytes != null && dlBytes.Length > 0)
+        {
+            byte[]? vsBytes = VisualStatesRawData;
+            if (vsBytes == null && ZlbContents.TryGetValue("ThirdPtyStore/VisualStates__ZLB", out var vsZlb))
+                vsBytes = vsZlb.RawData;
+            if (vsBytes == null)
+            {
+                foreach (var kvp in ZlbContents)
+                {
+                    if (kvp.Key.EndsWith("VisualStates__ZLB", StringComparison.OrdinalIgnoreCase) && kvp.Value.RawData != null && kvp.Value.RawData.Length > 0)
+                    {
+                        vsBytes = kvp.Value.RawData;
+                        break;
+                    }
+                }
+            }
+            var mesh = DisplayMeshReader.ReadMesh(dlBytes, vsBytes);
+            if (mesh != null && mesh.VertexCount > 0)
+                return mesh;
+        }
+
+        // 尝试从现代 FaceTessellations 分块流中读取 3D 网格
+        var ftMesh = DisplayMeshReader.ReadMeshFromFaceTessellations(RawStreams, ZlbContents);
+        if (ftMesh != null && ftMesh.VertexCount > 0)
+            return ftMesh;
+
+        // 若是零件文件且无本地网格，尝试检查外部引用实体 (如 MirrorStock / 镜像零件)
+        if (Kind == DocumentKind.Part)
+        {
+            string? derivedBasePath = FindDerivedBasePartPath();
+            if (!string.IsNullOrEmpty(derivedBasePath) && File.Exists(derivedBasePath))
+            {
+                try
+                {
+                    using var baseSw = SwFile.Open(derivedBasePath!, readOnly: true);
+                    var baseMesh = baseSw.GetDisplayMesh();
+                    if (baseMesh != null && baseMesh.VertexCount > 0)
+                        return baseMesh;
+                }
+                catch { }
+            }
+        }
+
+        return null;
+    }
+
+    private string? FindDerivedBasePartPath()
+    {
+        if (!RawStreams.TryGetValue("swXmlContents/Features", out var featBytes) || featBytes.Length == 0)
             return null;
+        try
+        {
+            string xml = Encoding.UTF8.GetString(featBytes);
+            int sIdx = xml.IndexOf('<');
+            if (sIdx > 0) xml = xml.Substring(sIdx);
+            var doc = System.Xml.Linq.XDocument.Parse(xml);
+            var root = doc.Root;
+            if (root == null) return null;
 
-        byte[]? vsBytes = VisualStatesRawData;
-        if (vsBytes == null && ZlbContents.TryGetValue("ThirdPtyStore/VisualStates__ZLB", out var vsZlb))
-            vsBytes = vsZlb.RawData;
+            var extFeat = root.Descendants().FirstOrDefault(e => e.Name.LocalName == "swExtFeature" &&
+                (e.Attribute("swFeatureType")?.Value == "MirrorStock" || e.Attribute("swFeatureType")?.Value == "Stock"));
+            if (extFeat == null) return null;
 
-        return DisplayMeshReader.ReadMesh(dlBytes, vsBytes);
+            string? modelRef = extFeat.Attribute("swModelRef")?.Value;
+            if (string.IsNullOrEmpty(modelRef)) return null;
+
+            var modelElem = root.Descendants().FirstOrDefault(e => e.Name.LocalName == "swModel" &&
+                e.Attribute("id")?.Value == modelRef);
+            if (modelElem == null) return null;
+
+            string? fileRef = modelElem.Attribute("swFileRef")?.Value;
+            if (string.IsNullOrEmpty(fileRef)) return null;
+
+            var fileElem = root.Descendants().FirstOrDefault(e => e.Name.LocalName == "swFile" &&
+                e.Attribute("id")?.Value == fileRef);
+            if (fileElem == null) return null;
+
+            string? rawPath = fileElem.Attribute("swPath")?.Value;
+            if (string.IsNullOrEmpty(rawPath)) return null;
+
+            if (File.Exists(rawPath)) return rawPath;
+            if (!string.IsNullOrEmpty(FilePath))
+            {
+                string fileDir = Path.GetDirectoryName(FilePath)!;
+                string localCand = Path.Combine(fileDir, Path.GetFileName(rawPath));
+                if (File.Exists(localCand)) return localCand;
+            }
+            return rawPath;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// 当装配体自身未内嵌 3D 网格或包含外部子装配体时，根据装配树和各子组件的外部零件文件动态变换拼装出整机网格。
+    /// </summary>
+    public DisplayMesh? StitchAssemblyMeshFromComponents(string? configurationName = null)
+    {
+        var components = GetAssemblyTree(configurationName);
+        if (components == null || components.Count == 0) return null;
+
+        var leafComponents = new List<AssemblyComponentNode>();
+        void CollectLeaves(IEnumerable<AssemblyComponentNode> nodes)
+        {
+            foreach (var n in nodes)
+            {
+                if (n.IsSuppressed) continue;
+                if (n.Children != null && n.Children.Count > 0)
+                {
+                    CollectLeaves(n.Children);
+                }
+                else
+                {
+                    leafComponents.Add(n);
+                }
+            }
+        }
+        CollectLeaves(components);
+        if (leafComponents.Count == 0) return null;
+
+        var allPositions = new List<System.Numerics.Vector3>();
+        var allNormals = new List<System.Numerics.Vector3>();
+        var allIndices = new List<int>();
+        var allEdges = new List<(int, int)>();
+        var parts = new List<DisplayMeshPart>();
+
+        System.Numerics.Vector3 min = new(float.PositiveInfinity, float.PositiveInfinity, float.PositiveInfinity);
+        System.Numerics.Vector3 max = new(float.NegativeInfinity, float.NegativeInfinity, float.NegativeInfinity);
+
+        var cachedPartMeshes = new Dictionary<string, DisplayMesh>(StringComparer.OrdinalIgnoreCase);
+        string? asmDir = !string.IsNullOrEmpty(FilePath) ? Path.GetDirectoryName(FilePath) : null;
+
+        // 收集所有去重后的外部子零件路径，利用多核 CPU 进行异步并行预解码，显著提升装配体首次拼装速度
+        var uniquePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var comp in leafComponents)
+        {
+            string actualPath = comp.FilePath;
+            if (!File.Exists(actualPath) && !string.IsNullOrEmpty(asmDir))
+            {
+                string candidate = Path.Combine(asmDir, Path.GetFileName(comp.FilePath));
+                if (File.Exists(candidate)) actualPath = candidate;
+            }
+            if (!string.IsNullOrEmpty(actualPath) && File.Exists(actualPath))
+            {
+                uniquePaths.Add(actualPath);
+            }
+        }
+
+        if (uniquePaths.Count > 1)
+        {
+            Parallel.ForEach(uniquePaths, path =>
+            {
+                try
+                {
+                    using var psw = SwFile.Open(path, readOnly: true);
+                    var m = psw.GetDisplayMesh();
+                    if (m != null && m.Positions.Count > 0)
+                    {
+                        lock (cachedPartMeshes)
+                        {
+                            cachedPartMeshes[path] = m;
+                        }
+                    }
+                }
+                catch { }
+            });
+        }
+
+        foreach (var comp in leafComponents)
+        {
+            string actualPath = comp.FilePath;
+            if (!File.Exists(actualPath) && !string.IsNullOrEmpty(asmDir))
+            {
+                string candidate = Path.Combine(asmDir, Path.GetFileName(comp.FilePath));
+                if (File.Exists(candidate)) actualPath = candidate;
+            }
+
+            if (string.IsNullOrEmpty(actualPath) || !File.Exists(actualPath))
+                return null; // An incomplete stitch must not replace the embedded assembly mesh.
+
+            if (!cachedPartMeshes.TryGetValue(actualPath, out var childMesh))
+            {
+                try
+                {
+                    using var psw = SwFile.Open(actualPath, readOnly: true);
+                    childMesh = psw.GetDisplayMesh();
+                    if (childMesh != null)
+                    {
+                        cachedPartMeshes[actualPath] = childMesh;
+                    }
+                }
+                catch { }
+            }
+
+            if (childMesh == null || childMesh.Positions.Count == 0) return null;
+
+            int vStart = allPositions.Count;
+            int tStart = allIndices.Count / 3;
+            int eStart = allEdges.Count;
+
+            float tx = comp.Transform.M41 * 1000f;
+            float ty = comp.Transform.M42 * 1000f;
+            float tz = comp.Transform.M43 * 1000f;
+
+            for (int i = 0; i < childMesh.Positions.Count; i++)
+            {
+                var p = childMesh.Positions[i];
+                float x = p.X * comp.Transform.M11 + p.Y * comp.Transform.M21 + p.Z * comp.Transform.M31 + tx;
+                float y = p.X * comp.Transform.M12 + p.Y * comp.Transform.M22 + p.Z * comp.Transform.M32 + ty;
+                float z = p.X * comp.Transform.M13 + p.Y * comp.Transform.M23 + p.Z * comp.Transform.M33 + tz;
+                var transformedP = new System.Numerics.Vector3(x, y, z);
+                allPositions.Add(transformedP);
+                min = System.Numerics.Vector3.Min(min, transformedP);
+                max = System.Numerics.Vector3.Max(max, transformedP);
+            }
+
+            for (int i = 0; i < childMesh.Normals.Count; i++)
+            {
+                var n = childMesh.Normals[i];
+                float nx = n.X * comp.Transform.M11 + n.Y * comp.Transform.M21 + n.Z * comp.Transform.M31;
+                float ny = n.X * comp.Transform.M12 + n.Y * comp.Transform.M22 + n.Z * comp.Transform.M32;
+                float nz = n.X * comp.Transform.M13 + n.Y * comp.Transform.M23 + n.Z * comp.Transform.M33;
+                var transformedN = System.Numerics.Vector3.Normalize(new System.Numerics.Vector3(nx, ny, nz));
+                allNormals.Add(transformedN);
+            }
+
+            for (int i = 0; i < childMesh.TriangleIndices.Count; i++)
+            {
+                allIndices.Add(childMesh.TriangleIndices[i] + vStart);
+            }
+
+            for (int i = 0; i < childMesh.OutlineEdges.Count; i++)
+            {
+                var (e0, e1) = childMesh.OutlineEdges[i];
+                allEdges.Add((e0 + vStart, e1 + vStart));
+            }
+
+            var surfRef = new[] { new DisplaySurfaceReference { Identity = comp.InstanceName } };
+
+            if (childMesh.Parts != null && childMesh.Parts.Count > 0)
+            {
+                foreach (var cp in childMesh.Parts)
+                {
+                    parts.Add(new DisplayMeshPart
+                    {
+                        Id = $"stitched:{comp.ComponentId}:{parts.Count}",
+                        StreamIndex = 0,
+                        TableIndex = parts.Count,
+                        TableOffset = 0,
+                        VertexStart = vStart + cp.VertexStart,
+                        VertexCount = cp.VertexCount,
+                        TriangleStart = tStart + cp.TriangleStart,
+                        TriangleCount = cp.TriangleCount,
+                        EdgeStart = eStart + cp.EdgeStart,
+                        EdgeCount = cp.EdgeCount,
+                        StripCount = cp.StripCount,
+                        NormalsDerived = cp.NormalsDerived,
+                        Color = cp.Color,
+                        ColorSource = cp.ColorSource,
+                        AppearanceName = !string.IsNullOrEmpty(cp.AppearanceName) ? cp.AppearanceName : comp.InstanceName,
+                        SurfaceReferences = surfRef
+                    });
+                }
+            }
+            else
+            {
+                parts.Add(new DisplayMeshPart
+                {
+                    Id = $"stitched:{comp.ComponentId}:{parts.Count}",
+                    StreamIndex = 0,
+                    TableIndex = parts.Count,
+                    TableOffset = 0,
+                    VertexStart = vStart,
+                    VertexCount = childMesh.Positions.Count,
+                    TriangleStart = tStart,
+                    TriangleCount = childMesh.TriangleIndices.Count / 3,
+                    EdgeStart = eStart,
+                    EdgeCount = childMesh.OutlineEdges.Count,
+                    StripCount = 0,
+                    NormalsDerived = false,
+                    AppearanceName = comp.InstanceName,
+                    SurfaceReferences = surfRef
+                });
+            }
+        }
+
+        if (allPositions.Count == 0) return null;
+
+        return new DisplayMesh
+        {
+            Positions = allPositions.AsReadOnly(),
+            Normals = allNormals.AsReadOnly(),
+            TriangleIndices = allIndices.AsReadOnly(),
+            OutlineEdges = allEdges.AsReadOnly(),
+            Parts = parts.AsReadOnly(),
+            Min = min,
+            Max = max
+        };
     }
 
     /// <summary>
@@ -97,7 +454,8 @@ public abstract partial class SwFile
         if (string.IsNullOrEmpty(xml))
             return Array.Empty<AssemblyComponentNode>();
 
-        return Assembly.AssemblyTreeReader.ParseAssemblyTree(xml!, configurationName);
+        string? asmDir = !string.IsNullOrEmpty(FilePath) ? Path.GetDirectoryName(FilePath) : null;
+        return Assembly.AssemblyTreeReader.ParseAssemblyTree(xml!, configurationName, asmDir);
     }
 
     /// <summary>
@@ -187,6 +545,27 @@ public abstract partial class SwFile
     }
 
     /// <summary>
+    /// Gets the best available preview image bytes for the specified drawing sheet (0-based),
+    /// preferring high-resolution preview bitmap (e.g. 2850x1436) when available.
+    /// </summary>
+    public byte[]? GetBestSheetPreviewImage(int sheetIndex)
+    {
+        var sheetPng = GetSheetPreviewPng(sheetIndex);
+        if (sheetIndex == 0)
+        {
+            var highResBmp = GetPreviewBitmap(0);
+            if (highResBmp != null)
+            {
+                if (sheetPng == null) return highResBmp;
+                var (bw, bh) = GetImageDimensions(highResBmp);
+                var (pw, ph) = GetImageDimensions(sheetPng);
+                if (bw * (long)bh >= pw * (long)ph) return highResBmp;
+            }
+        }
+        return sheetPng;
+    }
+
+    /// <summary>
     /// Gets all drawing sheets with their views and preview images.
     /// </summary>
     public IReadOnlyList<DrawingSheetInfo> GetDrawingSheets()
@@ -203,7 +582,23 @@ public abstract partial class SwFile
             keywordsXml = zlb.XmlContent;
         }
 
-        return DrawingReader.ReadSheets(keywordsXml, DrawingSheetNames, GetSheetPreviewPng);
+        var defnStream = GetDrawingPreviewStreamBytes("Contents/Definition");
+        var vbListsStream = GetDrawingPreviewStreamBytes("Contents/VBLists");
+        var displayListsStream = GetDrawingPreviewStreamBytes("Contents/DisplayLists");
+        return DrawingReader.ReadSheets(keywordsXml, DrawingSheetNames, GetSheetPreviewPng, GetBestSheetPreviewImage, defnStream, vbListsStream, displayListsStream);
+    }
+
+    internal byte[]? GetDrawingPreviewStreamBytes(string name)
+    {
+        var raw = GetStreamBytes(name);
+        if (raw != null) return raw;
+        var compressed = GetStreamBytes(name + "__ZLB");
+        if (compressed != null)
+        {
+            var data = new ZlbData(); ZlbStreamHandler.Decompress(compressed, data);
+            return data.RawData;
+        }
+        return ZlbContents.TryGetValue(name + "__ZLB", out var zlb) ? zlb.RawData : null;
     }
 
     private void InitializeUserData(Dictionary<string, byte[]> streams)

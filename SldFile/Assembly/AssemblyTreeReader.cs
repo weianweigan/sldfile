@@ -30,6 +30,9 @@ internal static class AssemblyTreeReader
     }
 
     public static IReadOnlyList<AssemblyComponentNode> ParseAssemblyTree(string xmlContent, string? configurationName = null)
+        => ParseAssemblyTree(xmlContent, configurationName, null);
+
+    public static IReadOnlyList<AssemblyComponentNode> ParseAssemblyTree(string xmlContent, string? configurationName, string? assemblyDirectory)
     {
         if (string.IsNullOrEmpty(xmlContent))
             return Array.Empty<AssemblyComponentNode>();
@@ -132,7 +135,7 @@ internal static class AssemblyTreeReader
         var components = new List<AssemblyComponentNode>();
         foreach (var refElem in rootModel.Element.Elements().Where(e => e.Name.LocalName == "swReference"))
         {
-            var node = BuildComponentNode(refElem, models, files);
+            var node = BuildComponentNode(refElem, models, files, Matrix4x4.Identity, assemblyDirectory);
             if (node != null)
             {
                 components.Add(node);
@@ -145,7 +148,9 @@ internal static class AssemblyTreeReader
     private static AssemblyComponentNode? BuildComponentNode(
         XElement refElem,
         Dictionary<string, ModelRecord> models,
-        Dictionary<string, FileRecord> files)
+        Dictionary<string, FileRecord> files,
+        Matrix4x4 parentWorldTransform,
+        string? assemblyDirectory)
     {
         string id = refElem.Attribute("swID")?.Value ?? refElem.Attribute("id")?.Value ?? string.Empty;
         string name = refElem.Attribute("swName")?.Value ?? string.Empty;
@@ -167,6 +172,16 @@ internal static class AssemblyTreeReader
             }
         }
 
+        if (!string.IsNullOrEmpty(assemblyDirectory) && !string.IsNullOrEmpty(filePath) && !File.Exists(filePath))
+        {
+            string fileName = Path.GetFileName(filePath);
+            string localCand = Path.Combine(assemblyDirectory, fileName);
+            if (File.Exists(localCand))
+            {
+                filePath = localCand;
+            }
+        }
+
         string instanceName = refNumber > 1 ? $"{name}-{refNumber}" : name;
 
         bool isSuppressed = ParseBoolean(refElem.Attribute("swSuppressed")?.Value);
@@ -175,7 +190,8 @@ internal static class AssemblyTreeReader
         bool isFlexible = ParseBoolean(refElem.Attribute("swFlexible")?.Value);
         bool excludeFromBom = ParseBoolean(refElem.Attribute("swExcludeFromBOM")?.Value);
 
-        Matrix4x4 transform = ParseTransform(refElem.Attribute("swTransform")?.Value);
+        Matrix4x4 localTransform = ParseTransform(refElem.Attribute("swTransform")?.Value);
+        Matrix4x4 worldTransform = localTransform * parentWorldTransform;
 
         // Recursively build children if the component itself is a sub-assembly
         var children = new List<AssemblyComponentNode>();
@@ -183,7 +199,7 @@ internal static class AssemblyTreeReader
         {
             foreach (var childRef in targetModel.Element.Elements().Where(e => e.Name.LocalName == "swReference"))
             {
-                var childNode = BuildComponentNode(childRef, models, files);
+                var childNode = BuildComponentNode(childRef, models, files, worldTransform, assemblyDirectory);
                 if (childNode != null)
                 {
                     children.Add(childNode);
@@ -199,7 +215,8 @@ internal static class AssemblyTreeReader
             ReferenceNumber = refNumber,
             FilePath = filePath,
             ConfigurationName = cfgName,
-            Transform = transform,
+            LocalTransform = localTransform,
+            Transform = worldTransform,
             IsSuppressed = isSuppressed,
             IsHidden = isHidden,
             IsVirtual = isVirtual,

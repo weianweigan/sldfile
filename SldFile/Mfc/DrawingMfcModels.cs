@@ -5,7 +5,7 @@ using System.Linq;
 
 namespace SldFile.Mfc;
 
-public readonly struct DrPoint2D : IEquatable<DrPoint2D>
+internal readonly struct DrPoint2D : IEquatable<DrPoint2D>
 {
     public double X { get; }
     public double Y { get; }
@@ -24,7 +24,7 @@ public readonly struct DrPoint2D : IEquatable<DrPoint2D>
     public override string ToString() => $"({X:F4}, {Y:F4})";
 }
 
-public readonly struct DrVector3D : IEquatable<DrVector3D>
+internal readonly struct DrVector3D : IEquatable<DrVector3D>
 {
     public double X { get; }
     public double Y { get; }
@@ -69,7 +69,7 @@ public readonly struct DrVector3D : IEquatable<DrVector3D>
     public override string ToString() => $"({X:F4}, {Y:F4}, {Z:F4})";
 }
 
-public sealed class DrCachedLineSegment
+internal sealed class DrCachedLineSegment
 {
     public DrPoint2D Start { get; set; }
     public DrPoint2D End { get; set; }
@@ -87,7 +87,7 @@ public sealed class DrCachedLineSegment
     }
 }
 
-public sealed class DrCachedPolyline
+internal sealed class DrCachedPolyline
 {
     public List<DrPoint2D> Points { get; } = new();
     public bool IsHidden { get; set; }
@@ -109,7 +109,7 @@ public sealed class DrCachedPolyline
 /// Drawing sheet MFC model (moDrSheet, swFmDrSheet = 40).
 /// Bi-directionally serializes sheet metadata, paper dimensions, and coordinate frames.
 /// </summary>
-public sealed class DrSheetMfcModel : IMfcSerializable
+internal sealed class DrSheetMfcModel : IMfcSerializable
 {
     public const string MfcClassName = "moDrSheet";
     public const uint TypeId = 40; // swFmDrSheet
@@ -249,7 +249,7 @@ public sealed class DrSheetMfcModel : IMfcSerializable
 /// Drawing sheet template MFC model (moDrTemplate_c, swFmDrTemplate = 41).
 /// Reads sheet template format lines and title blocks.
 /// </summary>
-public sealed class DrTemplateMfcModel : IMfcSerializable
+internal sealed class DrTemplateMfcModel : IMfcSerializable
 {
     public const string MfcClassName = "moDrTemplate_c";
     public const uint TypeId = 41;
@@ -312,7 +312,7 @@ public sealed class DrTemplateMfcModel : IMfcSerializable
 /// Drawing view MFC model (moDrView_c, moDrAbsoluteView_c, moDrUnfoldedView_c).
 /// Stores drawing view position, orientation, scale, and referenced model.
 /// </summary>
-public sealed class DrViewMfcModel : IMfcSerializable
+internal sealed class DrViewMfcModel : IMfcSerializable
 {
     public const string GenericViewClassName = "moView_c";
     public const string AbsoluteViewClassName = "moAbsoluteView";
@@ -458,7 +458,7 @@ public sealed class DrViewMfcModel : IMfcSerializable
 /// Drawing note / annotation MFC model (moDisplayNote_c, moCompNote_c).
 /// Reads text, font, leader line geometry, and balloon properties.
 /// </summary>
-public sealed class DrNoteMfcModel : IMfcSerializable
+internal sealed class DrNoteMfcModel : IMfcSerializable
 {
     public const string DisplayNoteClassName = "moDisplayNote_c";
     public const string CompNoteClassName = "moCompNote_c";
@@ -590,7 +590,7 @@ public sealed class DrNoteMfcModel : IMfcSerializable
 /// Drawing dimension MFC model (moDimBackupDef_c, moDisplayDistanceDim_c).
 /// Decodes dimension value, text override, witness and leader lines.
 /// </summary>
-public sealed class DrDimensionMfcModel : IMfcSerializable
+internal sealed class DrDimensionMfcModel : IMfcSerializable
 {
     public const string DimBackupDefClassName = "moDimBackupDef_c";
     public const string DisplayDistanceDimClassName = "moDisplayDistanceDim_c";
@@ -719,7 +719,7 @@ public sealed class DrDimensionMfcModel : IMfcSerializable
 /// Drawing display bucket MFC model (uiViewBucket_c in Contents/VBLists).
 /// Symmetrically reads and writes vector display lists and cached tessellation polylines.
 /// </summary>
-public sealed class DrViewBucketMfcModel : IMfcSerializable
+internal sealed class DrViewBucketMfcModel : IMfcSerializable
 {
     public const string MfcClassName = "uiViewBucket_c";
 
@@ -981,7 +981,7 @@ public sealed class DrViewBucketMfcModel : IMfcSerializable
 /// Root Drawing Document MFC Model (moDrawing_c).
 /// Manages all sheets, templates, views, notes, and dimensions extracted from Contents/Definition.
 /// </summary>
-public sealed class DrawingDocumentMfcModel : IMfcSerializable
+internal sealed class DrawingDocumentMfcModel : IMfcSerializable
 {
     public const string MfcClassName = "moDrawing_c";
 
@@ -1278,7 +1278,7 @@ public sealed class DrawingDocumentMfcModel : IMfcSerializable
 /// Direct strongly-typed MFC model for drawing balloon annotation (<c>moBalloon_c</c>).
 /// Implements IMfcSerializable for symmetric bi-directional reading and writing.
 /// </summary>
-public sealed class DrBalloonMfcModel : IMfcSerializable
+internal sealed class DrBalloonMfcModel : IMfcSerializable
 {
     public const string MfcClassName = "moBalloon_c";
 
@@ -1361,7 +1361,7 @@ public sealed class DrBalloonMfcModel : IMfcSerializable
 /// Direct strongly-typed MFC model for geometric tolerance frame annotation (<c>moGtol_c</c>).
 /// Implements IMfcSerializable for symmetric bi-directional reading and writing.
 /// </summary>
-public sealed class DrGtolMfcModel : IMfcSerializable
+internal sealed class DrGtolMfcModel : IMfcSerializable
 {
     public const string MfcClassName = "moGtol_c";
 
@@ -1433,7 +1433,7 @@ public sealed class DrGtolMfcModel : IMfcSerializable
 /// Direct strongly-typed MFC model for datum feature symbol annotation (<c>moDatum_c</c>).
 /// Implements IMfcSerializable for symmetric bi-directional reading and writing.
 /// </summary>
-public sealed class DrDatumMfcModel : IMfcSerializable
+internal sealed class DrDatumMfcModel : IMfcSerializable
 {
     public const string MfcClassName = "moDatum_c";
 
@@ -1506,7 +1506,7 @@ public sealed class DrDatumMfcModel : IMfcSerializable
 /// <summary>
 /// Column definition for BOM table.
 /// </summary>
-public sealed class DrBomColumnModel
+internal sealed class DrBomColumnModel
 {
     public string Title { get; set; } = string.Empty;
     public string PropertyBinding { get; set; } = string.Empty;
@@ -1516,7 +1516,7 @@ public sealed class DrBomColumnModel
 /// <summary>
 /// Row item for BOM table.
 /// </summary>
-public sealed class DrBomRowModel
+internal sealed class DrBomRowModel
 {
     public string ItemNumber { get; set; } = string.Empty;
     public string PartNumber { get; set; } = string.Empty;
@@ -1528,7 +1528,7 @@ public sealed class DrBomRowModel
 /// Direct strongly-typed MFC model for drawing BOM/table annotation (<c>moBomTemplate_c</c>).
 /// Implements IMfcSerializable for symmetric bi-directional reading and writing.
 /// </summary>
-public sealed class DrBomTableMfcModel : IMfcSerializable
+internal sealed class DrBomTableMfcModel : IMfcSerializable
 {
     public const string MfcClassName = "moBomTemplate_c";
     public const string TableTemplateClassName = "moTableTemplate_c";

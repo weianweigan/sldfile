@@ -80,6 +80,7 @@ public partial class MainViewModel : ObservableObject
         FeatureDetail = featureDetail;
 
         DocumentTree.NodeSelected += OnTreeNodeSelected;
+        DocumentTree.ComponentActionRequested += OnComponentActionRequested;
     }
 
     [RelayCommand]
@@ -125,10 +126,25 @@ public partial class MainViewModel : ObservableObject
             // Load initial preview for selected configuration
             int initCfgIdx = SelectedConfiguration?.Index ?? 0;
             string initCfgName = SelectedConfiguration?.Name ?? "默认";
-            var initialPng = _docService.GetPreviewPng(initCfgIdx) ?? _docService.GetPreviewBitmap(initCfgIdx);
-            if (initialPng != null)
+            byte[]? initialImage = null;
+            string previewDesc = $"模型预览 (配置: {initCfgName})";
+            SldFile.Drawing.Vector.DrawingSheetVectorData? initialVectorData = null;
+            if (sw.Kind == DocumentKind.Drawing)
             {
-                ImagePreview.LoadImage(initialPng, $"模型预览 (配置: {initCfgName})");
+                var sheets = _docService.GetDrawingSheets();
+                var firstSheet = sheets.FirstOrDefault();
+                initialImage = _docService.GetBestSheetPreviewImage(0) ?? firstSheet?.BestPreview ?? _docService.GetBestPreviewImage(0);
+                previewDesc = firstSheet != null ? $"工程图纸: {firstSheet.Name}" : "工程图预览";
+                initialVectorData = firstSheet?.VectorData;
+            }
+            else
+            {
+                initialImage = _docService.GetBestPreviewImage(initCfgIdx);
+            }
+
+            if (initialImage != null || initialVectorData?.HasVectorData == true)
+            {
+                ImagePreview.LoadImage(initialImage, previewDesc, initialVectorData, sw.Kind == DocumentKind.Drawing ? 0 : -1);
             }
 
             // Set default view to MeshViewer or Preview
@@ -136,7 +152,7 @@ public partial class MainViewModel : ObservableObject
             {
                 CurrentView = MeshViewer;
             }
-            else if (initialPng != null)
+            else if (ImagePreview.HasImage)
             {
                 CurrentView = ImagePreview;
             }
@@ -181,9 +197,7 @@ public partial class MainViewModel : ObservableObject
         MeshViewer.CurrentConfigIndex = value.Index;
 
         // 4. 关键：提取当前配置专属的高清渲染预览图，动态刷新模型预览！
-        var png = _docService.GetPreviewPng(value.Index);
-        var bmp = png == null ? _docService.GetPreviewBitmap(value.Index) : null;
-        var previewData = png ?? bmp;
+        var previewData = _docService.GetBestPreviewImage(value.Index);
         if (previewData != null)
         {
             ImagePreview.LoadImage(previewData, $"模型预览 (配置: {value.Name})");
@@ -197,10 +211,10 @@ public partial class MainViewModel : ObservableObject
     {
         int idx = SelectedConfiguration?.Index ?? 0;
         string name = SelectedConfiguration?.Name ?? "默认";
-        var png = _docService.GetPreviewPng(idx) ?? _docService.GetPreviewBitmap(idx);
-        if (png != null)
+        var img = _docService.GetBestPreviewImage(idx);
+        if (img != null)
         {
-            ImagePreview.LoadImage(png, $"模型预览 (配置: {name})");
+            ImagePreview.LoadImage(img, $"模型预览 (配置: {name})");
             CurrentView = ImagePreview;
         }
     }
@@ -245,17 +259,32 @@ public partial class MainViewModel : ObservableObject
             case TreeNodeKind.GeometryPreview:
                 int cfgIdx = SelectedConfiguration?.Index ?? 0;
                 string cfgName = SelectedConfiguration?.Name ?? "默认";
-                var img = _docService.GetPreviewPng(cfgIdx) ?? _docService.GetPreviewBitmap(cfgIdx);
-                if (img != null)
+                byte[]? img = null;
+                string desc = $"模型预览 (配置: {cfgName})";
+                SldFile.Drawing.Vector.DrawingSheetVectorData? vectorData = null;
+                if (_docService.CurrentFile?.Kind == DocumentKind.Drawing)
                 {
-                    ImagePreview.LoadImage(img, $"模型预览 (配置: {cfgName})");
+                    var sheets = _docService.GetDrawingSheets();
+                    var firstSheet = sheets.FirstOrDefault();
+                    img = _docService.GetBestSheetPreviewImage(0) ?? firstSheet?.BestPreview ?? _docService.GetBestPreviewImage(0);
+                    desc = firstSheet != null ? $"工程图纸: {firstSheet.Name}" : "工程图预览";
+                    vectorData = firstSheet?.VectorData;
+                }
+                else
+                {
+                    img = _docService.GetBestPreviewImage(cfgIdx);
+                }
+
+                if (img != null || vectorData?.HasVectorData == true)
+                {
+                    ImagePreview.LoadImage(img, desc, vectorData, _docService.CurrentFile?.Kind == DocumentKind.Drawing ? 0 : -1);
                 }
 
                 if (MeshViewer.HasMesh)
                 {
                     CurrentView = MeshViewer;
                 }
-                else if (img != null)
+                else if (ImagePreview.HasImage)
                 {
                     CurrentView = ImagePreview;
                 }
@@ -334,8 +363,8 @@ public partial class MainViewModel : ObservableObject
             case TreeNodeKind.DrawingSheet:
                 if (node.Tag is DrawingSheetInfo sheet)
                 {
-                    var sheetPng = sheet.PreviewPng;
-                    ImagePreview.LoadImage(sheetPng, $"工程图纸: {sheet.Name}", sheet.SheetIndex);
+                    var sheetImg = _docService.GetBestSheetPreviewImage(sheet.SheetIndex) ?? sheet.BestPreview ?? sheet.PreviewPng;
+                    ImagePreview.LoadImage(sheetImg, $"工程图纸: {sheet.Name}", sheet.VectorData, sheet.SheetIndex);
                     CurrentView = ImagePreview;
                 }
                 break;
@@ -391,6 +420,32 @@ public partial class MainViewModel : ObservableObject
                 break;
 
             default:
+                break;
+        }
+    }
+
+    private void OnComponentActionRequested(AssemblyComponentNode comp, ComponentTreeAction action)
+    {
+        switch (action)
+        {
+            case ComponentTreeAction.Isolate:
+                MeshViewer.IsolateComponent(comp);
+                CurrentView = MeshViewer;
+                break;
+            case ComponentTreeAction.ToggleVisibility:
+            case ComponentTreeAction.Hide:
+                MeshViewer.ToggleComponentVisibility(comp);
+                break;
+            case ComponentTreeAction.Show:
+                MeshViewer.ShowComponent(comp);
+                break;
+            case ComponentTreeAction.ShowAll:
+                MeshViewer.ShowAllComponents();
+                break;
+            case ComponentTreeAction.ZoomTo:
+                MeshViewer.HighlightComponent(comp);
+                CurrentView = MeshViewer;
+                MeshViewer.ZoomToComponent();
                 break;
         }
     }
