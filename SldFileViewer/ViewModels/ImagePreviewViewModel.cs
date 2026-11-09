@@ -19,6 +19,8 @@ public partial class ImagePreviewViewModel : ObservableObject
     private readonly IDialogService? _dialogService;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasRasterImage))]
+    [NotifyPropertyChangedFor(nameof(IsRasterImageVisible))]
     private BitmapImage? _imageSource;
 
     [ObservableProperty]
@@ -68,10 +70,13 @@ public partial class ImagePreviewViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsRasterImageVisible))]
     private DrawingOverlayMode _overlayMode = DrawingOverlayMode.SheetNotesOnly;
 
-    public bool IsRasterImageVisible =>
+    public bool HasRasterImage => ImageSource != null;
+
+    public bool IsRasterImageVisible => HasRasterImage && (
         OverlayMode != DrawingOverlayMode.PureVectorCad ||
         VectorData == null ||
-        !VectorData.HasLines;
+        VectorData.Preview?.IsResolved == false ||
+        !VectorData.HasLines);
 
     public bool IsVectorOverlayEnabled
     {
@@ -96,6 +101,8 @@ public partial class ImagePreviewViewModel : ObservableObject
         get
         {
             if (!HasVectorData) return "无矢量数据";
+            if (VectorData!.Preview is { IsResolved: false } preview)
+                return $"原生矢量预览: {preview.Primitives.Count} 图元（部分解析）";
             int lineCount = VectorData!.Lines?.Count ?? 0;
             int textCount = VectorData!.Texts?.Count ?? 0;
             return OverlayMode switch
@@ -249,6 +256,18 @@ public partial class ImagePreviewViewModel : ObservableObject
         {
             ImageSource = null;
             RawImageBytes = null;
+            if (HasVectorData)
+            {
+                HasImage = true;
+                PixelWidth = Math.Max(1, (int)Math.Ceiling(VectorData!.PaperWidthMm * 96 / 25.4));
+                PixelHeight = Math.Max(1, (int)Math.Ceiling(VectorData.PaperHeightMm * 96 / 25.4));
+                VectorData.CalculatePixelCoordinates(PixelWidth, PixelHeight);
+                IsHighDefinition = false;
+                OverlayMode = DrawingOverlayMode.AllAnnotations;
+                ImageInfo = $"{description} - 原生矢量预览";
+                RequestFitToWindow?.Invoke();
+                return;
+            }
             HasImage = false;
             PixelWidth = 0;
             PixelHeight = 0;

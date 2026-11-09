@@ -211,6 +211,7 @@
                             Width="{Binding PixelWidth}"
                             Height="{Binding PixelHeight}"
                             VectorData="{Binding VectorData}"
+                            HasRasterImage="{Binding HasRasterImage}"
                             OverlayMode="{Binding OverlayMode}"
                             IsOverlayEnabled="{Binding IsVectorOverlayEnabled}"
                             HorizontalAlignment="Left"

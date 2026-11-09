@@ -231,7 +231,7 @@ public class DrawingAndPreviewTests
         // Verify 2D CAD Vector Geometry Lines loaded!
         Assert.True(imgVm.VectorData!.HasLines, "Expected drawing to contain 2D CAD vector line geometry");
         Assert.True(imgVm.VectorData!.Lines.Count >= 10, $"Expected >=10 vector lines, got {imgVm.VectorData!.Lines.Count}");
-        Assert.Contains(imgVm.VectorData!.Lines, l => l.Kind == SldFile.Drawing.Vector.DrawingLineKind.SheetBorderOuter);
+        Assert.DoesNotContain(imgVm.VectorData!.Lines, l => l.Kind == SldFile.Drawing.Vector.DrawingLineKind.SheetBorderOuter);
         Assert.Contains(imgVm.VectorData!.Lines, l => l.Kind == SldFile.Drawing.Vector.DrawingLineKind.SolidOutline);
         Assert.Contains(imgVm.VectorData!.Lines, l => l.Kind == SldFile.Drawing.Vector.DrawingLineKind.Centerline);
 

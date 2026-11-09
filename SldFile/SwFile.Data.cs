@@ -582,10 +582,23 @@ public abstract partial class SwFile
             keywordsXml = zlb.XmlContent;
         }
 
-        RawStreams.TryGetValue("Contents/Definition", out var defnStream);
-        RawStreams.TryGetValue("Contents/VBLists", out var vbListsStream);
-        RawStreams.TryGetValue("Contents/DisplayLists", out var displayListsStream);
+        var defnStream = GetDrawingPreviewStreamBytes("Contents/Definition");
+        var vbListsStream = GetDrawingPreviewStreamBytes("Contents/VBLists");
+        var displayListsStream = GetDrawingPreviewStreamBytes("Contents/DisplayLists");
         return DrawingReader.ReadSheets(keywordsXml, DrawingSheetNames, GetSheetPreviewPng, GetBestSheetPreviewImage, defnStream, vbListsStream, displayListsStream);
+    }
+
+    internal byte[]? GetDrawingPreviewStreamBytes(string name)
+    {
+        var raw = GetStreamBytes(name);
+        if (raw != null) return raw;
+        var compressed = GetStreamBytes(name + "__ZLB");
+        if (compressed != null)
+        {
+            var data = new ZlbData(); ZlbStreamHandler.Decompress(compressed, data);
+            return data.RawData;
+        }
+        return ZlbContents.TryGetValue(name + "__ZLB", out var zlb) ? zlb.RawData : null;
     }
 
     private void InitializeUserData(Dictionary<string, byte[]> streams)

@@ -4,12 +4,14 @@ using System.Collections.Generic;
 namespace SldFile.Drawing.Vector;
 
 /// <summary>
-/// Encapsulates full 2D vector graphic metadata (lines, borders, title block grids, text annotations)
-/// extracted from SolidWorks drawing sheets, enabling true lossless vector rendering (eDrawings quality)
-/// at infinite zoom levels with zero raster pixelation.
+/// Presentation data for decoded native drawing commands. Preview.IsResolved
+/// indicates whether the raster can safely be replaced.
 /// </summary>
 public sealed class DrawingSheetVectorData
 {
+    /// <summary>Native serialized preview commands; this is the authoritative geometry source.</summary>
+    public SldFile.Drawing.DrawingPreviewDefinition? Preview { get; internal set; }
+
     public double PaperWidthMm { get; set; } = 297.0;
     public double PaperHeightMm { get; set; } = 210.0;
     public string TemplateName { get; set; } = string.Empty;
@@ -35,7 +37,7 @@ public sealed class DrawingSheetVectorData
     /// <summary>
     /// True if any vector CAD metadata (text or lines) is available for this sheet.
     /// </summary>
-    public bool HasVectorData => (Texts != null && Texts.Count > 0) || (Lines != null && Lines.Count > 0);
+    public bool HasVectorData => Preview?.Primitives.Count > 0 || (Texts != null && Texts.Count > 0) || (Lines != null && Lines.Count > 0);
 
     public bool HasLines => Lines != null && Lines.Count > 0;
 

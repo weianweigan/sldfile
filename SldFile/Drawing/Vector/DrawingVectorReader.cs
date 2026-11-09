@@ -9,17 +9,10 @@ using System.Xml.Linq;
 namespace SldFile.Drawing.Vector;
 
 /// <summary>
-/// High-performance parser that extracts 2D vector graphic primitives (text, annotations, dimensions)
-/// from SolidWorks drawing binary definition and metadata streams.
+/// Maps the native, bidirectional preview models to presentation data.
 /// </summary>
 public static class DrawingVectorReader
 {
-    private static readonly byte[] MfcWideStrHeader = { 0xFF, 0xFE, 0xFF };
-    private static readonly HashSet<string> ExcludedKeywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-    {
-        "宋体", "新宋体", "Century Gothic", "SimSun", "Arial", "Times New Roman", "黑体", "仿宋", "楷体",
-        "moDrawing_c", "moHeader_c", "moLogs_c", "moStamp_c", "moDisplayNote_c", "moGenericText_c"
-    };
 
     public static DrawingSheetVectorData ReadVectorData(
         byte[]? definitionStream,
@@ -31,8 +24,7 @@ public static class DrawingVectorReader
     {
         var vectorData = new DrawingSheetVectorData();
 
-        // These heuristic readers have no sheet record boundaries. Never apply
-        // document-wide primitives to an individual page of a multi-sheet drawing.
+        // Do not attach document-wide commands to a page without verified ownership.
         if (!string.IsNullOrEmpty(keywordsXml))
         {
             int xmlStart = keywordsXml!.IndexOf('<');
@@ -50,62 +42,46 @@ public static class DrawingVectorReader
         }
         if (sheetCount != 1 || sheetIndex != 0) return vectorData;
 
-        bool hasStreamData = (definitionStream != null && definitionStream.Length > 0) ||
-                             (vbListsStream != null && vbListsStream.Length > 0) ||
-                             (displayListsStream != null && displayListsStream.Length > 0);
 
-        if (!hasStreamData)
-        {
-            return vectorData;
-        }
-
-        // 1. Parse sheet metadata from KeyWords XML
         ParseSheetMetadata(keywordsXml, sheetIndex, vectorData);
-
-        // 2. Parse vector text annotations from Definition stream
-        if (definitionStream != null && definitionStream.Length > 0)
+        var archive = new SldFile.Mfc.DrawingPreviewStreamModel { DecodeCommands = true };
+        using (var ar = SldFile.Mfc.MfcArchive.CreateReader(displayListsStream ?? Array.Empty<byte>()))
+            archive.Serialize(ar);
+        var preview = archive.ToDefinition(sheetIndex, Math.Max(1, sheetCount));
+        preview.PaperWidth = vectorData.PaperWidthMm / 1000;
+        preview.PaperHeight = vectorData.PaperHeightMm / 1000;
+        string[] viewNames = Array.Empty<string>();
+        if (!string.IsNullOrEmpty(keywordsXml))
         {
-            var rawTexts = ParseTextsFromDefinition(definitionStream);
-
-            // Refine paper dimensions only if not explicitly identified from template/XML
-            if (string.IsNullOrEmpty(vectorData.PaperSizeName) && rawTexts.Count > 0)
+            try
             {
-                double maxX = rawTexts.Max(t => t.X);
-                double maxY = rawTexts.Max(t => t.Y);
-
-                if (vectorData.PaperWidthMm < maxX)
-                {
-                    vectorData.PaperWidthMm = (maxX > 300) ? 420.0 : 297.0;
-                }
-                if (vectorData.PaperHeightMm < maxY)
-                {
-                    vectorData.PaperHeightMm = (maxY > 220) ? 297.0 : 210.0;
-                }
+                int begin = keywordsXml!.IndexOf('<');
+                if (begin >= 0) viewNames = XDocument.Parse(keywordsXml.Substring(begin)).Descendants()
+                    .Where(e => e.Name.LocalName == "View").Select(e => e.Attribute("Name")?.Value ?? string.Empty)
+                    .Where(n => n.Length > 0).Distinct().ToArray();
             }
-
-            // Classify texts into SheetFormat, TitleBlock, ToleranceTable, TechnicalNote vs ViewAnnotation
-            ClassifyTexts(rawTexts, vectorData.PaperWidthMm, vectorData.PaperHeightMm);
-
-            vectorData.Texts = rawTexts;
+            catch (System.Xml.XmlException) { }
         }
-
-        // 3. Extract 2D CAD vector line geometry (sheet borders, title block, view geometry wireframes)
-        if ((displayListsStream != null && displayListsStream.Length > 0) ||
-            (vbListsStream != null && vbListsStream.Length > 0) ||
-            (definitionStream != null && definitionStream.Length > 0))
-        {
-            var (lines, views) = DrawingGeometryReader.ReadSheetGeometryAndViews(
-                displayListsStream,
-                vbListsStream,
-                definitionStream,
-                vectorData.PaperWidthMm,
-                vectorData.PaperHeightMm);
-            vectorData.Lines = lines;
-            vectorData.Views = views;
-        }
-
+        SldFile.Drawing.DrawingPreviewComposer.AppendViews(preview, definitionStream, vbListsStream, viewNames);
+        vectorData.Preview = preview;
+        vectorData.Texts = preview.Primitives
+            .Where(p => p.Kind == SldFile.Drawing.DrawingPreviewPrimitiveKind.Text)
+            .Select(p => new DrawingVectorText(p.Text, p.Points[0].X * 1000, p.Points[0].Y * 1000,
+                p.Points[0].Z * 1000, p.FontName, p.TextHeight * 1000, p.Angle)).ToArray();
+        vectorData.Lines = preview.Primitives
+            .Where(p => p.Kind == SldFile.Drawing.DrawingPreviewPrimitiveKind.Line)
+            .Select(p => new DrawingVectorLine(p.Points[0].X * 1000, p.Points[0].Y * 1000,
+                p.Points[1].X * 1000, p.Points[1].Y * 1000, LineKind(p.LineStyle), p.LineWidth * 1000)).ToArray();
+        ClassifyTexts(vectorData.Texts, vectorData.PaperWidthMm, vectorData.PaperHeightMm);
+        vectorData.Views = preview.Views.Select(v => new DrawingViewGeometry(v.Name,
+            (v.ClipMin.X + v.ClipMax.X) * 500, (v.ClipMin.Y + v.ClipMax.Y) * 500,
+            (v.ClipMax.X - v.ClipMin.X) * 1000, (v.ClipMax.Y - v.ClipMin.Y) * 1000, v.Scale, 1)).ToArray();
         return vectorData;
     }
+
+    internal static DrawingLineKind LineKind(string style) =>
+        style.IndexOf("CENTER", StringComparison.OrdinalIgnoreCase) >= 0 ? DrawingLineKind.Centerline :
+        style.IndexOf("HIDDEN", StringComparison.OrdinalIgnoreCase) >= 0 ? DrawingLineKind.HiddenLine : DrawingLineKind.SolidOutline;
 
     private static void ClassifyTexts(IReadOnlyList<DrawingVectorText> texts, double paperWidth, double paperHeight)
     {
@@ -317,96 +293,4 @@ public static class DrawingVectorReader
         }
     }
 
-    private static IReadOnlyList<DrawingVectorText> ParseTextsFromDefinition(byte[] buf)
-    {
-        var list = new List<DrawingVectorText>();
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-
-        int maxLen = buf.Length;
-        for (int i = 0; i < maxLen - 30; i++)
-        {
-            // Find MFC wide string marker: 0xFF, 0xFE, 0xFF
-            if (buf[i] == 0xFF && buf[i + 1] == 0xFE && buf[i + 2] == 0xFF)
-            {
-                int charLen = buf[i + 3];
-                if (charLen <= 0 || charLen > 120) continue;
-
-                int textStart = i + 4;
-                int byteLen = charLen * 2;
-                int textEnd = textStart + byteLen;
-
-                if (textEnd + 24 > maxLen) continue;
-
-                string text;
-                try
-                {
-                    text = Encoding.Unicode.GetString(buf, textStart, byteLen).Trim();
-                }
-                catch
-                {
-                    continue;
-                }
-
-                if (string.IsNullOrEmpty(text) || text.EndsWith("_c", StringComparison.Ordinal) || ExcludedKeywords.Contains(text))
-                    continue;
-
-                // Read (X, Y, Z) doubles immediately following the text
-                double x = BitConverter.ToDouble(buf, textEnd);
-                double y = BitConverter.ToDouble(buf, textEnd + 8);
-                double z = BitConverter.ToDouble(buf, textEnd + 16);
-
-                // Coordinates should be in reasonable sheet range (in meters: -0.1 to 2.5m)
-                if (x >= -0.1 && x <= 2.5 && y >= -0.1 && y <= 2.5 && Math.Abs(z) < 0.25)
-                {
-                    // Convert meters to millimeters
-                    double xMm = x * 1000.0;
-                    double yMm = y * 1000.0;
-                    double zMm = z * 1000.0;
-
-                    // Parse following font and height if present
-                    string fontName = "SimSun";
-                    double heightMm = 2.5;
-                    double angleRad = 0.0;
-
-                    int postStart = textEnd + 24;
-                    int postLen = Math.Min(80, maxLen - postStart);
-                    for (int j = 0; j < postLen - 12; j++)
-                    {
-                        if (buf[postStart + j] == 0xFF && buf[postStart + j + 1] == 0xFE && buf[postStart + j + 2] == 0xFF)
-                        {
-                            int flen = buf[postStart + j + 3];
-                            if (flen > 0 && flen <= 30 && postStart + j + 4 + flen * 2 + 16 <= maxLen)
-                            {
-                                try
-                                {
-                                    string fname = Encoding.Unicode.GetString(buf, postStart + j + 4, flen * 2);
-                                    if (!string.IsNullOrWhiteSpace(fname) && !fname.EndsWith("_c", StringComparison.Ordinal))
-                                    {
-                                        fontName = fname.Trim();
-                                        int fEnd = postStart + j + 4 + flen * 2;
-                                        double h = BitConverter.ToDouble(buf, fEnd);
-                                        double a = BitConverter.ToDouble(buf, fEnd + 8);
-                                        if (h > 0.0005 && h < 0.05) heightMm = h * 1000.0;
-                                        if (Math.Abs(a) < 7.0) angleRad = a;
-                                    }
-                                }
-                                catch { }
-                                break;
-                            }
-                        }
-                    }
-
-                    // Dedup by text and approximate position
-                    string key = $"{text}_{Math.Round(xMm, 1)}_{Math.Round(yMm, 1)}";
-                    if (seen.Add(key))
-                    {
-                        list.Add(new DrawingVectorText(text, xMm, yMm, zMm, fontName, heightMm, angleRad));
-                    }
-                }
-            }
-        }
-
-        // Sort by Y descending (top to bottom), then X ascending (left to right)
-        return list.OrderByDescending(t => t.Y).ThenBy(t => t.X).ToList().AsReadOnly();
-    }
 }

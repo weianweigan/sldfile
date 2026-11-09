@@ -100,6 +100,16 @@ public sealed class DrawingVectorCanvas : FrameworkElement
             typeof(DrawingVectorCanvas),
             new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
 
+    public static readonly DependencyProperty HasRasterImageProperty = DependencyProperty.Register(
+        nameof(HasRasterImage), typeof(bool), typeof(DrawingVectorCanvas),
+        new FrameworkPropertyMetadata(true, FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public bool HasRasterImage
+    {
+        get => (bool)GetValue(HasRasterImageProperty);
+        set => SetValue(HasRasterImageProperty, value);
+    }
+
     public static readonly DependencyProperty OverlayModeProperty =
         DependencyProperty.Register(
             nameof(OverlayMode),
@@ -208,6 +218,12 @@ public sealed class DrawingVectorCanvas : FrameworkElement
             return;
 
         double pixelsPerDip = VisualTreeHelper.GetDpi(this).PixelsPerDip;
+        if (VectorData.Preview != null)
+        {
+            NativeDrawingPreviewRenderer.Draw(dc, VectorData, OverlayMode, ActualWidth, ActualHeight, pixelsPerDip,
+                HasRasterImage && (OverlayMode != DrawingOverlayMode.PureVectorCad || !VectorData.Preview.IsResolved));
+            return;
+        }
         var defaultTypeface = new Typeface(new FontFamily("SimSun, Microsoft YaHei, Arial"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
 
         bool isPureVector = (OverlayMode == DrawingOverlayMode.PureVectorCad);

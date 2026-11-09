@@ -142,7 +142,7 @@ public partial class MainViewModel : ObservableObject
                 initialImage = _docService.GetBestPreviewImage(initCfgIdx);
             }
 
-            if (initialImage != null)
+            if (initialImage != null || initialVectorData?.HasVectorData == true)
             {
                 ImagePreview.LoadImage(initialImage, previewDesc, initialVectorData, sw.Kind == DocumentKind.Drawing ? 0 : -1);
             }
@@ -152,7 +152,7 @@ public partial class MainViewModel : ObservableObject
             {
                 CurrentView = MeshViewer;
             }
-            else if (initialImage != null)
+            else if (ImagePreview.HasImage)
             {
                 CurrentView = ImagePreview;
             }
@@ -275,7 +275,7 @@ public partial class MainViewModel : ObservableObject
                     img = _docService.GetBestPreviewImage(cfgIdx);
                 }
 
-                if (img != null)
+                if (img != null || vectorData?.HasVectorData == true)
                 {
                     ImagePreview.LoadImage(img, desc, vectorData, _docService.CurrentFile?.Kind == DocumentKind.Drawing ? 0 : -1);
                 }
@@ -284,7 +284,7 @@ public partial class MainViewModel : ObservableObject
                 {
                     CurrentView = MeshViewer;
                 }
-                else if (img != null)
+                else if (ImagePreview.HasImage)
                 {
                     CurrentView = ImagePreview;
                 }

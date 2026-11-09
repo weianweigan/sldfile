@@ -43,53 +43,16 @@ public class DrawingVectorReaderTests
     }
 
     [Fact]
-    public void DrawingVectorReader_ParsesSynthesizedMfcStreamAccurately()
+    public void UnframedDefinitionText_IsNotInventedAsNativePreview()
     {
-        // Synthesize an MFC wide string note:
-        // [0xFF, 0xFE, 0xFF, char_count] + UTF-16LE text + X(double) + Y(double) + Z(double)
-        var ms = new MemoryStream();
-        ms.Write(new byte[] { 0x00, 0x00, 0x00, 0x00 }); // leading padding
-
-        // Marker
-        ms.WriteByte(0xFF);
-        ms.WriteByte(0xFE);
-        ms.WriteByte(0xFF);
-
-        string testText = "技术要求";
-        byte[] textBytes = Encoding.Unicode.GetBytes(testText);
-        ms.WriteByte((byte)testText.Length); // 4
-        ms.Write(textBytes, 0, textBytes.Length);
-
-        // Coordinates: X = 0.012 m (12mm), Y = 0.024 m (24mm), Z = 0.0 m
-        ms.Write(BitConverter.GetBytes(0.012), 0, 8);
-        ms.Write(BitConverter.GetBytes(0.024), 0, 8);
-        ms.Write(BitConverter.GetBytes(0.000), 0, 8);
-
-        // Font block
-        ms.Write(new byte[] { 0x01, 0x00, 0x00, 0x00 });
-        ms.WriteByte(0xFF);
-        ms.WriteByte(0xFE);
-        ms.WriteByte(0xFF);
-        string fontName = "新宋体";
-        byte[] fontBytes = Encoding.Unicode.GetBytes(fontName);
-        ms.WriteByte((byte)fontName.Length); // 3
-        ms.Write(fontBytes, 0, fontBytes.Length);
-        ms.Write(BitConverter.GetBytes(0.0025), 0, 8); // height = 2.5mm
-        ms.Write(BitConverter.GetBytes(0.0), 0, 8);      // angle = 0
-
-        byte[] streamData = ms.ToArray();
-        var result = DrawingVectorReader.ReadVectorData(streamData, null);
-
-        Assert.NotNull(result);
-        Assert.True(result.HasVectorData);
-        Assert.Single(result.Texts);
-
-        var note = result.Texts[0];
-        Assert.Equal("技术要求", note.CleanText);
-        Assert.Equal(12.0, Math.Round(note.X, 1));
-        Assert.Equal(24.0, Math.Round(note.Y, 1));
-        Assert.Equal("新宋体", note.FontName);
-        Assert.Equal(2.5, Math.Round(note.HeightMm, 1));
+        using var writer = new BinaryWriter(new MemoryStream());
+        writer.Write(new byte[] { 255, 254, 255, 4 });
+        writer.Write(Encoding.Unicode.GetBytes("技术要求"));
+        writer.Write(0.012); writer.Write(0.024); writer.Write(0.0);
+        writer.Flush();
+        var result = DrawingVectorReader.ReadVectorData(((MemoryStream)writer.BaseStream).ToArray(), null);
+        Assert.Empty(result.Texts);
+        Assert.Empty(result.Lines);
     }
 
     [Fact]
@@ -132,44 +95,12 @@ public class DrawingVectorReaderTests
     }
 
     [Fact]
-    public void DrawingVectorReader_ClassifiesTextsAccurately_PreventingViewGhosting()
+    public void NativePreviewText_ClassifiesSheetNotesAndViewCallouts()
     {
-        var ms = new MemoryStream();
-        void WriteText(string txt, double xM, double yM)
-        {
-            ms.WriteByte(0xFF); ms.WriteByte(0xFE); ms.WriteByte(0xFF);
-            byte[] bytes = Encoding.Unicode.GetBytes(txt);
-            ms.WriteByte((byte)txt.Length);
-            ms.Write(bytes, 0, bytes.Length);
-            ms.Write(BitConverter.GetBytes(xM), 0, 8);
-            ms.Write(BitConverter.GetBytes(yM), 0, 8);
-            ms.Write(BitConverter.GetBytes(0.0), 0, 8);
-            ms.Write(new byte[16]);
-        }
-
-        WriteText("技术要求", 0.012, 0.024);
-        WriteText("Drawing No./图号", 0.227, 0.021);
-        WriteText("Tolerance not marked/未注公差", 0.252, 0.049);
-        WriteText("2-10*50", 0.220, 0.137);
-
-        var result = DrawingVectorReader.ReadVectorData(ms.ToArray(), null);
-        Assert.NotNull(result);
-        Assert.Equal(4, result.Texts.Count);
-
-        var tech = result.Texts.First(t => t.CleanText == "技术要求");
-        Assert.Equal(DrawingVectorTextCategory.TechnicalNote, tech.Category);
-        Assert.True(tech.IsSheetLevelNote);
-
-        var title = result.Texts.First(t => t.CleanText.Contains("Drawing No"));
-        Assert.Equal(DrawingVectorTextCategory.TitleBlock, title.Category);
-        Assert.True(title.IsSheetLevelNote);
-
-        var tol = result.Texts.First(t => t.CleanText.Contains("未注公差"));
-        Assert.Equal(DrawingVectorTextCategory.ToleranceTable, tol.Category);
-        Assert.True(tol.IsSheetLevelNote);
-
-        var view = result.Texts.First(t => t.CleanText == "2-10*50");
-        Assert.Equal(DrawingVectorTextCategory.ViewAnnotation, view.Category);
-        Assert.False(view.IsSheetLevelNote);
+        using var file = new SldDrawing(TestFileProvider.Resolve(Path.Combine("Drawings", "D8001507933"), "D8001507933.SLDDRW"));
+        var result = file.Sheets[0].VectorData!;
+        Assert.Contains(result.Texts, t => t.CleanText.Contains("技术要求") && t.IsSheetLevelNote);
+        Assert.Contains(result.Texts, t => t.CleanText.Contains("未注公差") && t.IsSheetLevelNote);
+        Assert.Contains(result.Texts, t => t.CleanText == "2-10*50" && t.IsViewAnnotation);
     }
 }

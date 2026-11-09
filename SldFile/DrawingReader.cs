@@ -141,6 +141,8 @@ internal static class DrawingReader
                 Name = "Sheet1",
                 SheetIndex = 0,
                 PreviewPng = getSheetPreview(0),
+                HighResPreview = getHighResPreview?.Invoke(0),
+                VectorData = DrawingVectorReader.ReadVectorData(definitionStream, keywordsXml, 0, vbListsStream, displayListsStream),
                 Views = Array.Empty<DrawingViewInfo>(),
             });
         }

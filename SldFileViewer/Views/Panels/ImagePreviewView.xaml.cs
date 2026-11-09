@@ -46,9 +46,9 @@ public partial class ImagePreviewView : UserControl
 
     private void OnFitToWindow()
     {
-        if (DataContext is not ImagePreviewViewModel vm || vm.ImageSource == null) return;
-        double imgW = vm.ImageSource.PixelWidth;
-        double imgH = vm.ImageSource.PixelHeight;
+        if (DataContext is not ImagePreviewViewModel vm || !vm.HasImage) return;
+        double imgW = vm.PixelWidth;
+        double imgH = vm.PixelHeight;
         if (imgW <= 0 || imgH <= 0) return;
 
         double availW = Math.Max(ViewportContainer.ActualWidth - 48, 100);
