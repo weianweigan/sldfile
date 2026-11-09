@@ -5,7 +5,6 @@ using System.Linq;
 using System.Text;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 
 namespace SldFileTests;
@@ -24,7 +23,7 @@ public class SurfaceRevolveFeatureTests
         using var file = SwFile.Open(Resolve(name), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f => f.Name == "SurfaceRevolve360"));
         Assert.Equal(FeatureKind.SurfaceRevolve, feature.Kind);
-        var definition = Assert.IsType<SurfaceRevolveFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<SurfaceRevolveFeatureModel>(feature.Model);
 
         Assert.Equal("moRevolvRefSurf_c", definition.ClassName);
         Assert.Equal(0x4Eu, definition.SerializedTypeId);
@@ -40,8 +39,8 @@ public class SurfaceRevolveFeatureTests
     public void SurfaceRevolveParser_RejectsUnknownLayout()
     {
         byte[] stream = BuildSurfaceRevolveStream(new byte[64]);
-        var model = new ResolvedFeaturesData();
-        ResolvedFeaturesSchemaMapper.Map(MfcDocument.Parse(stream), model);
+        var model = new ResolvedFeaturesModel();
+        ResolvedFeaturesModel.Map(MfcDocument.Parse(stream), model);
 
         var folder = Assert.Single(model.Folders);
         Assert.Equal("moRevolvRefSurf_c", folder.ClassName);
@@ -157,7 +156,7 @@ public class SurfaceRevolveFeatureTests
 
     private static void AssertDefinition(Feature feature)
     {
-        var definition = Assert.IsType<SurfaceRevolveFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<SurfaceRevolveFeatureModel>(feature.Model);
         Assert.Equal("moRevolvRefSurf_c", definition.ClassName);
         Assert.Equal(0x4Eu, definition.SerializedTypeId);
         Assert.Equal(2 * Math.PI, definition.Angle!.Value, 12);

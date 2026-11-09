@@ -53,12 +53,12 @@ public class FlangeFeatureSkeletonTests
         return bytes.ToArray();
     }
 
-    private static ResolvedFeaturesData MapSynthetic(string className, string displayName)
+    private static ResolvedFeaturesModel MapSynthetic(string className, string displayName)
     {
         var raw = BuildSyntheticFolderStream(className, displayName);
         var doc = MfcDocument.Parse(raw);
-        var model = new ResolvedFeaturesData();
-        ResolvedFeaturesSchemaMapper.Map(doc, model);
+        var model = new ResolvedFeaturesModel();
+        ResolvedFeaturesModel.Map(doc, model);
         return model;
     }
 
@@ -109,7 +109,7 @@ public class FlangeFeatureSkeletonTests
         var raw = BuildSyntheticFolderStream("moEdgeFlange_c", "EdgeFlange1");
         var before = (byte[])raw.Clone();
         var doc = MfcDocument.Parse(raw);
-        ResolvedFeaturesSchemaMapper.Map(doc, new ResolvedFeaturesData());
+        ResolvedFeaturesModel.Map(doc, new ResolvedFeaturesModel());
         Assert.Equal(before, doc.SourceData);
     }
 
@@ -123,18 +123,19 @@ public class FlangeFeatureSkeletonTests
         using var file = SwFile.Open(path, readOnly: true);
         var raw = (byte[])file.RawStreams["Contents/Config-0-ResolvedFeatures"].Clone();
         var doc = MfcDocument.Parse(raw);
-        ResolvedFeaturesSchemaMapper.Map(doc, new ResolvedFeaturesData());
+        ResolvedFeaturesModel.Map(doc, new ResolvedFeaturesModel());
         Assert.Equal(raw, doc.SourceData);
     }
 
     [Fact]
     public void EdgeFlangeModelExposesTheCompleteApiPropertySet()
     {
-        var modelProperties = typeof(EdgeFlangeFeatureDefinitionData)
+        var modelProperties = typeof(EdgeFlangeFeatureModel)
             .GetProperties().Select(p => p.Name).ToHashSet(StringComparer.Ordinal);
         var modelOnly = new HashSet<string>(StringComparer.Ordinal)
         {
             "ClassName", "TypeId", "ParameterResolution",
+            "FeatureName", "Version", "RawBlock", "ResolvedProperties", "SerializedClassName", "SerializedTypeId",
             // Method-derived API data (GetCustomBendAllowance / GetEdgeCount / GetPositionReferenceType)
             "CustomBendAllowance", "EdgeCount", "PositionReferenceType"
         };
@@ -145,11 +146,12 @@ public class FlangeFeatureSkeletonTests
     [Fact]
     public void MiterFlangeModelExposesTheCompleteApiPropertySet()
     {
-        var modelProperties = typeof(MiterFlangeFeatureDefinitionData)
+        var modelProperties = typeof(MiterFlangeFeatureModel)
             .GetProperties().Select(p => p.Name).ToHashSet(StringComparer.Ordinal);
         var modelOnly = new HashSet<string>(StringComparer.Ordinal)
         {
             "ClassName", "TypeId", "ParameterResolution",
+            "FeatureName", "Version", "RawBlock", "ResolvedProperties", "SerializedClassName", "SerializedTypeId",
             "CustomBendAllowance", "EdgeCount"
         };
         var apiProperties = modelProperties.Where(p => !modelOnly.Contains(p)).OrderBy(p => p).ToArray();
@@ -159,8 +161,8 @@ public class FlangeFeatureSkeletonTests
     [Fact]
     public void UnverifiedValuesHaveNoDefaultsAndEveryResolutionFlagIsFalse()
     {
-        AssertNoValues(new EdgeFlangeFeatureDefinitionData());
-        AssertNoValues(new MiterFlangeFeatureDefinitionData());
+        AssertNoValues(new EdgeFlangeFeatureModel());
+        AssertNoValues(new MiterFlangeFeatureModel());
 
         foreach (var property in typeof(EdgeFlangeParameterResolution).GetProperties())
             Assert.False((bool)property.GetValue(new EdgeFlangeParameterResolution())!);
@@ -172,7 +174,9 @@ public class FlangeFeatureSkeletonTests
     {
         foreach (var property in model.GetType().GetProperties())
         {
-            if (property.Name is "ClassName" or "TypeId" or "ParameterResolution") continue;
+            if (property.Name is "ClassName" or "TypeId" or "ParameterResolution"
+                or "FeatureName" or "Version" or "RawBlock" or "ResolvedProperties"
+                or "SerializedClassName" or "SerializedTypeId") continue;
             Assert.Null(property.GetValue(model));
         }
     }
@@ -182,20 +186,20 @@ public class FlangeFeatureSkeletonTests
     {
         // samples4/edge_flange_90_len10 (version 0x74) serialized
         // moEdgeFlange_c with FolderHeader TypeId 0x67, not 0x63.
-        Assert.Equal(0x67u, EdgeFlangeFeatureDefinitionData.ObservedSerializedTypeId);
-        Assert.Equal(0x67u, new EdgeFlangeFeatureDefinitionData().TypeId);
-        Assert.Equal("moEdgeFlange_c", EdgeFlangeFeatureDefinitionData.SerializedClassName);
+        Assert.Equal(0x67u, EdgeFlangeFeatureModel.ObservedSerializedTypeId);
+        Assert.Equal(0x67u, new EdgeFlangeFeatureModel().TypeId);
+        Assert.Equal("moEdgeFlange_c", EdgeFlangeFeatureModel.SerializedClassName);
 
         // No miter-flange sample has been processed yet: keep the candidate class
         // name but do not encode a TypeId.
-        Assert.Equal(0u, new MiterFlangeFeatureDefinitionData().TypeId);
-        Assert.Equal("moMiterFlange_c", MiterFlangeFeatureDefinitionData.SerializedClassName);
+        Assert.Equal(0u, new MiterFlangeFeatureModel().TypeId);
+        Assert.Equal("moMiterFlange_c", MiterFlangeFeatureModel.SerializedClassName);
     }
 
     [Fact]
     public void ModelsArePurePocoWithoutSolidWorksInteropTypes()
     {
-        var assembly = typeof(EdgeFlangeFeatureDefinitionData).Assembly;
+        var assembly = typeof(EdgeFlangeFeatureModel).Assembly;
         Assert.Equal("SldFile", assembly.GetName().Name);
         Assert.DoesNotContain(assembly.GetReferencedAssemblies(), a =>
             a.Name!.Contains("SolidWorks", StringComparison.OrdinalIgnoreCase) ||
@@ -203,8 +207,8 @@ public class FlangeFeatureSkeletonTests
 
         foreach (var type in new[]
         {
-            typeof(EdgeFlangeFeatureDefinitionData),
-            typeof(MiterFlangeFeatureDefinitionData),
+            typeof(EdgeFlangeFeatureModel),
+            typeof(MiterFlangeFeatureModel),
             typeof(EdgeFlangeParameterResolution),
             typeof(MiterFlangeParameterResolution),
             typeof(FlangeCustomBendAllowanceData)

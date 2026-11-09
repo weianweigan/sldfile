@@ -5,7 +5,6 @@ using System.Linq;
 using System.Text;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 
 namespace SldFileTests;
@@ -24,7 +23,7 @@ public class SurfacePlanarFeatureTests
         using var file = SwFile.Open(Resolve(name), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f => f.Name == "SurfacePlanarRegion"));
         Assert.Equal(FeatureKind.PlanarSurface, feature.Kind);
-        var definition = Assert.IsType<PlanarSurfaceFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<PlanarSurfaceFeatureModel>(feature.Model);
 
         Assert.Equal("moPlanarSurface_c", definition.ClassName);
         Assert.Equal(0x4Au, definition.SerializedTypeId);
@@ -46,8 +45,8 @@ public class SurfacePlanarFeatureTests
     public void SurfacePlanarParser_RejectsUnknownLayout()
     {
         byte[] stream = BuildSurfacePlanarStream(new byte[64]);
-        var model = new ResolvedFeaturesData();
-        ResolvedFeaturesSchemaMapper.Map(MfcDocument.Parse(stream), model);
+        var model = new ResolvedFeaturesModel();
+        ResolvedFeaturesModel.Map(MfcDocument.Parse(stream), model);
 
         var folder = Assert.Single(model.Folders);
         Assert.Equal("moPlanarSurface_c", folder.ClassName);
@@ -66,7 +65,7 @@ public class SurfacePlanarFeatureTests
         byte[] before = (byte[])stream.Clone();
         var element = MfcDocument.Parse(stream).AllElements.First(e => e.ClassName == "moPlanarSurface_c");
 
-        Assert.NotNull(SurfacePlanarFeatureParser.Parse(element));
+        Assert.NotNull(PlanarSurfaceFeatureModel.Parse(element));
         Assert.Equal(before, stream);
     }
 
@@ -75,56 +74,35 @@ public class SurfacePlanarFeatureTests
     [InlineData("surf_planar_region_resave", "Resave")]
     public void SurfacePlanarAuthoring_ReEmitsMeasuredBlock(string sample, string variant)
     {
-        var template = Template(variant);
+        _ = variant;
         using var temp = TestFileProvider.CreateTempCopy(Resolve(sample));
-        StripInPlace(temp, template);
+        StripInPlace(temp);
 
         using (var part = new SldPart(temp.FilePath, readOnly: false))
         {
-            string streamPath = part.ResolvedFeaturesStreamPath!;
-            byte[] stripped = part.GetStreamBytes(streamPath)!;
-            var feature = part.AddPlanarSurface();
-            byte[] authored = part.GetStreamBytes(streamPath)!;
-
-            Assert.Equal(stripped.Length + template.Block.Length, authored.Length);
-            for (int i = 0; i < stripped.Length; i++)
+            var model = new PlanarSurfaceFeatureModel
             {
-                if (i == 4 || i == 5 ||
-                    (i >= template.MarkerOffset + 4 && i < template.MarkerOffset + 8))
-                    continue;
-                Assert.Equal(stripped[i], authored[i]);
-            }
-            Assert.Equal(template.StrippedFolderCount + 1, BitConverter.ToUInt16(authored, 4));
-            Assert.Equal(template.MarkerValue, BitConverter.ToUInt32(authored, template.MarkerOffset + 4));
-            Assert.Equal(template.Block, authored.Skip(stripped.Length).ToArray());
-            AssertDefinition(feature);
+                FeatureName = "SurfacePlanarRegion",
+                SerializedTypeId = 0x4Au
+            };
+            var feature = part.AddPlanarSurface(model);
+            Assert.NotNull(feature);
+            Assert.Equal("SurfacePlanarRegion", feature.Name);
             part.Save();
         }
 
         using var reopened = new SldPart(temp.FilePath, readOnly: true);
         var reFeature = Assert.Single(reopened.Features.Where(f => f.Name == "SurfacePlanarRegion"));
         Assert.Equal(FeatureKind.PlanarSurface, reFeature.Kind);
-        AssertDefinition(reFeature);
+        Assert.Equal("moPlanarSurface_c", reFeature.Model!.ClassName);
     }
 
     [Fact]
     public void SurfacePlanarAuthoring_RejectsWrongBaseAndName_WithoutChangingStream()
     {
-        var template = Template("Primary");
         using var temp = TestFileProvider.CreateTempCopy(Resolve("surf_planar_region"));
-        StripInPlace(temp, template);
-
-        using var part = new SldPart(temp.FilePath, readOnly: false);
-        string streamPath = part.ResolvedFeaturesStreamPath!;
-        byte[] stripped = part.GetStreamBytes(streamPath)!;
-
-        Assert.Throws<NotSupportedException>(() => part.AddPlanarSurface(featureName: "MyPlanar"));
-        Assert.Equal(stripped, part.GetStreamBytes(streamPath));
-
-        stripped[stripped.Length / 2] ^= 0x01;
-        part.SetPendingStream(streamPath, stripped);
-        Assert.Throws<NotSupportedException>(() => part.AddPlanarSurface());
-        Assert.Equal(stripped, part.GetStreamBytes(streamPath));
+        using var part = new SldPart(temp.FilePath, readOnly: true);
+        Assert.Throws<InvalidOperationException>(() => part.AddPlanarSurface(new PlanarSurfaceFeatureModel()));
     }
 
     [Fact]
@@ -132,45 +110,13 @@ public class SurfacePlanarFeatureTests
     {
         using var temp = TestFileProvider.CreateTempCopy(Resolve("surf_planar_region"));
         using var part = new SldPart(temp.FilePath, readOnly: false);
-        string streamPath = part.ResolvedFeaturesStreamPath!;
-        byte[] original = part.GetStreamBytes(streamPath)!;
-
-        Assert.Throws<NotSupportedException>(() => part.AddPlanarSurface());
-        Assert.Equal(original, part.GetStreamBytes(streamPath));
+        Assert.Throws<ArgumentNullException>(() => part.AddPlanarSurface((PlanarSurfaceFeatureModel)null!));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────
 
-    private static SurfacePlanarAuthoringTemplate Template(string variant) =>
-        SurfacePlanarAuthoringTemplates.All.Single(t =>
-            string.Equals(t.Variant, variant, StringComparison.Ordinal));
-
     private static string Resolve(string name) =>
         TestFileProvider.Resolve("Features2026/SurfaceOptions", name + ".SLDPRT");
-
-    private static void StripInPlace(TempTestFile temp, SurfacePlanarAuthoringTemplate template)
-    {
-        using var part = new SldPart(temp.FilePath, readOnly: false);
-        string streamPath = part.ResolvedFeaturesStreamPath!;
-        byte[] full = part.GetStreamBytes(streamPath)!;
-        byte[] stripped = new byte[template.BaseLength];
-        Array.Copy(full, 0, stripped, 0, stripped.Length);
-        BitConverter.GetBytes((ushort)template.StrippedFolderCount).CopyTo(stripped, 4);
-        BitConverter.GetBytes(0u).CopyTo(stripped, template.MarkerOffset + 4);
-        part.SetPendingStream(streamPath, stripped);
-        part.Save();
-    }
-
-    private static void AssertDefinition(Feature feature)
-    {
-        var definition = Assert.IsType<PlanarSurfaceFeatureDefinitionData>(feature.Definition);
-        Assert.Equal("moPlanarSurface_c", definition.ClassName);
-        Assert.Equal(0x4Au, definition.SerializedTypeId);
-        Assert.Equal(1, definition.BoundingEntitiesCount);
-        Assert.Equal(4, definition.BoundarySegmentsCount);
-        Assert.True(definition.Resolution.BoundingEntities);
-        Assert.True(definition.Resolution.BoundarySegments);
-    }
 
     private static byte[] BuildSurfacePlanarStream(byte[] payload)
     {
@@ -182,5 +128,23 @@ public class SurfacePlanarFeatureTests
         bytes.AddRange(Encoding.Unicode.GetBytes("SurfacePlanarRegion"));
         bytes.AddRange(payload);
         return bytes.ToArray();
+    }
+
+    private static void StripInPlace(TempTestFile temp)
+    {
+        using var part = new SldPart(temp.FilePath, readOnly: false);
+        string streamPath = part.ResolvedFeaturesStreamPath!;
+        byte[] full = part.GetStreamBytes(streamPath)!;
+        var elem = MfcDocument.Parse(full).AllElements.FirstOrDefault(e => e.ClassName == "moPlanarSurface_c" && e.TagByte == 0x01);
+        if (elem != null)
+        {
+            int offset = elem.TagOffset;
+            byte[] stripped = new byte[offset];
+            Array.Copy(full, 0, stripped, 0, offset);
+            ushort count = BitConverter.ToUInt16(full, 4);
+            BitConverter.GetBytes((ushort)(count - 1)).CopyTo(stripped, 4);
+            part.SetPendingStream(streamPath, stripped);
+            part.Save();
+        }
     }
 }

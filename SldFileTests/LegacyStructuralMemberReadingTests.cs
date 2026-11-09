@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Linq;
 using SldFile;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 using Xunit;
 
@@ -26,10 +25,10 @@ public class LegacyStructuralMemberReadingTests
     {
         using var file = SwFile.Open(Sample(sample), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f =>
-            f.Name == featureName && f.Definition is StructuralMemberFeatureDefinitionData));
+            f.Name == featureName && f.Model is StructuralMemberFeatureModel));
 
         Assert.Equal(FeatureKind.StructuralMember, feature.Kind);
-        var definition = Assert.IsType<StructuralMemberFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<StructuralMemberFeatureModel>(feature.Model);
         Assert.Equal("moWeldMemberFeat_c", definition.ClassName);
         Assert.Equal(typeId, definition.SerializedTypeId);
         Assert.Equal(typeId, definition.TypeId);
@@ -86,8 +85,8 @@ public class LegacyStructuralMemberReadingTests
         var tampered = MfcDocument.Parse(raw);
         var tamperedElement = tampered.AllElements.Single(e =>
             e.TagByte == 0x01 && e.ClassName == "moWeldMemberFeat_c");
-        var definition = Assert.IsType<StructuralMemberFeatureDefinitionData>(
-            LegacyStructuralMemberParser.Parse(
+        var definition = Assert.IsType<StructuralMemberFeatureModel>(
+            StructuralMemberFeatureModel.ParseLegacy(
                 tampered, tamperedElement.ClassName, 0x36u,
                 tamperedElement.TagOffset, raw.Length));
 

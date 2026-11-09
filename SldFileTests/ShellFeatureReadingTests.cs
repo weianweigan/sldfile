@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 
 namespace SldFileTests;
@@ -25,7 +24,7 @@ public class ShellFeatureReadingTests
         using var file = SwFile.Open(Resolve(name), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f => f.Name == "Shell"));
         Assert.Equal(FeatureKind.Shell, feature.Kind);
-        var definition = Assert.IsType<ShellFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<ShellFeatureModel>(feature.Model);
 
         Assert.Equal("moShell_c", definition.ClassName);
         Assert.Equal(0x51u, definition.SerializedTypeId);
@@ -60,8 +59,8 @@ public class ShellFeatureReadingTests
         Assert.False(FeatureDataRegistry.TryParse(element, out var data));
         Assert.Null(data);
 
-        var model = new ResolvedFeaturesData();
-        ResolvedFeaturesSchemaMapper.Map(MfcDocument.Parse(stream), model);
+        var model = new ResolvedFeaturesModel();
+        ResolvedFeaturesModel.Map(MfcDocument.Parse(stream), model);
         var folder = Assert.Single(model.Folders);
         Assert.Equal("moShell_c", folder.ClassName);
         Assert.Null(folder.FeatureData);
@@ -76,7 +75,7 @@ public class ShellFeatureReadingTests
         var document = MfcDocument.Parse(stream);
         var element = document.AllElements.First(e => e.ClassName == "moShell_c");
 
-        Assert.NotNull(ShellFeatureParser.Parse(element));
+        Assert.NotNull(ShellFeatureModel.Parse(element));
         Assert.Equal(before, stream);
     }
 

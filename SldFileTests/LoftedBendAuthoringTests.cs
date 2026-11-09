@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
+using SldFile.Mfc;
 using Xunit;
 
 namespace SldFileTests;
@@ -51,7 +51,7 @@ public class LoftedBendAuthoringTests
         return temp;
     }
 
-    private static LoftedBendFeatureDefinitionData DefineMeasured()
+    private static LoftedBendFeatureModel DefineMeasured()
         => new()
         {
             Thickness = 0.001,
@@ -84,7 +84,7 @@ public class LoftedBendAuthoringTests
         var folder = Assert.Single(reopened.ResolvedFeatures.Folders,
             f => f.ClassName == "moLoftedBend_c");
         Assert.Equal(0x72u, folder.Header.TypeId);
-        var parsed = Assert.IsType<LoftedBendFeatureDefinitionData>(folder.FeatureData);
+        var parsed = Assert.IsType<LoftedBendFeatureModel>(folder.FeatureData);
         Assert.Equal(0.001, parsed.Thickness!.Value, 12);
         Assert.Equal(2, parsed.NumberOfBendLines ?? -1);
         Assert.True(parsed.ParameterResolution.Thickness);
@@ -142,7 +142,7 @@ public class LoftedBendAuthoringTests
 
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         Assert.Equal(before, reopened.RawStreams[ResolvedStream]);
-        var definition = Assert.IsType<LoftedBendFeatureDefinitionData>(
+        var definition = Assert.IsType<LoftedBendFeatureModel>(
             reopened.ResolvedFeatures.Folders.Single(f => f.ClassName == "moLoftedBend_c").FeatureData);
         Assert.Equal(0.001, definition.Thickness!.Value, 12);
         Assert.Equal(2, definition.NumberOfBendLines ?? -1);
@@ -176,7 +176,7 @@ public class LoftedBendAuthoringTests
 
     public static IEnumerable<object[]> UnsupportedDefinitions()
     {
-        LoftedBendFeatureDefinitionData Base() => new();
+        LoftedBendFeatureModel Base() => new();
 
         var thickness = Base(); thickness.Thickness = 0.002;
         yield return new object[] { thickness, "Thickness" };
@@ -210,7 +210,7 @@ public class LoftedBendAuthoringTests
     [Theory]
     [MemberData(nameof(UnsupportedDefinitions))]
     public void UnsupportedDefinitionsAreRejectedWithoutModifyingStream(
-        LoftedBendFeatureDefinitionData definition, string property)
+        LoftedBendFeatureModel definition, string property)
     {
         using var temp = CreateStrippedBase();
         byte[] before;

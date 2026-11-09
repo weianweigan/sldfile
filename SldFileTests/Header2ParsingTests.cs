@@ -1,3 +1,4 @@
+using SldFile.Mfc;
 using SldFile.Binary;
 
 namespace SldFileTests;

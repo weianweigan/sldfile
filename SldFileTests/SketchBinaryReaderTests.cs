@@ -1,7 +1,12 @@
 using System.Text;
 using System.Xml.Linq;
 using SldFile;
-using SldFile.Sketches;
+using SldFile.Mfc;
+using SketchFeature = SldFile.Mfc.SketchFeatureModel;
+using SketchPoint = SldFile.Mfc.SketchPointModel;
+using SketchSegment = SldFile.Mfc.SketchSegmentModel;
+using SketchRelation = SldFile.Mfc.SketchRelationModel;
+using SketchDimension = SldFile.Mfc.SketchDimensionModel;
 
 namespace SldFileTests;
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -57,7 +57,7 @@ public class FeatureDataViewTests
 
     private static TDefinition? FindDefinition<TDefinition>(Feature feature) where TDefinition : class, IFeatureData
     {
-        if (feature.Definition is TDefinition typed) return typed;
+        if (feature.Model is TDefinition typed) return typed;
         foreach (var child in feature.Children)
         {
             var match = FindDefinition<TDefinition>(child);
@@ -67,7 +67,7 @@ public class FeatureDataViewTests
     }
 
     private static Feature FindFeatureWithDefinition(IReadOnlyList<Feature> features, IFeatureData definition) =>
-        FindFeatureWithDefinition(features, f => ReferenceEquals(f.Definition, definition));
+        FindFeatureWithDefinition(features, f => ReferenceEquals(f.Model, definition));
 
     private static Feature FindFeatureWithDefinition(IReadOnlyList<Feature> features, Func<Feature, bool> predicate)
     {
@@ -115,7 +115,7 @@ public class FeatureDataViewTests
     public void ExtrudeSample_FeatureData_ExposesTypedParameters()
     {
         using var file = SwFile.Open(ResolveFeatureSample("extrude_10mm.SLDPRT"), readOnly: true);
-        var definition = FindDefinition<ExtrudeFeatureDefinitionData>(file.Features);
+        var definition = FindDefinition<ExtrudeFeatureModel>(file.Features);
         var feature = FindFeatureWithDefinition(file.Features, definition);
 
         var vm = new FeatureDataViewModel();
@@ -126,15 +126,15 @@ public class FeatureDataViewTests
         Assert.True(vm.IsResolved);
         Assert.Equal("moExtrusion_c", vm.ClassName);
         Assert.Equal(definition.TypeId, vm.TypeId);
-        Assert.Equal(nameof(ExtrudeFeatureDefinitionData), vm.ModelType);
+        Assert.Equal(definition.GetType().Name, vm.ModelType);
         Assert.Contains("已解析", vm.StatusText);
 
         Assert.True(vm.HasSections);
         Assert.True(vm.PropertyCount > 0);
 
-        var depth = Row(vm, nameof(ExtrudeFeatureDefinitionData.Depth));
+        var depth = Row(vm, nameof(ExtrudeFeatureModel.Depth));
         Assert.Contains("10 mm", depth.Value);
-        Assert.Equal(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.Depth)), depth.IsResolved);
+        Assert.Equal(definition.IsResolved(nameof(ExtrudeFeatureModel.Depth)), depth.IsResolved);
         Assert.Contains("深度", depth.Group);
     }
 
@@ -142,7 +142,7 @@ public class FeatureDataViewTests
     public void SheetMetalSample_FeatureData_MapsParameterResolutionFlags()
     {
         using var file = SwFile.Open(ResolveFeatureSample("sm_base_flange_10mm.SLDPRT"), readOnly: true);
-        var definition = FindDefinition<SheetMetalBaseFlangeDefinitionData>(file.Features);
+        var definition = FindDefinition<SheetMetalBaseFlangeModel>(file.Features);
         var feature = FindFeatureWithDefinition(file.Features, definition);
 
         var vm = new FeatureDataViewModel();
@@ -151,11 +151,11 @@ public class FeatureDataViewTests
         Assert.Equal(FeatureDataStatus.Resolved, vm.Status);
         Assert.Equal("moSMBaseFlange_c", vm.ClassName);
 
-        var thickness = Row(vm, nameof(SheetMetalBaseFlangeDefinitionData.Thickness));
+        var thickness = Row(vm, nameof(SheetMetalBaseFlangeModel.Thickness));
         Assert.Contains("1 mm", thickness.Value);
         Assert.Equal(definition.ParameterResolution.Thickness, thickness.IsResolved);
 
-        var reliefWidth = Row(vm, nameof(SheetMetalBaseFlangeDefinitionData.ReliefWidth));
+        var reliefWidth = Row(vm, nameof(SheetMetalBaseFlangeModel.ReliefWidth));
         Assert.Equal(
             definition.ParameterResolution.ReliefWidth
                 ? "已解析"
@@ -168,7 +168,7 @@ public class FeatureDataViewTests
     {
         using var file = SwFile.Open(ResolveFeatureSample("extrude_10mm.SLDPRT"), readOnly: true);
         var plane = FindFeatureWithDefinition(file.Features, f =>
-            f.Kind == FeatureKind.ReferencePlane && f.Definition == null);
+            f.Kind == FeatureKind.ReferencePlane && f.Model == null);
 
         var vm = new FeatureDataViewModel();
         vm.Load(plane);
@@ -184,7 +184,7 @@ public class FeatureDataViewTests
     public void Clear_ResetsStatusAndRows()
     {
         using var file = SwFile.Open(ResolveFeatureSample("extrude_10mm.SLDPRT"), readOnly: true);
-        var definition = FindDefinition<ExtrudeFeatureDefinitionData>(file.Features);
+        var definition = FindDefinition<ExtrudeFeatureModel>(file.Features);
         var feature = FindFeatureWithDefinition(file.Features, definition);
 
         var vm = new FeatureDataViewModel();
@@ -203,7 +203,7 @@ public class FeatureDataViewTests
     public void FeatureDetail_LoadFeature_PopulatesFeatureDataAndResetsOnGeneric()
     {
         using var file = SwFile.Open(ResolveFeatureSample("extrude_10mm.SLDPRT"), readOnly: true);
-        var definition = FindDefinition<ExtrudeFeatureDefinitionData>(file.Features);
+        var definition = FindDefinition<ExtrudeFeatureModel>(file.Features);
         var feature = FindFeatureWithDefinition(file.Features, definition);
 
         var detail = new FeatureDetailViewModel();
@@ -269,7 +269,7 @@ public class FeatureDataViewTests
     public void FeatureDetailView_RendersFeatureDataSectionOnStaThread()
     {
         using var file = SwFile.Open(ResolveFeatureSample("sm_base_flange_10mm.SLDPRT"), readOnly: true);
-        var definition = FindDefinition<SheetMetalBaseFlangeDefinitionData>(file.Features);
+        var definition = FindDefinition<SheetMetalBaseFlangeModel>(file.Features);
         var feature = FindFeatureWithDefinition(file.Features, definition);
 
         Exception? threadEx = null;

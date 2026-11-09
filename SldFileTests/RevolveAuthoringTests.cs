@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 using Xunit;
 
@@ -60,8 +59,8 @@ public class RevolveAuthoringTests
         return temp;
     }
 
-    private static RevolveFeatureDefinitionData AuthorAndReopen(
-        RevolveFeatureDefinitionData definition, out byte[] stream, out string featureName,
+    private static RevolveFeatureModel AuthorAndReopen(
+        RevolveFeatureModel definition, out byte[] stream, out string featureName,
         string sampleName = "revolve_180")
     {
         using var temp = CreateStrippedRevolveSketchPart(sampleName);
@@ -77,7 +76,7 @@ public class RevolveAuthoringTests
         stream = (byte[])reopened.RawStreams[ResolvedStream].Clone();
         var revolve = Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Revolve));
         Assert.Equal(featureName, revolve.Name);
-        return Assert.IsType<RevolveFeatureDefinitionData>(revolve.Definition);
+        return Assert.IsType<RevolveFeatureModel>(revolve.Model);
     }
 
     private static string BaseFor(double angle, bool reverse)
@@ -95,7 +94,7 @@ public class RevolveAuthoringTests
     [InlineData(2.0 * Math.PI, false)]
     public void RevolveAuthoring_RoundtripsAngleAndDirection(double angle, bool reverse)
     {
-        var read = AuthorAndReopen(new RevolveFeatureDefinitionData
+        var read = AuthorAndReopen(new RevolveFeatureModel
         {
             Angle = angle,
             ReverseDirection = reverse
@@ -115,7 +114,7 @@ public class RevolveAuthoringTests
     [InlineData(2.0 * Math.PI, false)]
     public void RevolveAuthoring_EmitsMeasuredEndSpecAngleAndAxisLayout(double angle, bool reverse)
     {
-        AuthorAndReopen(new RevolveFeatureDefinitionData
+        AuthorAndReopen(new RevolveFeatureModel
         {
             Angle = angle,
             ReverseDirection = reverse
@@ -163,7 +162,7 @@ public class RevolveAuthoringTests
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
         {
             var part = Assert.IsType<SldPart>(sw);
-            part.AddRevolve(new RevolveFeatureDefinitionData { Angle = angle, ReverseDirection = true });
+            part.AddRevolve(new RevolveFeatureModel { Angle = angle, ReverseDirection = true });
             part.Save();
         }
 
@@ -176,8 +175,8 @@ public class RevolveAuthoringTests
 
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         Assert.Equal(before, reopened.RawStreams[ResolvedStream]);
-        var definition = Assert.IsType<RevolveFeatureDefinitionData>(
-            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Revolve)).Definition);
+        var definition = Assert.IsType<RevolveFeatureModel>(
+            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Revolve)).Model);
         Assert.Equal(angle, definition.Angle, 12);
         Assert.True(definition.ReverseDirection);
     }
@@ -191,27 +190,27 @@ public class RevolveAuthoringTests
     public void RevolveAuthoringRejectsInvalidAngles(double angle)
     {
         Assert.Throws<ArgumentOutOfRangeException>(() =>
-            RevolveFeatureBuilder.ValidateDefinition(new RevolveFeatureDefinitionData { Angle = angle }));
+            RevolveFeatureBuilder.ValidateDefinition(new RevolveFeatureModel { Angle = angle }));
     }
 
     public static System.Collections.Generic.IEnumerable<object[]> UnsupportedDefinitions()
     {
-        yield return new object[] { new RevolveFeatureDefinitionData { Angle = .01, IsCut = true }, "360-degree" };
-        yield return new object[] { new RevolveFeatureDefinitionData { Angle = .01, IsThinFeature = true, ThinWallType = 2, Thickness1 = .001 }, "ThinWallType" };
-        yield return new object[] { new RevolveFeatureDefinitionData { Angle = .01, BothDirections = true, Type = 2 }, "AngleDirection2" };
-        yield return new object[] { new RevolveFeatureDefinitionData { Angle = .01, Type = 2 }, "Type" };
-        yield return new object[] { new RevolveFeatureDefinitionData { Angle = .01, ThinWallType = 2 }, "ThinWallType" };
-        yield return new object[] { new RevolveFeatureDefinitionData { Angle = .01, Thickness1 = .001 }, "Thickness1" };
-        yield return new object[] { new RevolveFeatureDefinitionData { Angle = .01, Thickness2 = .001 }, "Thickness2" };
-        yield return new object[] { new RevolveFeatureDefinitionData { Angle = .01, Merge = false }, "Merge" };
-        yield return new object[] { new RevolveFeatureDefinitionData { Angle = .01, AngleDirection2 = .5 }, "AngleDirection2" };
-        yield return new object[] { new RevolveFeatureDefinitionData { Angle = 1.5 * Math.PI }, "Angle" };
-        yield return new object[] { new RevolveFeatureDefinitionData { Angle = 2.0 * Math.PI, ReverseDirection = true }, "ReverseDirection" };
+        yield return new object[] { new RevolveFeatureModel { Angle = .01, IsCut = true }, "360-degree" };
+        yield return new object[] { new RevolveFeatureModel { Angle = .01, IsThinFeature = true, ThinWallType = 2, Thickness1 = .001 }, "ThinWallType" };
+        yield return new object[] { new RevolveFeatureModel { Angle = .01, BothDirections = true, Type = 2 }, "AngleDirection2" };
+        yield return new object[] { new RevolveFeatureModel { Angle = .01, Type = 2 }, "Type" };
+        yield return new object[] { new RevolveFeatureModel { Angle = .01, ThinWallType = 2 }, "ThinWallType" };
+        yield return new object[] { new RevolveFeatureModel { Angle = .01, Thickness1 = .001 }, "Thickness1" };
+        yield return new object[] { new RevolveFeatureModel { Angle = .01, Thickness2 = .001 }, "Thickness2" };
+        yield return new object[] { new RevolveFeatureModel { Angle = .01, Merge = false }, "Merge" };
+        yield return new object[] { new RevolveFeatureModel { Angle = .01, AngleDirection2 = .5 }, "AngleDirection2" };
+        yield return new object[] { new RevolveFeatureModel { Angle = 1.5 * Math.PI }, "Angle" };
+        yield return new object[] { new RevolveFeatureModel { Angle = 2.0 * Math.PI, ReverseDirection = true }, "ReverseDirection" };
     }
 
     [Theory]
     [MemberData(nameof(UnsupportedDefinitions))]
-    public void UnsupportedRevolveCombinationsAreRejectedWithoutModifyingStream(RevolveFeatureDefinitionData definition, string property)
+    public void UnsupportedRevolveCombinationsAreRejectedWithoutModifyingStream(RevolveFeatureModel definition, string property)
     {
         using var temp = CreateStrippedRevolveSketchPart();
         using var sw = SwFile.Open(temp.FilePath, readOnly: false);
@@ -236,7 +235,7 @@ public class RevolveAuthoringTests
         var original = (byte[])part.RawStreams[ResolvedStream].Clone();
 
         var error = Assert.Throws<NotSupportedException>(
-            () => part.AddRevolve(new RevolveFeatureDefinitionData { Angle = Math.PI }));
+            () => part.AddRevolve(new RevolveFeatureModel { Angle = Math.PI }));
         Assert.Contains("controlled rectangle", error.Message);
 
         part.Save();
@@ -266,7 +265,7 @@ public class RevolveAuthoringTests
         {
             var part = Assert.IsType<SldPart>(sw);
             var error = Assert.Throws<NotSupportedException>(
-                () => part.AddRevolve(new RevolveFeatureDefinitionData { Angle = Math.PI }));
+                () => part.AddRevolve(new RevolveFeatureModel { Angle = Math.PI }));
             Assert.Contains($"0x{version:X2}", error.Message);
             part.Save();
         }
@@ -330,7 +329,7 @@ public class RevolveAuthoringTests
         byte[] nativeRegion = MfcPrimitives.CopyRange(native, nativeFeature.TagOffset, native.Length);
         byte[] expected = PatchRevolveFeatureId(nativeRegion, 0x6DE654A5u);
 
-        AuthorAndReopen(new RevolveFeatureDefinitionData
+        AuthorAndReopen(new RevolveFeatureModel
         {
             Angle = angle,
             ReverseDirection = reverse
@@ -381,23 +380,23 @@ public class RevolveAuthoringTests
     public void RevolveAuthoringRejectsMismatchedLayoutBases()
     {
         using (var temp = CreateStrippedRevolveSketchPart("revolve_180"))
-            AssertRevolveAddRejected(temp, new RevolveFeatureDefinitionData { Angle = 2.0 * Math.PI }, "revolve_360");
+            AssertRevolveAddRejected(temp, new RevolveFeatureModel { Angle = 2.0 * Math.PI }, "revolve_360");
 
         using (var temp = CreateStrippedRevolveSketchPart("revolve_180"))
-            AssertRevolveAddRejected(temp, new RevolveFeatureDefinitionData
+            AssertRevolveAddRejected(temp, new RevolveFeatureModel
             {
                 Angle = Math.PI,
                 ReverseDirection = true
             }, "revolve_180_reverse");
 
         using (var temp = CreateStrippedRevolveSketchPart("revolve_360"))
-            AssertRevolveAddRejected(temp, new RevolveFeatureDefinitionData { Angle = Math.PI }, "revolve_180");
+            AssertRevolveAddRejected(temp, new RevolveFeatureModel { Angle = Math.PI }, "revolve_180");
 
         using (var temp = CreateStrippedRevolveSketchPart("revolve_90"))
-            AssertRevolveAddRejected(temp, new RevolveFeatureDefinitionData { Angle = Math.PI }, "base signature");
+            AssertRevolveAddRejected(temp, new RevolveFeatureModel { Angle = Math.PI }, "base signature");
 
         using (var temp = CreateStrippedRevolveSketchPart("revolve_360_resave"))
-            AssertRevolveAddRejected(temp, new RevolveFeatureDefinitionData { Angle = 2.0 * Math.PI }, "base signature");
+            AssertRevolveAddRejected(temp, new RevolveFeatureModel { Angle = 2.0 * Math.PI }, "base signature");
 
         using (var temp = CreateStrippedRevolveSketchPart("revolve_180"))
         {
@@ -407,7 +406,7 @@ public class RevolveAuthoringTests
                 Assert.True(comp > 0);
                 raw[comp] = (byte)'n';
             });
-            AssertRevolveAddRejected(temp, new RevolveFeatureDefinitionData { Angle = Math.PI }, "base signature");
+            AssertRevolveAddRejected(temp, new RevolveFeatureModel { Angle = Math.PI }, "base signature");
         }
     }
 
@@ -417,7 +416,7 @@ public class RevolveAuthoringTests
         using (var temp = CreateStrippedRevolveSketchPart("revolve_180"))
         {
             RewriteStream(temp, raw => BitConverter.GetBytes((ushort)20).CopyTo(raw, 4));
-            AssertRevolveAddRejected(temp, new RevolveFeatureDefinitionData { Angle = Math.PI }, "folder count");
+            AssertRevolveAddRejected(temp, new RevolveFeatureModel { Angle = Math.PI }, "folder count");
         }
 
         using (var temp = CreateStrippedRevolveSketchPart("revolve_180"))
@@ -427,7 +426,7 @@ public class RevolveAuthoringTests
                 int marker = FindMarker(raw);
                 BitConverter.GetBytes(1u).CopyTo(raw, marker + 4);
             });
-            AssertRevolveAddRejected(temp, new RevolveFeatureDefinitionData { Angle = Math.PI }, "child count");
+            AssertRevolveAddRejected(temp, new RevolveFeatureModel { Angle = Math.PI }, "child count");
         }
     }
 
@@ -465,7 +464,7 @@ public class RevolveAuthoringTests
     }
 
     private static void AssertRevolveAddRejected(
-        TempTestFile temp, RevolveFeatureDefinitionData definition, string expectedMessage)
+        TempTestFile temp, RevolveFeatureModel definition, string expectedMessage)
     {
         byte[] before;
         using (var read = SwFile.Open(temp.FilePath, readOnly: true))
@@ -493,7 +492,7 @@ public class RevolveAuthoringTests
         {
             var part = Assert.IsType<SldPart>(sw);
             var error = Assert.Throws<NotSupportedException>(
-                () => part.AddRevolve(new RevolveFeatureDefinitionData { Angle = Math.PI }));
+                () => part.AddRevolve(new RevolveFeatureModel { Angle = Math.PI }));
             Assert.Contains(expectedMessage, error.Message);
             part.Save();
         }

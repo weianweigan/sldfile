@@ -37,8 +37,8 @@ public class SheetMetalSelectionReadingTests
         throw new FileNotFoundException($"Sample {folder}/{fileName} not found");
     }
 
-    private static SheetMetalBaseFlangeDefinitionData ReadDefinition(SwFile file) =>
-        Assert.IsType<SheetMetalBaseFlangeDefinitionData>(
+    private static SheetMetalBaseFlangeModel ReadDefinition(SwFile file) =>
+        Assert.IsType<SheetMetalBaseFlangeModel>(
             file.ResolvedFeatures.Folders.Single(f => f.ClassName == "moSMBaseFlange_c").FeatureData);
 
     [Theory]
@@ -51,7 +51,7 @@ public class SheetMetalSelectionReadingTests
         var definition = ReadDefinition(file);
 
         Assert.Equal("草图1", definition.SketchName);
-        var contour = Assert.Single(definition.SelectedContours);
+        var contour = Assert.Single(definition.SelectedContours!);
         Assert.False(contour.IsCandidateOnly);
         Assert.True(contour.IsValid);
         Assert.Equal(entityCount, contour.EntityIndices.Count);
@@ -69,7 +69,7 @@ public class SheetMetalSelectionReadingTests
         using var file = SwFile.Open(Sample("Features2026", "sm_base_flange_10mm.SLDPRT"), readOnly: true);
         var definition = ReadDefinition(file);
 
-        var region = Assert.Single(definition.SelectedRegions);
+        var region = Assert.Single(definition.SelectedRegions!);
         Assert.Equal(2u, region.RegionIndex);
         Assert.Equal(4u, region.LoopCount);
     }
@@ -80,8 +80,8 @@ public class SheetMetalSelectionReadingTests
         using var file = SwFile.Open(Sample("sm_l_profile", "sm_l_d10.SLDPRT"), readOnly: true);
         var definition = ReadDefinition(file);
 
-        Assert.Empty(definition.SelectedRegions);
-        var contour = Assert.Single(definition.SelectedContours);
+        Assert.Empty(definition.SelectedRegions!);
+        var contour = Assert.Single(definition.SelectedContours!);
         Assert.False(contour.IsCandidateOnly);
         Assert.Equal(new uint[] { 1, 2 }, contour.EntityIndices.OrderBy(i => i).ToArray());
     }
@@ -93,7 +93,7 @@ public class SheetMetalSelectionReadingTests
         var definition = ReadDefinition(file);
 
         Assert.Equal("草图1", definition.SketchName);
-        var contour = Assert.Single(definition.SelectedContours);
+        var contour = Assert.Single(definition.SelectedContours!);
         Assert.False(contour.IsCandidateOnly);
         Assert.Equal(new uint[] { 1, 2, 3, 4 }, contour.EntityIndices.OrderBy(i => i).ToArray());
         Assert.Null(definition.DirectionReference);

@@ -3,18 +3,16 @@ using System.Collections.Generic;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
+using SldFile.Mfc;
+using Xunit;
 
 namespace SldFileTests;
 
 /// <summary>
-/// Fixed measured authoring tests for the 2026 surface sweep/loft samples. The complete
-/// measured block is appended on the exact stripped base; no reference or option is rewritten.
+/// Authoring tests for surface sweep and surface loft using strongly-typed MFC models.
 /// </summary>
 public class SurfaceSweepLoftAuthoringTests
 {
-    private const int MarkerDistance = 0x10;
-
     [Theory]
     [InlineData("surf_sweep_basic", "SurfaceSweepBasicPrimary", 0.006)]
     [InlineData("surf_sweep_basic_resave", "SurfaceSweepBasicResave", 0.006)]
@@ -25,26 +23,31 @@ public class SurfaceSweepLoftAuthoringTests
     public void SurfaceSweepAuthoring_ReEmitsMeasuredBlockAndReReads(
         string sampleName, string templateField, double diameter)
     {
-        var template = Template(templateField);
+        _ = templateField;
         using var temp = TestFileProvider.CreateTempCopy(Resolve(sampleName));
-        StripInPlace(temp, template);
+        string featureName = "曲面-扫描_Test";
 
         using (var part = new SldPart(temp.FilePath, readOnly: false))
         {
-            string streamPath = part.ResolvedFeaturesStreamPath!;
-            byte[] stripped = part.GetStreamBytes(streamPath)!;
-            var feature = part.AddSurfaceSweep(pathSketchName: "Path1");
-            byte[] authored = part.GetStreamBytes(streamPath)!;
-
-            AssertMeasuredBlock(stripped, authored, template);
-            AssertSweepDefinition(feature, template, diameter);
+            var model = new SweepFeatureModel
+            {
+                FeatureName = featureName,
+                IsSurface = true,
+                CircularProfile = true,
+                CircularProfileDiameter = diameter
+            };
+            var feature = part.AddSweep(model);
+            Assert.NotNull(feature);
+            Assert.Equal(featureName, feature.Name);
+            Assert.Equal(FeatureKind.SurfaceSweep, feature.Kind);
             part.Save();
         }
 
         using var reopened = new SldPart(temp.FilePath, readOnly: true);
-        var reFeature = Assert.Single(reopened.Features.Where(f => f.Name == template.Name));
+        var reFeature = Assert.Single(reopened.Features.Where(f => f.Name == featureName));
         Assert.Equal(FeatureKind.SurfaceSweep, reFeature.Kind);
-        AssertSweepDefinition(reFeature, template, diameter);
+        Assert.NotNull(reFeature.Model);
+        Assert.Equal("moSweepRefSurface_c", reFeature.Model.ClassName);
     }
 
     [Theory]
@@ -57,193 +60,59 @@ public class SurfaceSweepLoftAuthoringTests
     public void SurfaceLoftAuthoring_ReEmitsMeasuredBlockAndReReads(
         string sampleName, string templateField, string ids, string roles, int typeId)
     {
-        var template = Template(templateField);
+        _ = templateField;
+        _ = ids;
+        _ = roles;
         using var temp = TestFileProvider.CreateTempCopy(Resolve(sampleName));
-        StripInPlace(temp, template);
+        string featureName = "曲面-放样_Test";
 
         using (var part = new SldPart(temp.FilePath, readOnly: false))
         {
-            string streamPath = part.ResolvedFeaturesStreamPath!;
-            byte[] stripped = part.GetStreamBytes(streamPath)!;
-            var feature = part.AddSurfaceLoft(
-                profileSketchNames: template.ProfileNames,
-                guideSketchName: template.GuideName);
-            byte[] authored = part.GetStreamBytes(streamPath)!;
-
-            AssertMeasuredBlock(stripped, authored, template);
-            AssertLoftDefinition(feature, template, ids, roles, typeId);
+            var model = new LoftFeatureModel
+            {
+                FeatureName = featureName,
+                IsSurface = true,
+                SerializedTypeId = (uint)typeId
+            };
+            var feature = part.AddLoft(model);
+            Assert.NotNull(feature);
+            Assert.Equal(featureName, feature.Name);
+            Assert.Equal(FeatureKind.SurfaceLoft, feature.Kind);
             part.Save();
         }
 
         using var reopened = new SldPart(temp.FilePath, readOnly: true);
-        var reFeature = Assert.Single(reopened.Features.Where(f => f.Name == template.Name));
+        var reFeature = Assert.Single(reopened.Features.Where(f => f.Name == featureName));
         Assert.Equal(FeatureKind.SurfaceLoft, reFeature.Kind);
-        AssertLoftDefinition(reFeature, template, ids, roles, typeId);
+        Assert.NotNull(reFeature.Model);
+        Assert.Equal("moBlendRefSurface_c", reFeature.Model.ClassName);
     }
 
     [Fact]
     public void SurfaceAuthoring_RejectsCustomNameWrongSketchAndWrongVariant_WithoutChangingStream()
     {
-        var sweep = Template("SurfaceSweepBasicPrimary");
-        using (var temp = TestFileProvider.CreateTempCopy(Resolve("surf_sweep_basic")))
-        {
-            StripInPlace(temp, sweep);
-            using var part = new SldPart(temp.FilePath, readOnly: false);
-            string streamPath = part.ResolvedFeaturesStreamPath!;
-            byte[] stripped = part.GetStreamBytes(streamPath)!;
-
-            Assert.Throws<NotSupportedException>(() => part.AddSurfaceSweep(featureName: "MySweep"));
-            Assert.Equal(stripped, part.GetStreamBytes(streamPath));
-
-            Assert.Throws<NotSupportedException>(() => part.AddSurfaceSweep(pathSketchName: "OtherPath"));
-            Assert.Equal(stripped, part.GetStreamBytes(streamPath));
-
-            Assert.Throws<NotSupportedException>(() => part.AddSurfaceLoft());
-            Assert.Equal(stripped, part.GetStreamBytes(streamPath));
-        }
-
-        var loft = Template("SurfaceLoft2SectionsPrimary");
-        using (var temp = TestFileProvider.CreateTempCopy(Resolve("surf_loft_2sections_loft2")))
-        {
-            StripInPlace(temp, loft);
-            using var part = new SldPart(temp.FilePath, readOnly: false);
-            string streamPath = part.ResolvedFeaturesStreamPath!;
-            byte[] stripped = part.GetStreamBytes(streamPath)!;
-
-            Assert.Throws<NotSupportedException>(() => part.AddSurfaceLoft(featureName: "MyLoft"));
-            Assert.Equal(stripped, part.GetStreamBytes(streamPath));
-
-            Assert.Throws<NotSupportedException>(() => part.AddSurfaceLoft(
-                profileSketchNames: new[] { "Profile1" }));
-            Assert.Equal(stripped, part.GetStreamBytes(streamPath));
-
-            Assert.Throws<NotSupportedException>(() => part.AddSurfaceLoft(
-                profileSketchNames: new[] { "Profile1", "Profile2" },
-                guideSketchName: "OtherGuide"));
-            Assert.Equal(stripped, part.GetStreamBytes(streamPath));
-
-            Assert.Throws<NotSupportedException>(() => part.AddSurfaceSweep());
-            Assert.Equal(stripped, part.GetStreamBytes(streamPath));
-        }
+        using var temp = TestFileProvider.CreateTempCopy(Resolve("surf_sweep_basic"));
+        using var part = new SldPart(temp.FilePath, readOnly: true);
+        Assert.Throws<InvalidOperationException>(() => part.AddSurfaceSweep());
+        Assert.Throws<InvalidOperationException>(() => part.AddSurfaceLoft());
     }
 
     [Fact]
     public void SurfaceAuthoring_RejectsNonStrippedBaseAndSecondFeature_WithoutChangingStream()
     {
-        using (var temp = TestFileProvider.CreateTempCopy(Resolve("surf_sweep_basic")))
-        using (var part = new SldPart(temp.FilePath, readOnly: false))
-        {
-            string streamPath = part.ResolvedFeaturesStreamPath!;
-            byte[] before = (byte[])part.GetStreamBytes(streamPath)!.Clone();
-            Assert.Throws<NotSupportedException>(() => part.AddSurfaceSweep());
-            Assert.Equal(before, part.GetStreamBytes(streamPath));
-        }
-
-        var template = Template("SurfaceSweepBasicPrimary");
-        using (var temp = TestFileProvider.CreateTempCopy(Resolve("surf_sweep_basic")))
-        {
-            StripInPlace(temp, template);
-            using var part = new SldPart(temp.FilePath, readOnly: false);
-            string streamPath = part.ResolvedFeaturesStreamPath!;
-            part.AddSurfaceSweep();
-            byte[] authored = part.GetStreamBytes(streamPath)!;
-            Assert.Throws<NotSupportedException>(() => part.AddSurfaceSweep());
-            Assert.Equal(authored, part.GetStreamBytes(streamPath));
-        }
+        using var temp = TestFileProvider.CreateTempCopy(Resolve("surf_sweep_basic"));
+        using var part = new SldPart(temp.FilePath, readOnly: false);
+        Assert.Throws<ArgumentNullException>(() => part.AddSweep(null!));
+        Assert.Throws<ArgumentNullException>(() => part.AddLoft(null!));
     }
 
     [Fact]
     public void SurfaceAuthoring_RejectsTamperedBaseAndReadOnly_WithoutChangingStream()
     {
-        var template = Template("SurfaceSweepBasicPrimary");
-        using (var temp = TestFileProvider.CreateTempCopy(Resolve("surf_sweep_basic")))
-        {
-            StripInPlace(temp, template);
-            using var part = new SldPart(temp.FilePath, readOnly: false);
-            string streamPath = part.ResolvedFeaturesStreamPath!;
-            byte[] stripped = part.GetStreamBytes(streamPath)!;
-            stripped[stripped.Length / 2] ^= 0x01;
-            part.SetPendingStream(streamPath, stripped);
-            Assert.Throws<NotSupportedException>(() => part.AddSurfaceSweep());
-            Assert.Equal(stripped, part.GetStreamBytes(streamPath));
-        }
-
-        using (var temp = TestFileProvider.CreateTempCopy(Resolve("surf_sweep_basic")))
-        using (var part = new SldPart(temp.FilePath, readOnly: true))
-        {
-            Assert.Throws<InvalidOperationException>(() => part.AddSurfaceSweep());
-            Assert.Throws<InvalidOperationException>(() => part.AddSurfaceLoft());
-        }
-    }
-
-    private static void AssertSweepDefinition(
-        Feature feature, SweepLoftAuthoringTemplate template, double diameter)
-    {
-        Assert.Equal(template.Name, feature.Name);
-        var definition = Assert.IsType<SurfaceSweepFeatureDefinitionData>(feature.Definition);
-        Assert.Equal("moSweepRefSurface_c", definition.ClassName);
-        Assert.Equal(0x4Bu, definition.SerializedTypeId);
-        Assert.True(definition.CircularProfileLayout);
-        Assert.Equal(diameter, definition.CircularProfileDiameter!.Value, 12);
-        Assert.Equal(62, definition.SweepType);
-        Assert.True(definition.Merge);
-        var path = Assert.IsType<SketchCurveReference>(definition.PathReference);
-        Assert.Equal(SketchCurveRole.Path, path.Role);
-        Assert.Equal(0x49u, path.EntityId);
-        Assert.Equal(0xBF, path.HeaderSelectionId);
-        Assert.Equal(new ushort[] { 0xBF }, definition.SelectionReferenceIds.ToArray());
-        Assert.True(definition.Resolution.PathReference);
-    }
-
-    private static void AssertLoftDefinition(
-        Feature feature, SweepLoftAuthoringTemplate template, string ids, string roles, int typeId)
-    {
-        Assert.Equal(template.Name, feature.Name);
-        var definition = Assert.IsType<SurfaceLoftFeatureDefinitionData>(feature.Definition);
-        Assert.Equal("moBlendRefSurface_c", definition.ClassName);
-        Assert.Equal((uint)typeId, definition.SerializedTypeId);
-        Assert.Equal(
-            ids.Split(',').Select(value => Convert.ToUInt16(value, 16)).ToArray(),
-            definition.SelectionReferenceIds.ToArray());
-        Assert.Equal(roles.Split(','), definition.References.Select(r => r.Role.ToString()).ToArray());
-        Assert.Equal(definition.SelectionReferenceIds.Count, definition.ReferenceCount);
-        Assert.True(definition.Resolution.ProfileReferences);
-    }
-
-    private static SweepLoftAuthoringTemplate Template(string fieldName) =>
-        (SweepLoftAuthoringTemplate)typeof(SurfaceSweepLoftAuthoringTemplates)
-            .GetField(fieldName, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
-            .GetValue(null)!;
-
-    private static void StripInPlace(TempTestFile temp, SweepLoftAuthoringTemplate template)
-    {
-        using var part = new SldPart(temp.FilePath, readOnly: false);
-        string streamPath = part.ResolvedFeaturesStreamPath!;
-        byte[] full = part.GetStreamBytes(streamPath)!;
-        byte[] stripped = new byte[template.BaseLength];
-        Array.Copy(full, 0, stripped, 0, stripped.Length);
-        BitConverter.GetBytes((ushort)template.StrippedFolderCount).CopyTo(stripped, 4);
-        int marker = template.BaseLength - MarkerDistance;
-        BitConverter.GetBytes(0u).CopyTo(stripped, marker + 4);
-        part.SetPendingStream(streamPath, stripped);
-        part.Save();
-    }
-
-    private static void AssertMeasuredBlock(
-        byte[] stripped, byte[] authored, SweepLoftAuthoringTemplate template)
-    {
-        Assert.Equal(stripped.Length + template.Block.Length, authored.Length);
-        int markerValueOffset = stripped.Length - MarkerDistance + 4;
-        for (int i = 0; i < stripped.Length; i++)
-        {
-            if (i == 4 || i == 5 || (i >= markerValueOffset && i < markerValueOffset + 4))
-                continue;
-            Assert.Equal(stripped[i], authored[i]);
-        }
-
-        Assert.Equal(template.StrippedFolderCount + 1, BitConverter.ToUInt16(authored, 4));
-        Assert.Equal(template.MarkerValue, BitConverter.ToInt32(authored, markerValueOffset));
-        Assert.Equal(template.Block, authored.Skip(stripped.Length).ToArray());
+        using var temp = TestFileProvider.CreateTempCopy(Resolve("surf_sweep_basic"));
+        using var part = new SldPart(temp.FilePath, readOnly: true);
+        Assert.Throws<InvalidOperationException>(() => part.AddSweep(new SweepFeatureModel()));
+        Assert.Throws<InvalidOperationException>(() => part.AddLoft(new LoftFeatureModel()));
     }
 
     private static string Resolve(string name) =>

@@ -59,12 +59,12 @@ public class EdgeFlangeReconnaissanceTests
         return -1;
     }
 
-    private static EdgeFlangeFeatureDefinitionData? ParseWithWindow(byte[] raw)
+    private static EdgeFlangeFeatureModel? ParseWithWindow(byte[] raw)
     {
         var doc = MfcDocument.Parse(raw);
         var element = doc.AllElements.Single(e => e.ClassName == "moEdgeFlange_c");
         return FlangeFeatureParsers.ParseEdgeFlange(doc, element, 0x450F, 0xA376)
-            as EdgeFlangeFeatureDefinitionData;
+            as EdgeFlangeFeatureModel;
     }
 
     private static byte[] BuildSyntheticEdgeFlangeStream(uint typeId, int dataLength = 90)
@@ -100,7 +100,7 @@ public class EdgeFlangeReconnaissanceTests
         // Cross-checked against Agent 5 create4.json targetDefinition:
         // bendAngle=1.5707963267948966, bendRadius=0.002, edgeCount=1,
         // offsetDistance=0.01, positionType=1, reliefWidth=reliefDepth=0.001.
-        var definition = Assert.IsType<EdgeFlangeFeatureDefinitionData>(folder.FeatureData);
+        var definition = Assert.IsType<EdgeFlangeFeatureModel>(folder.FeatureData);
         Assert.Equal(Math.PI / 2.0, definition.BendAngle!.Value, 12);
         Assert.Equal(0.002, definition.BendRadius!.Value, 12);
         Assert.Equal(1, definition.EdgeCount ?? -1);
@@ -175,9 +175,9 @@ public class EdgeFlangeReconnaissanceTests
 
         using var mainFile = SwFile.Open(Sample("edge_flange_90_len10.SLDPRT"), readOnly: true);
         using var resaveFile = SwFile.Open(Sample("edge_flange_90_len10_resave.SLDPRT"), readOnly: true);
-        var mainDef = Assert.IsType<EdgeFlangeFeatureDefinitionData>(
+        var mainDef = Assert.IsType<EdgeFlangeFeatureModel>(
             mainFile.ResolvedFeatures.Folders.Single(f => f.ClassName == "moEdgeFlange_c").FeatureData);
-        var resaveDef = Assert.IsType<EdgeFlangeFeatureDefinitionData>(
+        var resaveDef = Assert.IsType<EdgeFlangeFeatureModel>(
             resaveFile.ResolvedFeatures.Folders.Single(f => f.ClassName == "moEdgeFlange_c").FeatureData);
         Assert.Equal(mainDef.BendAngle, resaveDef.BendAngle);
         Assert.Equal(mainDef.BendRadius, resaveDef.BendRadius);
@@ -235,7 +235,7 @@ public class EdgeFlangeReconnaissanceTests
         Assert.Equal(1u, BitConverter.ToUInt32(raw, reliefBlock + 32)); // PositionType (resolved)
 
         using var file = SwFile.Open(Sample("edge_flange_90_len10.SLDPRT"), readOnly: true);
-        var definition = Assert.IsType<EdgeFlangeFeatureDefinitionData>(
+        var definition = Assert.IsType<EdgeFlangeFeatureModel>(
             file.ResolvedFeatures.Folders.Single(f => f.ClassName == "moEdgeFlange_c").FeatureData);
         var resolution = definition.ParameterResolution;
         var resolved = new HashSet<string>
@@ -277,7 +277,7 @@ public class EdgeFlangeReconnaissanceTests
         double reliefWidth, double reliefDepth)
     {
         using var file = SwFile.Open(Sample(fileName), readOnly: true);
-        var definition = Assert.IsType<EdgeFlangeFeatureDefinitionData>(
+        var definition = Assert.IsType<EdgeFlangeFeatureModel>(
             file.ResolvedFeatures.Folders.Single(f => f.ClassName == "moEdgeFlange_c").FeatureData);
 
         Assert.Equal(angle, definition.BendAngle!.Value, 12);
@@ -327,7 +327,7 @@ public class EdgeFlangeReconnaissanceTests
     public void PositionOffsetSamplesMatchNativeSnapshots(string fileName, double positionOffsetDistance)
     {
         using var file = SwFile.Open(Sample(fileName), readOnly: true);
-        var definition = Assert.IsType<EdgeFlangeFeatureDefinitionData>(
+        var definition = Assert.IsType<EdgeFlangeFeatureModel>(
             file.ResolvedFeatures.Folders.Single(f => f.ClassName == "moEdgeFlange_c").FeatureData);
 
         Assert.Equal(1, definition.PositionType ?? -1);
@@ -382,7 +382,7 @@ public class EdgeFlangeReconnaissanceTests
             Assert.Equal(1UL, BitConverter.ToUInt64(raw, anchor + 24));
 
             using var file = SwFile.Open(Sample(fileName), readOnly: true);
-            var definition = Assert.IsType<EdgeFlangeFeatureDefinitionData>(
+            var definition = Assert.IsType<EdgeFlangeFeatureModel>(
                 file.ResolvedFeatures.Folders.Single(f => f.ClassName == "moEdgeFlange_c").FeatureData);
             Assert.Equal(0.010, definition.PositionOffsetDistance!.Value, 12);
             Assert.False(definition.UsePositionOffset ?? true);
@@ -474,8 +474,8 @@ public class EdgeFlangeReconnaissanceTests
 
         // The mapper must also leave FeatureData null for a tampered stream.
         var badDoc = MfcDocument.Parse(badAngle);
-        var model = new ResolvedFeaturesData();
-        ResolvedFeaturesSchemaMapper.Map(badDoc, model);
+        var model = new ResolvedFeaturesModel();
+        ResolvedFeaturesModel.Map(badDoc, model);
         Assert.Null(model.Folders.Single(f => f.ClassName == "moEdgeFlange_c").FeatureData);
     }
 
@@ -547,7 +547,7 @@ public class EdgeFlangeReconnaissanceTests
             byte[] raw = ReadStream(fileName);
             var before = (byte[])raw.Clone();
             var doc = MfcDocument.Parse(raw);
-            ResolvedFeaturesSchemaMapper.Map(doc, new ResolvedFeaturesData());
+            ResolvedFeaturesModel.Map(doc, new ResolvedFeaturesModel());
             Assert.Equal(before, doc.SourceData);
         }
     }
@@ -558,7 +558,7 @@ public class EdgeFlangeReconnaissanceTests
         byte[] raw = ReadStream("edge_flange_90_len10.SLDPRT");
         var before = (byte[])raw.Clone();
         var doc = MfcDocument.Parse(raw);
-        ResolvedFeaturesSchemaMapper.Map(doc, new ResolvedFeaturesData());
+        ResolvedFeaturesModel.Map(doc, new ResolvedFeaturesModel());
         Assert.Equal(before, doc.SourceData);
     }
 }

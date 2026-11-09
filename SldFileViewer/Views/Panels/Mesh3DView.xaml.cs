@@ -233,13 +233,16 @@ public partial class Mesh3DView : UserControl
 
         var group = new Model3DGroup();
 
-        // 仅在非线框模式下渲染实体表面
-        if (VM.DisplayStyle != ModelDisplayStyle.Wireframe)
+        // Transparent wireframe surfaces preserve the original triangle indices for picking.
         {
             Material material;
             Material backMaterial;
 
-            if (VM.DisplayStyle == ModelDisplayStyle.TechnicalWhite)
+            if (VM.DisplayStyle == ModelDisplayStyle.Wireframe)
+            {
+                material = backMaterial = new DiffuseMaterial(Brushes.Transparent);
+            }
+            else if (VM.DisplayStyle == ModelDisplayStyle.TechnicalWhite)
             {
                 // 消除隐藏线白模 / 纯白工程纸感
                 var whiteMat = new DiffuseMaterial(new SolidColorBrush(Color.FromRgb(245, 247, 250)));
@@ -816,7 +819,7 @@ public partial class Mesh3DView : UserControl
 
         VisualTreeHelper.HitTest(MainViewport, target =>
         {
-            if (target == ModelVisual)
+            if (target == MainViewport || target == ModelVisual)
                 return HitTestFilterBehavior.Continue;
             return HitTestFilterBehavior.ContinueSkipChildren;
         }, result =>
@@ -1099,7 +1102,7 @@ public partial class Mesh3DView : UserControl
         PointHitTestParameters hitParams = new(point);
         VisualTreeHelper.HitTest(MainViewport, target =>
         {
-            if (target == SectionPlaneVisual || target == SectionManipulatorVisual || target == SectionBorderVisual)
+            if (target == MainViewport || target == SectionPlaneVisual || target == SectionManipulatorVisual || target == SectionBorderVisual)
                 return HitTestFilterBehavior.Continue;
             return HitTestFilterBehavior.ContinueSkipChildren;
         }, hitResult =>
@@ -1294,18 +1297,10 @@ public partial class Mesh3DView : UserControl
 
     private void OnRequestZoomToComponent()
     {
-        if (VM?.SelectedAssemblyComponent == null || VM.Mesh == null) return;
-        var (center, min, max, _) = VM.FindComponentBounds(VM.SelectedAssemblyComponent);
-        var (_, compOffsets) = VM.CalculateExplodeOffsets();
-        if (compOffsets.TryGetValue(VM.SelectedAssemblyComponent, out var cOff))
-        {
-            center += cOff;
-            min += cOff;
-            max += cOff;
-        }
-        _target = new Point3D(center.X, center.Y, center.Z);
-        var size = max - min;
-        double maxDim = Math.Max(size.X, Math.Max(size.Y, size.Z));
+        if (VM == null || !VM.TryGetComponentBounds(out var bounds)) return;
+        _target = new Point3D(bounds.X + bounds.SizeX * 0.5,
+            bounds.Y + bounds.SizeY * 0.5, bounds.Z + bounds.SizeZ * 0.5);
+        double maxDim = Math.Max(bounds.SizeX, Math.Max(bounds.SizeY, bounds.SizeZ));
         if (maxDim > 0.01)
         {
             _cameraWidth = maxDim * 2.2;

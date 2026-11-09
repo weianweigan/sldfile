@@ -1,3 +1,4 @@
+using SldFile.Mfc;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -68,7 +69,7 @@ public class ExtrudeAndSheetMetalFeatureTests
         Assert.NotNull(extFolder);
         Assert.NotNull(extFolder!.FeatureData);
 
-        var extData = Assert.IsType<ExtrudeFeatureDefinitionData>(extFolder.FeatureData);
+        var extData = Assert.IsType<ExtrudeFeatureModel>(extFolder.FeatureData);
         Assert.Equal(expectedDepth, extData.Depth, precision: 6);
         Assert.Equal(expectedEndCondition, extData.EndCondition);
         Assert.Equal(expectedIsCut, extData.IsCut);
@@ -109,7 +110,7 @@ public class ExtrudeAndSheetMetalFeatureTests
         Assert.NotNull(smFolder);
         Assert.NotNull(smFolder!.FeatureData);
 
-        var smData = Assert.IsType<SheetMetalBaseFlangeDefinitionData>(smFolder.FeatureData);
+        var smData = Assert.IsType<SheetMetalBaseFlangeModel>(smFolder.FeatureData);
         Assert.Equal(expectedThickness, smData.Thickness, precision: 6);
         Assert.Equal(expectedBendRadius, smData.BendRadius, precision: 6);
 

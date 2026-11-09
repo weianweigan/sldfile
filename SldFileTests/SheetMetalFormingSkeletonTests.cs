@@ -55,19 +55,19 @@ public class SheetMetalFormingSkeletonTests
 
     public static IEnumerable<object[]> ModelCases()
     {
-        yield return new object[] { new HemFeatureDefinitionData(), typeof(HemParameterResolution), HemApi,
+        yield return new object[] { new HemFeatureModel(), typeof(HemParameterResolution), HemApi,
             new[] { "CustomBendAllowance", "EdgeCount" } };
-        yield return new object[] { new JogFeatureDefinitionData(), typeof(JogParameterResolution), JogApi,
+        yield return new object[] { new JogFeatureModel(), typeof(JogParameterResolution), JogApi,
             new[] { "CustomBendAllowance", "OffsetReferenceType" } };
-        yield return new object[] { new LoftedBendFeatureDefinitionData(), typeof(LoftedBendParameterResolution), LoftedBendApi,
+        yield return new object[] { new LoftedBendFeatureModel(), typeof(LoftedBendParameterResolution), LoftedBendApi,
             new[] { "ProfileCount" } };
-        yield return new object[] { new NormalCutFeatureDefinitionData(), typeof(NormalCutParameterResolution), NormalCutApi,
+        yield return new object[] { new NormalCutFeatureModel(), typeof(NormalCutParameterResolution), NormalCutApi,
             Array.Empty<string>() };
-        yield return new object[] { new FlatPatternFeatureDefinitionData(), typeof(FlatPatternParameterResolution), FlatPatternApi,
+        yield return new object[] { new FlatPatternFeatureModel(), typeof(FlatPatternParameterResolution), FlatPatternApi,
             new[] { "AddCornerTrim", "BreakCorners" } };
-        yield return new object[] { new FoldFeatureDefinitionData(), typeof(FoldsParameterResolution), FoldsApi,
+        yield return new object[] { new FoldFeatureModel(), typeof(FoldsParameterResolution), FoldsApi,
             new[] { "BendsCount" } };
-        yield return new object[] { new UnFoldFeatureDefinitionData(), typeof(FoldsParameterResolution), FoldsApi,
+        yield return new object[] { new UnFoldFeatureModel(), typeof(FoldsParameterResolution), FoldsApi,
             new[] { "BendsCount" } };
     }
 
@@ -97,8 +97,8 @@ public class SheetMetalFormingSkeletonTests
     {
         var raw = BuildSyntheticFolderStream(className, displayName);
         var doc = MfcDocument.Parse(raw);
-        var model = new ResolvedFeaturesData();
-        ResolvedFeaturesSchemaMapper.Map(doc, model);
+        var model = new ResolvedFeaturesModel();
+        ResolvedFeaturesModel.Map(doc, model);
 
         var folder = Assert.Single(model.Folders, f => f.ClassName == className);
         Assert.Equal(displayName, folder.DisplayName);
@@ -153,7 +153,7 @@ public class SheetMetalFormingSkeletonTests
         var raw = BuildSyntheticFolderStream("moHem_c", "Hem1");
         var before = (byte[])raw.Clone();
         var doc = MfcDocument.Parse(raw);
-        ResolvedFeaturesSchemaMapper.Map(doc, new ResolvedFeaturesData());
+        ResolvedFeaturesModel.Map(doc, new ResolvedFeaturesModel());
         Assert.Equal(before, doc.SourceData);
     }
 
@@ -167,7 +167,7 @@ public class SheetMetalFormingSkeletonTests
         using var file = SwFile.Open(path, readOnly: true);
         var raw = (byte[])file.RawStreams["Contents/Config-0-ResolvedFeatures"].Clone();
         var doc = MfcDocument.Parse(raw);
-        ResolvedFeaturesSchemaMapper.Map(doc, new ResolvedFeaturesData());
+        ResolvedFeaturesModel.Map(doc, new ResolvedFeaturesModel());
         Assert.Equal(raw, doc.SourceData);
     }
 
@@ -177,7 +177,11 @@ public class SheetMetalFormingSkeletonTests
         object model, Type resolutionType, string[] apiProperties, string[] methodDerived)
     {
         Assert.False(resolutionType.IsAbstract);
-        var modelOnly = new HashSet<string>(StringComparer.Ordinal) { "ClassName", "TypeId", "ParameterResolution" };
+        var modelOnly = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "ClassName", "TypeId", "ParameterResolution",
+            "FeatureName", "Version", "RawBlock", "ResolvedProperties", "SerializedClassName", "SerializedTypeId"
+        };
         foreach (var extra in methodDerived) modelOnly.Add(extra);
 
         var actual = model.GetType().GetProperties()
@@ -197,7 +201,9 @@ public class SheetMetalFormingSkeletonTests
         _ = methodDerived;
         foreach (var property in model.GetType().GetProperties())
         {
-            if (property.Name is "ClassName" or "TypeId" or "ParameterResolution") continue;
+            if (property.Name is "ClassName" or "TypeId" or "ParameterResolution"
+                or "FeatureName" or "Version" or "RawBlock" or "ResolvedProperties"
+                or "SerializedClassName" or "SerializedTypeId") continue;
             Assert.Null(property.GetValue(model));
         }
 
@@ -213,31 +219,31 @@ public class SheetMetalFormingSkeletonTests
         // (version 0x74). Remaining catalog candidates 0x66 Jog, 0x67 NormalCut,
         // 0x62 FlatPattern, 0x6D Fold and 0x6E UnFold are not sample-confirmed and
         // stay unencoded.
-        Assert.Equal(0x67u, new HemFeatureDefinitionData().TypeId);
-        Assert.Equal(0x72u, new LoftedBendFeatureDefinitionData().TypeId);
+        Assert.Equal(0x67u, new HemFeatureModel().TypeId);
+        Assert.Equal(0x72u, new LoftedBendFeatureModel().TypeId);
         var unconfirmed = new IFeatureData[]
         {
-            new JogFeatureDefinitionData(),
-            new NormalCutFeatureDefinitionData(),
-            new FlatPatternFeatureDefinitionData(),
-            new FoldFeatureDefinitionData(),
-            new UnFoldFeatureDefinitionData()
+            new JogFeatureModel(),
+            new NormalCutFeatureModel(),
+            new FlatPatternFeatureModel(),
+            new FoldFeatureModel(),
+            new UnFoldFeatureModel()
         };
         Assert.All(unconfirmed, model => Assert.Equal(0u, model.TypeId));
 
-        Assert.Equal("moHem_c", HemFeatureDefinitionData.SerializedClassName);
-        Assert.Equal("moJog_c", JogFeatureDefinitionData.SerializedClassName);
-        Assert.Equal("moLoftedBend_c", LoftedBendFeatureDefinitionData.SerializedClassName);
-        Assert.Equal("moSMNormalCut_c", NormalCutFeatureDefinitionData.SerializedClassName);
-        Assert.Equal("moFlatPattern_c", FlatPatternFeatureDefinitionData.SerializedClassName);
-        Assert.Equal("moFold_c", FoldFeatureDefinitionData.SerializedClassName);
-        Assert.Equal("moUnFold_c", UnFoldFeatureDefinitionData.SerializedClassName);
+        Assert.Equal("moHem_c", HemFeatureModel.SerializedClassName);
+        Assert.Equal("moJog_c", JogFeatureModel.SerializedClassName);
+        Assert.Equal("moLoftedBend_c", LoftedBendFeatureModel.SerializedClassName);
+        Assert.Equal("moSMNormalCut_c", NormalCutFeatureModel.SerializedClassName);
+        Assert.Equal("moFlatPattern_c", FlatPatternFeatureModel.SerializedClassName);
+        Assert.Equal("moFold_c", FoldFeatureModel.SerializedClassName);
+        Assert.Equal("moUnFold_c", UnFoldFeatureModel.SerializedClassName);
     }
 
     [Fact]
     public void ModelsArePurePocoWithoutSolidWorksInteropTypes()
     {
-        var assembly = typeof(HemFeatureDefinitionData).Assembly;
+        var assembly = typeof(HemFeatureModel).Assembly;
         Assert.Equal("SldFile", assembly.GetName().Name);
         Assert.DoesNotContain(assembly.GetReferencedAssemblies(), a =>
             a.Name!.Contains("SolidWorks", StringComparison.OrdinalIgnoreCase) ||
@@ -245,12 +251,12 @@ public class SheetMetalFormingSkeletonTests
 
         var types = new[]
         {
-            typeof(HemFeatureDefinitionData), typeof(HemParameterResolution),
-            typeof(JogFeatureDefinitionData), typeof(JogParameterResolution),
-            typeof(LoftedBendFeatureDefinitionData), typeof(LoftedBendParameterResolution),
-            typeof(NormalCutFeatureDefinitionData), typeof(NormalCutParameterResolution),
-            typeof(FlatPatternFeatureDefinitionData), typeof(FlatPatternParameterResolution),
-            typeof(FoldFeatureDefinitionData), typeof(UnFoldFeatureDefinitionData),
+            typeof(HemFeatureModel), typeof(HemParameterResolution),
+            typeof(JogFeatureModel), typeof(JogParameterResolution),
+            typeof(LoftedBendFeatureModel), typeof(LoftedBendParameterResolution),
+            typeof(NormalCutFeatureModel), typeof(NormalCutParameterResolution),
+            typeof(FlatPatternFeatureModel), typeof(FlatPatternParameterResolution),
+            typeof(FoldFeatureModel), typeof(UnFoldFeatureModel),
             typeof(FoldsParameterResolution)
         };
         foreach (var type in types)

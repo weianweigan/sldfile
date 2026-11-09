@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.Topology;
 using SldFile.Mfc;
 using Xunit;
 
@@ -566,9 +565,9 @@ public class TopologyAdversarialTests
         var doc = MfcDocument.Parse(malformedStream);
         Assert.NotNull(doc);
 
-        var model = new ResolvedFeaturesData();
+        var model = new ResolvedFeaturesModel();
         // Must never throw unhandled IndexOutOfRangeException or NullReferenceException
-        var ex = Record.Exception(() => ResolvedFeaturesSchemaMapper.Map(doc, model));
+        var ex = Record.Exception(() => { ResolvedFeaturesModel.Map(doc, model); });
         Assert.Null(ex);
         Assert.NotNull(model.Folders);
     }
@@ -646,8 +645,8 @@ public class TopologyAdversarialTests
             try
             {
                 var doc = MfcDocument.Parse(fuzzedStream);
-                var rf = new ResolvedFeaturesData();
-                ResolvedFeaturesSchemaMapper.Map(doc, rf);
+                var rf = new ResolvedFeaturesModel();
+                ResolvedFeaturesModel.Map(doc, rf);
             }
             catch (Exception ex)
             {
@@ -703,8 +702,8 @@ public class TopologyAdversarialTests
             try
             {
                 var doc = MfcDocument.Parse(mutated);
-                var rf = new ResolvedFeaturesData();
-                ResolvedFeaturesSchemaMapper.Map(doc, rf);
+                var rf = new ResolvedFeaturesModel();
+                ResolvedFeaturesModel.Map(doc, rf);
             }
             catch (Exception ex)
             {

@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 using Xunit;
 
@@ -47,9 +46,9 @@ public class HoleWizardTappedAuthoringTests
         return temp;
     }
 
-    private static HoleWizardFeatureDefinitionData Definition(double diameter, double depth)
+    private static HoleWizardFeatureModel Definition(double diameter, double depth)
     {
-        return new HoleWizardFeatureDefinitionData
+        return new HoleWizardFeatureModel
         {
             FolderTypeId = 0x52u,
             Type = 48,
@@ -88,7 +87,7 @@ public class HoleWizardTappedAuthoringTests
         Assert.Equal("moHoleWzd_c", feature.TypeName);
         Assert.Equal(0x52, feature.Id);
         Assert.Equal("TappedAgent1", feature.Name);
-        var definition = Assert.IsType<HoleWizardFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<HoleWizardFeatureModel>(feature.Model);
         Assert.Equal(0x52u, definition.FolderTypeId);
         Assert.Equal(48, definition.Type);
         Assert.Equal(1, definition.EndCondition);
@@ -113,7 +112,7 @@ public class HoleWizardTappedAuthoringTests
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
         {
             var part = Assert.IsType<SldPart>(sw);
-            part.AddHoleWizard(new HoleWizardFeatureDefinitionData
+            part.AddHoleWizard(new HoleWizardFeatureModel
             {
                 FolderTypeId = 0x52u
             });
@@ -121,8 +120,8 @@ public class HoleWizardTappedAuthoringTests
         }
 
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
-        var definition = Assert.IsType<HoleWizardFeatureDefinitionData>(
-            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.HoleWizard)).Definition);
+        var definition = Assert.IsType<HoleWizardFeatureModel>(
+            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.HoleWizard)).Model);
         Assert.Equal(0.006, definition.ThreadDiameter!.Value, 12);
         Assert.Equal(0.01, definition.ThreadDepth!.Value, 12);
         Assert.Equal("ISO", definition.Standard);
@@ -180,8 +179,8 @@ public class HoleWizardTappedAuthoringTests
 
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         Assert.Equal(before, reopened.RawStreams[ResolvedStream]);
-        var definition = Assert.IsType<HoleWizardFeatureDefinitionData>(
-            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.HoleWizard)).Definition);
+        var definition = Assert.IsType<HoleWizardFeatureModel>(
+            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.HoleWizard)).Model);
         Assert.Equal(0.006, definition.ThreadDiameter!.Value, 12);
         Assert.Equal(0.01, definition.ThreadDepth!.Value, 12);
     }
@@ -234,7 +233,7 @@ public class HoleWizardTappedAuthoringTests
     {
         using var temp = CreateStrippedTappedBase(out _);
 
-        void Reject(HoleWizardFeatureDefinitionData definition, string message)
+        void Reject(HoleWizardFeatureModel definition, string message)
         {
             var error = Assert.Throws<NotSupportedException>(() =>
                 HoleWizardFeatureBuilder.ValidateDefinition(definition));
@@ -281,14 +280,14 @@ public class HoleWizardTappedAuthoringTests
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             HoleWizardFeatureBuilder.ValidateDefinition(Definition(double.PositiveInfinity, 0.01)));
 
-        AssertTapAddRejected(temp, new HoleWizardFeatureDefinitionData
+        AssertTapAddRejected(temp, new HoleWizardFeatureModel
         {
             FolderTypeId = 0x52u, ThreadDiameter = 0.006, ThreadDepth = 0.01, Face = new FeatureReferenceData()
         }, "Face");
     }
 
     private static void AssertTapAddRejected(
-        TempTestFile temp, HoleWizardFeatureDefinitionData definition, string expectedMessage)
+        TempTestFile temp, HoleWizardFeatureModel definition, string expectedMessage)
     {
         byte[] before = ReadStream(temp.FilePath);
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))

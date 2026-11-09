@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using SldFile;
-using SldFile.Sketches;
+using SldFile.Mfc;
 using SldFile.Drawing.Vector;
 using System.IO;
 using System.Linq;
@@ -133,6 +133,9 @@ public class DrawingAndPreviewTests
             new SldFile.Drawing.Vector.DrawingVectorText("技术要求", 12, 24) { Category = SldFile.Drawing.Vector.DrawingVectorTextCategory.TechnicalNote }
         };
 
+        vectorData.Lines = Enumerable.Range(0, 25)
+            .Select(i => new DrawingVectorLine(i, 0, i, 10, DrawingLineKind.SolidOutline)).ToArray();
+
         // Synthesize 100x100 BMP
         byte[] bmp = new byte[54 + 100 * 100 * 3];
         bmp[0] = 0x42; bmp[1] = 0x4D;
@@ -175,8 +178,8 @@ public class DrawingAndPreviewTests
     [Fact]
     public async Task Drawing_RealUserFile_LoadsVectorTextsAndOverlaysLosslessly()
     {
-        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
-        if (!File.Exists(realPath)) return;
+        string realPath = Path.Combine(AppContext.BaseDirectory, "TestFiles", "Drawings", "D8001507933", "D8001507933.SLDDRW");
+        Assert.True(File.Exists(realPath), $"Missing drawing fixture: {realPath}");
 
         var docService = new SwDocumentService();
         var dialogService = new MockDialogService();
@@ -238,8 +241,8 @@ public class DrawingAndPreviewTests
     [Fact]
     public async Task Drawing_RealPartFile_LoadsWithoutExceptions()
     {
-        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDPRT";
-        if (!File.Exists(realPath)) return;
+        string realPath = Path.Combine(AppContext.BaseDirectory, "TestFiles", "Drawings", "D8001507933", "D8001507933.SLDPRT");
+        Assert.True(File.Exists(realPath), $"Missing part fixture: {realPath}");
 
         var docService = new SwDocumentService();
         var dialogService = new MockDialogService();
@@ -305,6 +308,7 @@ public class DrawingAndPreviewTests
 
     private class DuplicateSketchDocService : SldFileViewer.Services.ISwDocumentService
     {
+        public DisplayMesh? GetComponentDisplayMesh(AssemblyComponentNode component) => null;
         public SwFile? CurrentFile => null;
         public string? CurrentFilePath => "test.sldprt";
         public bool IsOpen => true;
@@ -317,12 +321,12 @@ public class DrawingAndPreviewTests
         {
             new Feature("折弯-线2", FeatureKind.Sketch)
         };
-        public IReadOnlyList<SketchFeature> GetSketches(int configIndex = 0) => new List<SketchFeature>
+        public IReadOnlyList<SketchFeatureModel> GetSketches(int configIndex = 0) => new List<SketchFeatureModel>
         {
-            new SketchFeature("草图1"),
-            new SketchFeature("折弯-线2"),
-            new SketchFeature("折弯-线2"),
-            new SketchFeature("折弯-线1")
+            new SketchFeatureModel("草图1"),
+            new SketchFeatureModel("折弯-线2"),
+            new SketchFeatureModel("折弯-线2"),
+            new SketchFeatureModel("折弯-线1")
         };
         public IReadOnlyList<AssemblyComponentNode> GetAssemblyTree(string? configName = null) => Array.Empty<AssemblyComponentNode>();
         public IReadOnlyList<BomItem> GetBom(string? configName = null) => Array.Empty<BomItem>();

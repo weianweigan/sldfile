@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 using Xunit;
 
@@ -76,7 +75,7 @@ public class LegacyHoleWizardTutorialTests
         return (new Hit(definition, raw, hole.TagOffset, end), family, hole.TagOffset);
     }
 
-    private sealed record Hit(HoleWizardFeatureDefinitionData? Definition, byte[]? Raw, int Start = 0, int End = 0);
+    private sealed record Hit(HoleWizardFeatureModel? Model, byte[]? Raw, int Start = 0, int End = 0);
 
     [Theory]
     [MemberData(nameof(Families))]
@@ -85,19 +84,19 @@ public class LegacyHoleWizardTutorialTests
         var (hit, family, _) = Read(file);
         if (type == null)
         {
-            Assert.Null(hit.Definition);
+            Assert.Null(hit.Model);
             Assert.Null(family);
             return;
         }
-        var definition = Assert.IsType<HoleWizardFeatureDefinitionData>(hit.Definition);
+        var definition = Assert.IsType<HoleWizardFeatureModel>(hit.Model);
         Assert.NotNull(family);
         Assert.Equal(type, definition.Type);
         Assert.Equal(endCondition, definition.EndCondition);
-        Assert.True(definition.IsResolved(nameof(HoleWizardFeatureDefinitionData.Type)));
-        Assert.True(definition.IsResolved(nameof(HoleWizardFeatureDefinitionData.EndCondition)));
+        Assert.True(definition.IsResolved(nameof(HoleWizardFeatureModel.Type)));
+        Assert.True(definition.IsResolved(nameof(HoleWizardFeatureModel.EndCondition)));
         foreach (var field in family!.Fields)
         {
-            var property = typeof(HoleWizardFeatureDefinitionData).GetProperty(field.Property);
+            var property = typeof(HoleWizardFeatureModel).GetProperty(field.Property);
             Assert.NotNull(property);
             object? value = property!.GetValue(definition);
             if (field.IsString)

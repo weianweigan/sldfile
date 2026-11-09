@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 using Xunit;
 
@@ -56,8 +55,8 @@ public class ChamferAuthoringTests
         return temp;
     }
 
-    private static ChamferFeatureDefinitionData AuthorAndParse(
-        ChamferFeatureDefinitionData definition, string sampleName,
+    private static ChamferFeatureModel AuthorAndParse(
+        ChamferFeatureModel definition, string sampleName,
         out byte[] stream, out string featureName)
     {
         using var temp = CreateStrippedChamferBase(sampleName);
@@ -103,7 +102,7 @@ public class ChamferAuthoringTests
         Assert.Equal(ChamferClass, feature.TypeName);
         Assert.Equal(0x52, feature.Id);
 
-        var definition = Assert.IsType<ChamferFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<ChamferFeatureModel>(feature.Model);
         Assert.Equal(expectedType, definition.Type);
         Assert.Equal(distance0, definition.EdgeChamferDistanceSide0!.Value, 12);
         Assert.Equal(distance1, definition.EdgeChamferDistanceSide1);
@@ -115,8 +114,8 @@ public class ChamferAuthoringTests
             Assert.Equal(expectedAngle, definition.EdgeChamferAngle!.Value, 12);
         }
         Assert.Equal(equalDistance, definition.EqualDistance);
-        Assert.True(definition.IsResolved(nameof(ChamferFeatureDefinitionData.EdgeChamferDistanceSide0)));
-        Assert.True(definition.IsResolved(nameof(ChamferFeatureDefinitionData.Type)));
+        Assert.True(definition.IsResolved(nameof(ChamferFeatureModel.EdgeChamferDistanceSide0)));
+        Assert.True(definition.IsResolved(nameof(ChamferFeatureModel.Type)));
         var edge = Assert.Single(definition.Edges!);
         Assert.Equal(SelectionEntityType.Edge, edge.EntityType);
         Assert.Equal(4u, edge.EntityId);
@@ -130,7 +129,7 @@ public class ChamferAuthoringTests
     [Fact]
     public void ChamferAuthoring_DistanceDistance_Roundtrips()
     {
-        var read = AuthorAndParse(new ChamferFeatureDefinitionData
+        var read = AuthorAndParse(new ChamferFeatureModel
         {
             EdgeChamferDistanceSide0 = 0.0025,
             EdgeChamferDistanceSide1 = 0.004
@@ -148,7 +147,7 @@ public class ChamferAuthoringTests
     public void ChamferAuthoring_AngleDistance_Roundtrips()
     {
         double angle = Math.PI / 6.0;
-        var read = AuthorAndParse(new ChamferFeatureDefinitionData
+        var read = AuthorAndParse(new ChamferFeatureModel
         {
             EdgeChamferDistanceSide0 = 0.003,
             EdgeChamferAngle = angle
@@ -165,7 +164,7 @@ public class ChamferAuthoringTests
     [Fact]
     public void ChamferAuthoring_DistanceDistance_WritesMeasuredSlots()
     {
-        AuthorAndParse(new ChamferFeatureDefinitionData
+        AuthorAndParse(new ChamferFeatureModel
         {
             EdgeChamferDistanceSide0 = 0.0025,
             EdgeChamferDistanceSide1 = 0.004
@@ -198,7 +197,7 @@ public class ChamferAuthoringTests
     public void ChamferAuthoring_AngleDistance_WritesMeasuredSlots()
     {
         double angle = Math.PI / 6.0;
-        AuthorAndParse(new ChamferFeatureDefinitionData
+        AuthorAndParse(new ChamferFeatureModel
         {
             EdgeChamferDistanceSide0 = 0.003,
             EdgeChamferAngle = angle
@@ -233,9 +232,9 @@ public class ChamferAuthoringTests
     [InlineData("chamfer_dist_angle_2mm45")]
     public void ChamferAuthoring_PreservesMeasuredEdgeSelection(string sampleName)
     {
-        ChamferFeatureDefinitionData definition = sampleName.Contains("dist_dist")
-            ? new ChamferFeatureDefinitionData { EdgeChamferDistanceSide0 = .0025, EdgeChamferDistanceSide1 = .004 }
-            : new ChamferFeatureDefinitionData { EdgeChamferDistanceSide0 = .003, EdgeChamferAngle = Math.PI / 5 };
+        ChamferFeatureModel definition = sampleName.Contains("dist_dist")
+            ? new ChamferFeatureModel { EdgeChamferDistanceSide0 = .0025, EdgeChamferDistanceSide1 = .004 }
+            : new ChamferFeatureModel { EdgeChamferDistanceSide0 = .003, EdgeChamferAngle = Math.PI / 5 };
         AuthorAndParse(definition, sampleName, out byte[] authored, out _);
 
         byte[] native;
@@ -274,7 +273,7 @@ public class ChamferAuthoringTests
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
         {
             var part = Assert.IsType<SldPart>(sw);
-            var feature = part.AddChamfer(new ChamferFeatureDefinitionData
+            var feature = part.AddChamfer(new ChamferFeatureModel
             {
                 EdgeChamferDistanceSide0 = .002,
                 EdgeChamferDistanceSide1 = .004
@@ -297,7 +296,7 @@ public class ChamferAuthoringTests
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
         {
             var part = Assert.IsType<SldPart>(sw);
-            part.AddChamfer(new ChamferFeatureDefinitionData
+            part.AddChamfer(new ChamferFeatureModel
             {
                 EdgeChamferDistanceSide0 = .0025,
                 EdgeChamferAngle = Math.PI / 5
@@ -314,8 +313,8 @@ public class ChamferAuthoringTests
 
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         Assert.Equal(before, reopened.RawStreams[ResolvedStream]);
-        var definition = Assert.IsType<ChamferFeatureDefinitionData>(
-            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Chamfer)).Definition);
+        var definition = Assert.IsType<ChamferFeatureModel>(
+            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Chamfer)).Model);
         Assert.Equal(.0025, definition.EdgeChamferDistanceSide0!.Value, 12);
         Assert.Equal(Math.PI / 5, definition.EdgeChamferAngle!.Value, 12);
     }
@@ -330,7 +329,7 @@ public class ChamferAuthoringTests
         using var temp = CreateStrippedChamferBase("chamfer_dist_dist_2_3mm");
         using var sw = SwFile.Open(temp.FilePath, readOnly: false);
         var part = Assert.IsType<SldPart>(sw);
-        Assert.Throws<ArgumentOutOfRangeException>(() => part.AddChamfer(new ChamferFeatureDefinitionData
+        Assert.Throws<ArgumentOutOfRangeException>(() => part.AddChamfer(new ChamferFeatureModel
         {
             EdgeChamferDistanceSide0 = distance,
             EdgeChamferDistanceSide1 = .003
@@ -341,16 +340,16 @@ public class ChamferAuthoringTests
     public void ChamferAuthoringRejectsInvalidAngle()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => ChamferFeatureBuilder.ValidateDefinition(
-            new ChamferFeatureDefinitionData { EdgeChamferDistanceSide0 = .002, EdgeChamferAngle = 0 }));
+            new ChamferFeatureModel { EdgeChamferDistanceSide0 = .002, EdgeChamferAngle = 0 }));
         Assert.Throws<ArgumentOutOfRangeException>(() => ChamferFeatureBuilder.ValidateDefinition(
-            new ChamferFeatureDefinitionData { EdgeChamferDistanceSide0 = .002, EdgeChamferAngle = Math.PI / 2 }));
+            new ChamferFeatureModel { EdgeChamferDistanceSide0 = .002, EdgeChamferAngle = Math.PI / 2 }));
     }
 
     [Fact]
     public void ChamferAuthoringRejectsEqualDistances()
     {
         var error = Assert.Throws<NotSupportedException>(() => ChamferFeatureBuilder.ValidateDefinition(
-            new ChamferFeatureDefinitionData { EdgeChamferDistanceSide0 = .003, EdgeChamferDistanceSide1 = .003 }));
+            new ChamferFeatureModel { EdgeChamferDistanceSide0 = .003, EdgeChamferDistanceSide1 = .003 }));
         Assert.Contains("equal", error.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -358,45 +357,45 @@ public class ChamferAuthoringTests
     public void ChamferAuthoringRejectsAmbiguousOrMissingMode()
     {
         Assert.Throws<NotSupportedException>(() => ChamferFeatureBuilder.ValidateDefinition(
-            new ChamferFeatureDefinitionData
+            new ChamferFeatureModel
             {
                 EdgeChamferDistanceSide0 = .002,
                 EdgeChamferDistanceSide1 = .003,
                 EdgeChamferAngle = Math.PI / 4
             }));
         Assert.Throws<NotSupportedException>(() => ChamferFeatureBuilder.ValidateDefinition(
-            new ChamferFeatureDefinitionData { EdgeChamferDistanceSide0 = .002 }));
+            new ChamferFeatureModel { EdgeChamferDistanceSide0 = .002 }));
     }
 
     [Fact]
     public void ChamferAuthoringRejectsTypeAndEqualDistanceMismatches()
     {
         Assert.Throws<NotSupportedException>(() => ChamferFeatureBuilder.ValidateDefinition(
-            new ChamferFeatureDefinitionData
+            new ChamferFeatureModel
             { EdgeChamferDistanceSide0 = .002, EdgeChamferDistanceSide1 = .003, Type = 1 }));
         Assert.Throws<NotSupportedException>(() => ChamferFeatureBuilder.ValidateDefinition(
-            new ChamferFeatureDefinitionData
+            new ChamferFeatureModel
             { EdgeChamferDistanceSide0 = .002, EdgeChamferAngle = Math.PI / 4, Type = 2 }));
         Assert.Throws<NotSupportedException>(() => ChamferFeatureBuilder.ValidateDefinition(
-            new ChamferFeatureDefinitionData
+            new ChamferFeatureModel
             { EdgeChamferDistanceSide0 = .002, EdgeChamferDistanceSide1 = .003, EqualDistance = true }));
     }
 
     public static IEnumerable<object[]> UnsupportedFields()
     {
-        yield return new object[] { new ChamferFeatureDefinitionData { EdgeChamferDistanceSide0 = .002, EdgeChamferDistanceSide1 = .003, KeepFeatures = true }, "KeepFeatures" };
-        yield return new object[] { new ChamferFeatureDefinitionData { EdgeChamferDistanceSide0 = .002, EdgeChamferDistanceSide1 = .003, TangentPropagation = true }, "TangentPropagation" };
-        yield return new object[] { new ChamferFeatureDefinitionData { EdgeChamferDistanceSide0 = .002, EdgeChamferDistanceSide1 = .003, PropagateFeatureToParts = true }, "PropagateFeatureToParts" };
-        yield return new object[] { new ChamferFeatureDefinitionData { EdgeChamferDistanceSide0 = .002, EdgeChamferDistanceSide1 = .003, LoopCount = 1 }, "LoopCount" };
-        yield return new object[] { new ChamferFeatureDefinitionData { EdgeChamferDistanceSide0 = .002, EdgeChamferDistanceSide1 = .003, VertexChamferDistanceSide0 = .001 }, "VertexChamferDistanceSide0" };
-        yield return new object[] { new ChamferFeatureDefinitionData { EdgeChamferDistanceSide0 = .002, EdgeChamferDistanceSide1 = .003, Edges = new[] { new FeatureReferenceData { EntityId = 1 } } }, "Edges" };
-        yield return new object[] { new ChamferFeatureDefinitionData { EdgeChamferDistanceSide0 = .002, EdgeChamferDistanceSide1 = .003, Faces = new[] { new FeatureReferenceData { EntityId = 2 } } }, "Faces" };
-        yield return new object[] { new ChamferFeatureDefinitionData { EdgeChamferDistanceSide0 = .002, EdgeChamferDistanceSide1 = .003, Vertex = new FeatureReferenceData() }, "Vertex" };
+        yield return new object[] { new ChamferFeatureModel { EdgeChamferDistanceSide0 = .002, EdgeChamferDistanceSide1 = .003, KeepFeatures = true }, "KeepFeatures" };
+        yield return new object[] { new ChamferFeatureModel { EdgeChamferDistanceSide0 = .002, EdgeChamferDistanceSide1 = .003, TangentPropagation = true }, "TangentPropagation" };
+        yield return new object[] { new ChamferFeatureModel { EdgeChamferDistanceSide0 = .002, EdgeChamferDistanceSide1 = .003, PropagateFeatureToParts = true }, "PropagateFeatureToParts" };
+        yield return new object[] { new ChamferFeatureModel { EdgeChamferDistanceSide0 = .002, EdgeChamferDistanceSide1 = .003, LoopCount = 1 }, "LoopCount" };
+        yield return new object[] { new ChamferFeatureModel { EdgeChamferDistanceSide0 = .002, EdgeChamferDistanceSide1 = .003, VertexChamferDistanceSide0 = .001 }, "VertexChamferDistanceSide0" };
+        yield return new object[] { new ChamferFeatureModel { EdgeChamferDistanceSide0 = .002, EdgeChamferDistanceSide1 = .003, Edges = new[] { new FeatureReferenceData { EntityId = 1 } } }, "Edges" };
+        yield return new object[] { new ChamferFeatureModel { EdgeChamferDistanceSide0 = .002, EdgeChamferDistanceSide1 = .003, Faces = new[] { new FeatureReferenceData { EntityId = 2 } } }, "Faces" };
+        yield return new object[] { new ChamferFeatureModel { EdgeChamferDistanceSide0 = .002, EdgeChamferDistanceSide1 = .003, Vertex = new FeatureReferenceData() }, "Vertex" };
     }
 
     [Theory]
     [MemberData(nameof(UnsupportedFields))]
-    public void ChamferAuthoringRejectsUnverifiedFieldsWithoutModifyingStream(ChamferFeatureDefinitionData definition, string property)
+    public void ChamferAuthoringRejectsUnverifiedFieldsWithoutModifyingStream(ChamferFeatureModel definition, string property)
     {
         using var temp = CreateStrippedChamferBase("chamfer_dist_dist_2_3mm");
         using var sw = SwFile.Open(temp.FilePath, readOnly: false);
@@ -421,7 +420,7 @@ public class ChamferAuthoringTests
             var part = Assert.IsType<SldPart>(sw);
             var original = (byte[])part.RawStreams[ResolvedStream].Clone();
             var error = Assert.Throws<NotSupportedException>(() => part.AddChamfer(
-                new ChamferFeatureDefinitionData { EdgeChamferDistanceSide0 = .002, EdgeChamferDistanceSide1 = .003 }));
+                new ChamferFeatureModel { EdgeChamferDistanceSide0 = .002, EdgeChamferDistanceSide1 = .003 }));
             Assert.Contains("controlled ChamferOptions base body", error.Message);
             Assert.Equal(original, part.RawStreams[ResolvedStream]);
         }
@@ -432,7 +431,7 @@ public class ChamferAuthoringTests
             var part = Assert.IsType<SldPart>(sw);
             var original = (byte[])part.RawStreams[ResolvedStream].Clone();
             var error = Assert.Throws<NotSupportedException>(() => part.AddChamfer(
-                new ChamferFeatureDefinitionData { EdgeChamferDistanceSide0 = .002, EdgeChamferAngle = Math.PI / 5 }));
+                new ChamferFeatureModel { EdgeChamferDistanceSide0 = .002, EdgeChamferAngle = Math.PI / 5 }));
             Assert.Contains("controlled ChamferOptions base body", error.Message);
             Assert.Equal(original, part.RawStreams[ResolvedStream]);
         }
@@ -447,7 +446,7 @@ public class ChamferAuthoringTests
             {
                 var part = Assert.IsType<SldPart>(sw);
                 var error = Assert.Throws<NotSupportedException>(() => part.AddChamfer(
-                    new ChamferFeatureDefinitionData { EdgeChamferDistanceSide0 = .002, EdgeChamferDistanceSide1 = .003 }));
+                    new ChamferFeatureModel { EdgeChamferDistanceSide0 = .002, EdgeChamferDistanceSide1 = .003 }));
                 Assert.Contains("existing", error.Message);
             }
         }
@@ -466,7 +465,7 @@ public class ChamferAuthoringTests
             {
                 var part = Assert.IsType<SldPart>(sw);
                 var error = Assert.Throws<NotSupportedException>(() => part.AddChamfer(
-                    new ChamferFeatureDefinitionData { EdgeChamferDistanceSide0 = .002, EdgeChamferDistanceSide1 = .003 }));
+                    new ChamferFeatureModel { EdgeChamferDistanceSide0 = .002, EdgeChamferDistanceSide1 = .003 }));
                 Assert.Contains($"0x{version:X2}", error.Message);
             }
         }
@@ -515,7 +514,7 @@ public class ChamferAuthoringTests
     [Fact]
     public void ChamferParserRejectsUnknownLayoutAndDoesNotModifyStream()
     {
-        AuthorAndParse(new ChamferFeatureDefinitionData
+        AuthorAndParse(new ChamferFeatureModel
         {
             EdgeChamferDistanceSide0 = .0025,
             EdgeChamferDistanceSide1 = .004
@@ -550,7 +549,7 @@ public class ChamferAuthoringTests
         {
             var part = Assert.IsType<SldPart>(sw);
             var error = Assert.Throws<NotSupportedException>(() => part.AddChamfer(
-                new ChamferFeatureDefinitionData { EdgeChamferDistanceSide0 = .002, EdgeChamferDistanceSide1 = .003 }));
+                new ChamferFeatureModel { EdgeChamferDistanceSide0 = .002, EdgeChamferDistanceSide1 = .003 }));
             Assert.Contains(expectedMessage, error.Message);
             part.Save();
         }

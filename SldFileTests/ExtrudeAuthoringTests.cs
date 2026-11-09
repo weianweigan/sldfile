@@ -9,9 +9,9 @@ namespace SldFileTests;
 public class ExtrudeAuthoringTests
 {
     [Fact]
-    public void ExtrudeFeatureDefinitionData_FullPropertyMapping_RoundTrip()
+    public void ExtrudeFeatureModel_FullPropertyMapping_RoundTrip()
     {
-        var data = new ExtrudeFeatureDefinitionData();
+        var data = new ExtrudeFeatureModel();
 
         // 1. Depth & EndCondition
         data.SetDepth(true, 0.025);
@@ -114,7 +114,7 @@ public class ExtrudeAuthoringTests
         {
             var feat = Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Extrusion));
             Assert.Equal("凸台-拉伸1", feat.Name);
-            var def = Assert.IsType<ExtrudeFeatureDefinitionData>(feat.Definition);
+            var def = Assert.IsType<ExtrudeFeatureModel>(feat.Model);
             Assert.Equal(0u, def.EndCondition);
             Assert.False(def.IsCut);
             Assert.True(def.IsBossFeature());
@@ -132,8 +132,8 @@ public class ExtrudeAuthoringTests
         byte[] originalExtrude = new byte[raw.Length - 0x22E0];
         Array.Copy(raw, 0x22E0, originalExtrude, 0, originalExtrude.Length);
 
-        var def = new ExtrudeFeatureDefinitionData { Depth = 0.010, EndCondition = 0, BothDirections = false };
-        byte[] synthesized = SldFile.Binary.FeatureData.ExtrudeFeatureBuilder.BuildBossExtrudeBlock(def, "凸台-拉伸1", 4);
+        var def = new ExtrudeFeatureModel { Depth = 0.010, EndCondition = 0, BothDirections = false };
+        byte[] synthesized = SldFile.Mfc.ExtrudeFeatureBuilder.BuildBossExtrudeBlock(def, "凸台-拉伸1", 4);
 
         Assert.Equal(originalExtrude.Length, synthesized.Length);
         Assert.Equal(originalExtrude, synthesized);

@@ -5,7 +5,6 @@ using System.Linq;
 using System.Security.Cryptography;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 using Xunit;
 
@@ -55,11 +54,11 @@ public class EdgeFlangeAuthoringTests
         return temp;
     }
 
-    private static EdgeFlangeFeatureDefinitionData ValidDefinition(double angle = Math.PI / 2.0, double radius = 0.002)
+    private static EdgeFlangeFeatureModel ValidDefinition(double angle = Math.PI / 2.0, double radius = 0.002)
         => new() { BendAngle = angle, BendRadius = radius, EdgeCount = 1 };
 
-    private static EdgeFlangeFeatureDefinitionData AuthorAndReopen(
-        EdgeFlangeFeatureDefinitionData definition, out string featureName)
+    private static EdgeFlangeFeatureModel AuthorAndReopen(
+        EdgeFlangeFeatureModel definition, out string featureName)
     {
         using var temp = CreateStrippedBase();
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
@@ -72,7 +71,7 @@ public class EdgeFlangeAuthoringTests
 
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         var folder = Assert.Single(reopened.ResolvedFeatures.Folders.Where(f => f.ClassName == "moEdgeFlange_c"));
-        return Assert.IsType<EdgeFlangeFeatureDefinitionData>(folder.FeatureData);
+        return Assert.IsType<EdgeFlangeFeatureModel>(folder.FeatureData);
     }
 
     [Fact]
@@ -164,7 +163,7 @@ public class EdgeFlangeAuthoringTests
             2.0 * Math.PI / 3.0, 0.0025, 0.02, 3, 0.0015, 0.0025
         };
 
-        static EdgeFlangeFeatureDefinitionData With(Action<EdgeFlangeFeatureDefinitionData> configure)
+        static EdgeFlangeFeatureModel With(Action<EdgeFlangeFeatureModel> configure)
         {
             var definition = ValidDefinition();
             configure(definition);
@@ -175,7 +174,7 @@ public class EdgeFlangeAuthoringTests
     [Theory]
     [MemberData(nameof(VariantAuthoringDefinitions))]
     public void AuthoringRoundtripsVerifiedVariantFields(
-        EdgeFlangeFeatureDefinitionData definition, double angle, double radius,
+        EdgeFlangeFeatureModel definition, double angle, double radius,
         double offsetDistance, int positionType, double reliefWidth, double reliefDepth)
     {
         var parsed = AuthorAndReopen(definition, out string featureName);
@@ -310,7 +309,7 @@ public class EdgeFlangeAuthoringTests
         Assert.Equal((byte[])original.RawStreams[ResolvedStream].Clone(), authored);
 
         using var parsedFile = SwFile.Open(temp.FilePath, readOnly: true);
-        var parsed = Assert.IsType<EdgeFlangeFeatureDefinitionData>(
+        var parsed = Assert.IsType<EdgeFlangeFeatureModel>(
             parsedFile.ResolvedFeatures.Folders.Single(f => f.ClassName == "moEdgeFlange_c").FeatureData);
         Assert.True(parsed.UsePositionOffset ?? false);
         Assert.Equal(distance, parsed.PositionOffsetDistance!.Value, 12);
@@ -431,7 +430,7 @@ public class EdgeFlangeAuthoringTests
 
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         Assert.Equal(before, reopened.RawStreams[ResolvedStream]);
-        var definition = Assert.IsType<EdgeFlangeFeatureDefinitionData>(
+        var definition = Assert.IsType<EdgeFlangeFeatureModel>(
             reopened.ResolvedFeatures.Folders.Single(f => f.ClassName == "moEdgeFlange_c").FeatureData);
         Assert.Equal(1.1, definition.BendAngle!.Value, 12);
         Assert.Equal(0.0022, definition.BendRadius!.Value, 12);
@@ -440,7 +439,7 @@ public class EdgeFlangeAuthoringTests
 
     public static IEnumerable<object[]> UnsupportedDefinitions()
     {
-        EdgeFlangeFeatureDefinitionData Base() => ValidDefinition();
+        EdgeFlangeFeatureModel Base() => ValidDefinition();
 
         var offsetType = Base(); offsetType.OffsetType = 2;
         yield return new object[] { offsetType, "OffsetType" };
@@ -473,7 +472,7 @@ public class EdgeFlangeAuthoringTests
     [Theory]
     [MemberData(nameof(UnsupportedDefinitions))]
     public void UnsupportedFieldsAreRejectedWithoutModifyingStream(
-        EdgeFlangeFeatureDefinitionData definition, string property)
+        EdgeFlangeFeatureModel definition, string property)
     {
         using var temp = CreateStrippedBase();
         byte[] before;

@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 using Xunit;
 
@@ -50,7 +49,7 @@ public class FaceFilletAuthoringTests
     }
 
     private static void Author(
-        TempTestFile temp, FilletFeatureDefinitionData definition, string? name = null)
+        TempTestFile temp, FilletFeatureModel definition, string? name = null)
     {
         using var sw = SwFile.Open(temp.FilePath, readOnly: false);
         var part = Assert.IsType<SldPart>(sw);
@@ -58,11 +57,11 @@ public class FaceFilletAuthoringTests
         part.Save();
     }
 
-    private static FilletFeatureDefinitionData ReadFaceDefinition(string sample)
+    private static FilletFeatureModel ReadFaceDefinition(string sample)
     {
         using var file = SwFile.Open(SamplePath(sample), readOnly: true);
-        return Assert.IsType<FilletFeatureDefinitionData>(
-            Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Fillet)).Definition);
+        return Assert.IsType<FilletFeatureModel>(
+            Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Fillet)).Model);
     }
 
     [Theory]
@@ -73,7 +72,7 @@ public class FaceFilletAuthoringTests
     public void FaceFilletAuthoring_ReproducesNativeBlockAndRoundTrips(string sample, double radius)
     {
         using var temp = CreateStrippedBase(sample, out byte[] nativeBlock);
-        Author(temp, new FilletFeatureDefinitionData
+        Author(temp, new FilletFeatureModel
         {
             Type = 2,
             DefaultRadius = radius
@@ -86,8 +85,8 @@ public class FaceFilletAuthoringTests
         byte[] authoredBlock = stream.AsSpan(fillet.TagOffset).ToArray();
         Assert.Equal(nativeBlock, authoredBlock);
 
-        var definition = Assert.IsType<FilletFeatureDefinitionData>(
-            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Fillet)).Definition);
+        var definition = Assert.IsType<FilletFeatureModel>(
+            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Fillet)).Model);
         Assert.Equal(2, definition.Type);
         Assert.Equal(radius, definition.DefaultRadius!.Value, 12);
         Assert.Equal(2, definition.FaceReferences!.Count);
@@ -108,8 +107,8 @@ public class FaceFilletAuthoringTests
         Author(temp, parsed);
 
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
-        var read = Assert.IsType<FilletFeatureDefinitionData>(
-            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Fillet)).Definition);
+        var read = Assert.IsType<FilletFeatureModel>(
+            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Fillet)).Model);
         Assert.Equal(radius, read.DefaultRadius!.Value, 12);
         Assert.Equal(new uint?[] { 0x5D2u, 0x5CEu },
             read.FaceReferences!.Select(f => f.EntityId).ToArray());
@@ -120,7 +119,7 @@ public class FaceFilletAuthoringTests
     {
         using var temp = CreateStrippedBase("fillet_face_3mm", out _);
         var ex = Assert.Throws<NotSupportedException>(() => Author(
-            temp, new FilletFeatureDefinitionData { Type = 2, DefaultRadius = 0.003 }, "MyFaceFillet"));
+            temp, new FilletFeatureModel { Type = 2, DefaultRadius = 0.003 }, "MyFaceFillet"));
         Assert.Contains("FaceFillet", ex.Message);
     }
 
@@ -128,23 +127,23 @@ public class FaceFilletAuthoringTests
     public void FaceFilletAuthoring_RejectsWrongRadiusFacesTypeAndBase()
     {
         using var temp3 = CreateStrippedBase("fillet_face_3mm", out _);
-        Reject(temp3, new FilletFeatureDefinitionData { Type = 2, DefaultRadius = 0.004 });
+        Reject(temp3, new FilletFeatureModel { Type = 2, DefaultRadius = 0.004 });
 
         using var temp5 = CreateStrippedBase("fillet_face_5mm", out _);
-        Reject(temp5, new FilletFeatureDefinitionData { Type = 2, DefaultRadius = 0.003 });
-        Reject(temp5, new FilletFeatureDefinitionData { Type = 1, DefaultRadius = 0.005 });
-        Reject(temp5, new FilletFeatureDefinitionData { Type = 2, DefaultRadius = 0.005,
+        Reject(temp5, new FilletFeatureModel { Type = 2, DefaultRadius = 0.003 });
+        Reject(temp5, new FilletFeatureModel { Type = 1, DefaultRadius = 0.005 });
+        Reject(temp5, new FilletFeatureModel { Type = 2, DefaultRadius = 0.005,
             FaceReferences = new[] { Face(0x5CE), Face(0x5D2) } });
-        Reject(temp5, new FilletFeatureDefinitionData { Type = 2, DefaultRadius = 0.005,
+        Reject(temp5, new FilletFeatureModel { Type = 2, DefaultRadius = 0.005,
             FaceReferences = new[] { Face(0x5D2), Face(0x5D2) } });
-        Reject(temp5, new FilletFeatureDefinitionData { Type = 2, DefaultRadius = 0.005,
+        Reject(temp5, new FilletFeatureModel { Type = 2, DefaultRadius = 0.005,
             FaceReferences = new[] { Face(0x5D2, classWord: 0x200), Face(0x5CE) } });
-        Reject(temp5, new FilletFeatureDefinitionData { Type = 2, DefaultRadius = 0.005,
+        Reject(temp5, new FilletFeatureModel { Type = 2, DefaultRadius = 0.005,
             FaceReferences = new[] { Face(0x5D2), Face(0x5CE), Face(0x5D2) } });
-        Reject(temp5, new FilletFeatureDefinitionData { Type = 2, DefaultRadius = 0.005,
+        Reject(temp5, new FilletFeatureModel { Type = 2, DefaultRadius = 0.005,
             Edges = new[] { new FeatureReferenceData() } });
 
-        static void Reject(TempTestFile temp, FilletFeatureDefinitionData definition)
+        static void Reject(TempTestFile temp, FilletFeatureModel definition)
         {
             using var sw = SwFile.Open(temp.FilePath, readOnly: false);
             byte[] before = (byte[])sw.RawStreams[ResolvedStream].Clone();
@@ -165,7 +164,7 @@ public class FaceFilletAuthoringTests
         BitConverter.GetBytes((ushort)19).CopyTo(wrongFolder, 4);
         sw.SetPendingStream(ResolvedStream, wrongFolder);
         Assert.Throws<NotSupportedException>(() =>
-            ((SldPart)sw).AddFillet(new FilletFeatureDefinitionData { Type = 2, DefaultRadius = 0.003 }));
+            ((SldPart)sw).AddFillet(new FilletFeatureModel { Type = 2, DefaultRadius = 0.003 }));
 
         byte[] wrongMarker = (byte[])before.Clone();
         int marker = FindMarker(wrongMarker);
@@ -173,13 +172,13 @@ public class FaceFilletAuthoringTests
         BitConverter.GetBytes(0u).CopyTo(wrongMarker, marker + 4);
         sw.SetPendingStream(ResolvedStream, wrongMarker);
         Assert.Throws<NotSupportedException>(() =>
-            ((SldPart)sw).AddFillet(new FilletFeatureDefinitionData { Type = 2, DefaultRadius = 0.003 }));
+            ((SldPart)sw).AddFillet(new FilletFeatureModel { Type = 2, DefaultRadius = 0.003 }));
 
         byte[] wrongBase = (byte[])before.Clone();
         wrongBase[wrongBase.Length - 1] ^= 0xFF;
         sw.SetPendingStream(ResolvedStream, wrongBase);
         Assert.Throws<NotSupportedException>(() =>
-            ((SldPart)sw).AddFillet(new FilletFeatureDefinitionData { Type = 2, DefaultRadius = 0.003 }));
+            ((SldPart)sw).AddFillet(new FilletFeatureModel { Type = 2, DefaultRadius = 0.003 }));
     }
 
     private static FeatureReferenceData Face(

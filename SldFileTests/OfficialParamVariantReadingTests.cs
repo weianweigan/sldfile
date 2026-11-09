@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using SldFile;
@@ -43,7 +43,7 @@ public class OfficialParamVariantReadingTests
         int extrusionDirection, bool draft, bool draftOutward, bool draftFromWall,
         double draftAngle, int refSketchIndex)
     {
-        var definition = Definition<RibFeatureDefinitionData>(sample);
+        var definition = Definition<RibFeatureModel>(sample);
         Assert.Equal(thickness, definition.Thickness!.Value, 12);
         Assert.Equal(twoSided, definition.IsTwoSided);
         Assert.Equal(reverseThickness, definition.ReverseThicknessDir);
@@ -70,7 +70,7 @@ public class OfficialParamVariantReadingTests
     [InlineData("rib_reverse_material_norm_resave", true)]
     public void RibMeasuredFlipSide(string sample, bool flipSide)
     {
-        var definition = Definition<RibFeatureDefinitionData>(sample);
+        var definition = Definition<RibFeatureModel>(sample);
         Assert.Equal(1, definition.ExtrusionDirection);
         Assert.Equal(flipSide, definition.FlipSide);
         Assert.True(definition.Resolution.FlipSide);
@@ -83,7 +83,7 @@ public class OfficialParamVariantReadingTests
     [InlineData("ribmod_type1_resave")]
     public void RibType_HasNoStableScalarSlot(string sample)
     {
-        var definition = Definition<RibFeatureDefinitionData>(sample);
+        var definition = Definition<RibFeatureModel>(sample);
         Assert.Null(definition.Type);
         Assert.False(definition.Resolution.Type);
         Assert.False(definition.FlipSide);
@@ -103,7 +103,7 @@ public class OfficialParamVariantReadingTests
     public void GussetMeasuredProfileAndThickness(
         string sample, int profileType, double thickness, bool useAngle)
     {
-        var definition = Definition<GussetFeatureDefinitionData>(sample);
+        var definition = Definition<GussetFeatureModel>(sample);
         Assert.Equal(profileType, definition.ProfileType);
         Assert.Equal(thickness, definition.Thickness!.Value, 12);
         Assert.Equal(useAngle, definition.UseAngle);
@@ -124,7 +124,7 @@ public class OfficialParamVariantReadingTests
     public void SplitMeasuredConsumeAndTrimToolCount(
         string sample, bool consume, int trimToolsCount)
     {
-        var definition = Definition<SplitBodyFeatureDefinitionData>(sample);
+        var definition = Definition<SplitBodyFeatureModel>(sample);
         Assert.Equal(consume, definition.Consume);
         Assert.Equal(trimToolsCount, definition.TrimToolsCount);
         Assert.Null(definition.State);
@@ -142,7 +142,7 @@ public class OfficialParamVariantReadingTests
     [InlineData("surfacetrim_standard_tool1_resave", 0)]
     public void SurfaceTrimMeasuredType(string sample, int trimType)
     {
-        var definition = Definition<SurfaceTrimFeatureDefinitionData>(sample);
+        var definition = Definition<SurfaceTrimFeatureModel>(sample);
         Assert.Equal(trimType, definition.TrimType);
         Assert.True(definition.Resolution.TrimType);
         Assert.Null(definition.TrimTools);
@@ -155,8 +155,8 @@ public class OfficialParamVariantReadingTests
     private static T Definition<T>(string sample) where T : class, IFeatureData
     {
         using var file = SwFile.Open(Sample(sample), readOnly: true);
-        var feature = Assert.Single(file.Features.Where(f => f.Definition is T));
-        return Assert.IsType<T>(feature.Definition);
+        var feature = Assert.Single(file.Features.Where(f => f.Model is T));
+        return Assert.IsType<T>(feature.Model);
     }
 
     private static string Sample(string name) =>

@@ -1,9 +1,9 @@
+using SldFile.Mfc;
 using System;
 using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using Xunit;
 
 namespace SldFileTests;
@@ -48,7 +48,7 @@ public class TutorialSheetMetalFeatureTests
         Assert.Equal(0x144u, unfoldFolder.Header.TypeId);
         Assert.Equal(0x153u, foldFolder.Header.TypeId);
 
-        var unfold = Assert.IsType<UnFoldFeatureDefinitionData>(unfoldFolder.FeatureData);
+        var unfold = Assert.IsType<UnFoldFeatureModel>(unfoldFolder.FeatureData);
         Assert.Equal(0x144u, unfold.TypeId);
         Assert.Equal(3, unfold.BendsCount ?? -1);
         Assert.True(unfold.ParameterResolution.BendsCount);
@@ -57,7 +57,7 @@ public class TutorialSheetMetalFeatureTests
         Assert.False(unfold.ParameterResolution.FixedFace);
         Assert.False(unfold.ParameterResolution.Bends);
 
-        var fold = Assert.IsType<FoldFeatureDefinitionData>(foldFolder.FeatureData);
+        var fold = Assert.IsType<FoldFeatureModel>(foldFolder.FeatureData);
         Assert.Equal(0x153u, fold.TypeId);
         Assert.Equal(3, fold.BendsCount ?? -1);
         Assert.True(fold.ParameterResolution.BendsCount);
@@ -81,7 +81,7 @@ public class TutorialSheetMetalFeatureTests
         var folder = Assert.Single(file.ResolvedFeatures.Folders,
             f => f.ClassName == "moJog_c");
         Assert.Equal(0x159u, folder.Header.TypeId);
-        var jog = Assert.IsType<JogFeatureDefinitionData>(folder.FeatureData);
+        var jog = Assert.IsType<JogFeatureModel>(folder.FeatureData);
         Assert.Equal(0x159u, jog.TypeId);
         Assert.True(jog.ParameterResolution.BendRadius);
         Assert.True(jog.ParameterResolution.JogAngle);
@@ -134,7 +134,7 @@ public class TutorialSheetMetalFeatureTests
         badAllow[defaultAnchor + 0x18] = 0x02;
         var doc = SldFile.Mfc.MfcDocument.Parse(badAllow);
         var element = Assert.Single(doc.AllElements, e => e.ClassName == "moJog_c");
-        var jog = Assert.IsType<JogFeatureDefinitionData>(
+        var jog = Assert.IsType<JogFeatureModel>(
             SheetMetalFormingParsers.ParseJog(doc, element, badAllow.Length));
         Assert.False(jog.ParameterResolution.UseDefaultBendAllowance);
         Assert.Null(jog.UseDefaultBendAllowance);
@@ -146,7 +146,7 @@ public class TutorialSheetMetalFeatureTests
         badOffset[offsetAnchor] = 0x03;
         doc = SldFile.Mfc.MfcDocument.Parse(badOffset);
         element = Assert.Single(doc.AllElements, e => e.ClassName == "moJog_c");
-        jog = Assert.IsType<JogFeatureDefinitionData>(
+        jog = Assert.IsType<JogFeatureModel>(
             SheetMetalFormingParsers.ParseJog(doc, element, badOffset.Length));
         Assert.False(jog.ParameterResolution.OffsetType);
         Assert.False(jog.ParameterResolution.FixProjectedLength);
@@ -158,7 +158,7 @@ public class TutorialSheetMetalFeatureTests
         badPosition[jogPositionAnchor + 1] = 0x83;
         doc = SldFile.Mfc.MfcDocument.Parse(badPosition);
         element = Assert.Single(doc.AllElements, e => e.ClassName == "moJog_c");
-        jog = Assert.IsType<JogFeatureDefinitionData>(
+        jog = Assert.IsType<JogFeatureModel>(
             SheetMetalFormingParsers.ParseJog(doc, element, badPosition.Length));
         Assert.False(jog.ParameterResolution.JogPositionType);
         Assert.Null(jog.JogPositionType);
@@ -176,9 +176,9 @@ public class TutorialSheetMetalFeatureTests
         Assert.Equal(0x209u, unfoldFolder.Header.TypeId);
         Assert.Equal(0x213u, foldFolder.Header.TypeId);
 
-        var unfold = Assert.IsType<UnFoldFeatureDefinitionData>(unfoldFolder.FeatureData);
+        var unfold = Assert.IsType<UnFoldFeatureModel>(unfoldFolder.FeatureData);
         Assert.Equal(4, unfold.BendsCount ?? -1);
-        var fold = Assert.IsType<FoldFeatureDefinitionData>(foldFolder.FeatureData);
+        var fold = Assert.IsType<FoldFeatureModel>(foldFolder.FeatureData);
         Assert.Equal(4, fold.BendsCount ?? -1);
     }
 
@@ -189,7 +189,7 @@ public class TutorialSheetMetalFeatureTests
         // Complex reports null and its stream has no such path.
         using (var paper = SwFile.Open(SamplePath("Paper Airplane.SLDPRT"), readOnly: true))
         {
-            var definition = Assert.IsType<SheetMetalBaseFlangeDefinitionData>(
+            var definition = Assert.IsType<SheetMetalBaseFlangeModel>(
                 paper.ResolvedFeatures.Folders.Single(f => f.ClassName == "moSMBaseFlange_c").FeatureData);
             Assert.True(definition.ParameterResolution.BendTableFile);
             Assert.Contains("base bend table.xls", definition.BendTableFile!,
@@ -198,7 +198,7 @@ public class TutorialSheetMetalFeatureTests
 
         using (var sled = SwFile.Open(SamplePath("drive sled.sldprt"), readOnly: true))
         {
-            var definition = Assert.IsType<SheetMetalBaseFlangeDefinitionData>(
+            var definition = Assert.IsType<SheetMetalBaseFlangeModel>(
                 sled.ResolvedFeatures.Folders.Single(f => f.ClassName == "moSMBaseFlange_c").FeatureData);
             Assert.True(definition.ParameterResolution.BendTableFile);
             Assert.Contains("base bend table.xls", definition.BendTableFile!,
@@ -207,7 +207,7 @@ public class TutorialSheetMetalFeatureTests
 
         using (var complex = SwFile.Open(SamplePath("Complex Sheet Metal Part.SLDPRT"), readOnly: true))
         {
-            var definition = Assert.IsType<SheetMetalBaseFlangeDefinitionData>(
+            var definition = Assert.IsType<SheetMetalBaseFlangeModel>(
                 complex.ResolvedFeatures.Folders.Single(f => f.ClassName == "moSMBaseFlange_c").FeatureData);
             Assert.False(definition.ParameterResolution.BendTableFile);
             Assert.Null(definition.BendTableFile);
@@ -222,7 +222,7 @@ public class TutorialSheetMetalFeatureTests
             sw.Save();
 
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
-        var definition = Assert.IsType<SheetMetalBaseFlangeDefinitionData>(
+        var definition = Assert.IsType<SheetMetalBaseFlangeModel>(
             reopened.ResolvedFeatures.Folders.Single(f => f.ClassName == "moSMBaseFlange_c").FeatureData);
         Assert.True(definition.ParameterResolution.BendTableFile);
         Assert.Contains("base bend table.xls", definition.BendTableFile!,
@@ -247,9 +247,9 @@ public class TutorialSheetMetalFeatureTests
         Assert.True(hit > 0);
         raw[hit] ^= 0x01; // "Bend Tables" -> invalid marker
         var doc = SldFile.Mfc.MfcDocument.Parse(raw);
-        var model = new ResolvedFeaturesData();
-        ResolvedFeaturesSchemaMapper.Map(doc, model);
-        var definition = Assert.IsType<SheetMetalBaseFlangeDefinitionData>(
+        var model = new ResolvedFeaturesModel();
+        ResolvedFeaturesModel.Map(doc, model);
+        var definition = Assert.IsType<SheetMetalBaseFlangeModel>(
             model.Folders.Single(f => f.ClassName == "moSMBaseFlange_c").FeatureData);
         Assert.False(definition.ParameterResolution.BendTableFile);
         Assert.Null(definition.BendTableFile);
@@ -273,7 +273,7 @@ public class TutorialSheetMetalFeatureTests
         var folder = Assert.Single(file.ResolvedFeatures.Folders,
             f => f.ClassName == "moFlatPattern_c");
         Assert.Equal(typeId, folder.Header.TypeId);
-        var definition = Assert.IsType<FlatPatternFeatureDefinitionData>(folder.FeatureData);
+        var definition = Assert.IsType<FlatPatternFeatureModel>(folder.FeatureData);
         Assert.Equal(typeId, definition.TypeId);
 
         if (flagsResolved)
@@ -331,7 +331,7 @@ public class TutorialSheetMetalFeatureTests
         mutated[anchor + 0x2C] = 0;             // ShowSlit false
         var doc = SldFile.Mfc.MfcDocument.Parse(mutated);
         var element = Assert.Single(doc.AllElements, e => e.ClassName == "moFlatPattern_c");
-        var parsed = Assert.IsType<FlatPatternFeatureDefinitionData>(
+        var parsed = Assert.IsType<FlatPatternFeatureModel>(
             SheetMetalFormingParsers.ParseFlatPattern(doc, element, mutated.Length));
         Assert.False(parsed.MergeFace ?? true);
         Assert.True(parsed.CornerTreatment ?? false);
@@ -349,7 +349,7 @@ public class TutorialSheetMetalFeatureTests
         tampered[anchor + 0x32] = 0;
         doc = SldFile.Mfc.MfcDocument.Parse(tampered);
         element = Assert.Single(doc.AllElements, e => e.ClassName == "moFlatPattern_c");
-        parsed = Assert.IsType<FlatPatternFeatureDefinitionData>(
+        parsed = Assert.IsType<FlatPatternFeatureModel>(
             SheetMetalFormingParsers.ParseFlatPattern(doc, element, tampered.Length));
         Assert.Equal(0x72u, parsed.TypeId);
         Assert.False(parsed.ParameterResolution.MergeFace);

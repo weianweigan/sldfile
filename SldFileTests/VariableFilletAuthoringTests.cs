@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using SldFile;
@@ -19,9 +19,9 @@ public class VariableFilletAuthoringTests
     private static string SamplePath(string sample) =>
         Path.Combine(AppContext.BaseDirectory, "TestFiles", "Features2026", "FilletOptions", sample + ".SLDPRT");
 
-    private static VariableFilletFeatureDefinitionData Definition(double first = 0.002, double second = 0.004)
+    private static VariableFilletFeatureModel Definition(double first = 0.002, double second = 0.004)
     {
-        var definition = new VariableFilletFeatureDefinitionData();
+        var definition = new VariableFilletFeatureModel();
         definition.SetControlPointRadii(new[] { first, second });
         return definition;
     }
@@ -47,11 +47,11 @@ public class VariableFilletAuthoringTests
         return temp;
     }
 
-    private static VariableFilletFeatureDefinitionData ReadFillet(SwFile file)
+    private static VariableFilletFeatureModel ReadFillet(SwFile file)
     {
         var feature = Assert.Single(file.Features.Where(f => f.TypeName == "VarFillet_c"));
         Assert.Equal(FeatureKind.Fillet, feature.Kind);
-        return Assert.IsType<VariableFilletFeatureDefinitionData>(feature.Definition);
+        return Assert.IsType<VariableFilletFeatureModel>(feature.Model);
     }
 
     [Theory]
@@ -94,11 +94,11 @@ public class VariableFilletAuthoringTests
         var wrong = Assert.Throws<NotSupportedException>(() => part.AddVariableFillet(Definition(0.001, 0.003)));
         Assert.Contains("2/4", wrong.Message);
 
-        var one = new VariableFilletFeatureDefinitionData();
+        var one = new VariableFilletFeatureModel();
         one.SetControlPointRadii(new[] { 0.002 });
         Assert.Throws<NotSupportedException>(() => part.AddVariableFillet(one));
 
-        var three = new VariableFilletFeatureDefinitionData();
+        var three = new VariableFilletFeatureModel();
         three.SetControlPointRadii(new[] { 0.002, 0.004, 0.006 });
         Assert.Throws<NotSupportedException>(() => part.AddVariableFillet(three));
         Assert.Equal(original, part.RawStreams[ResolvedStream]);

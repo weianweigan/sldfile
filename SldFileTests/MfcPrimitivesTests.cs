@@ -5,9 +5,9 @@ namespace SldFileTests;
 
 public class MfcPrimitivesTests
 {
-    // ═══════════════════════════════════════════════════════════════
+    // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
     // IsMfcTag
-    // ═══════════════════════════════════════════════════════════════
+    // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 
     [Fact]
     public void IsMfcTag_ValidClassTag_ReturnsTrue()
@@ -47,9 +47,9 @@ public class MfcPrimitivesTests
         Assert.False(MfcPrimitives.IsMfcTag(data, 0));
     }
 
-    // ═══════════════════════════════════════════════════════════════
+    // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
     // IsEndMarker
-    // ═══════════════════════════════════════════════════════════════
+    // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 
     [Fact]
     public void IsEndMarker_ValidSentinel_ReturnsTrue()
@@ -65,9 +65,9 @@ public class MfcPrimitivesTests
         Assert.False(MfcPrimitives.IsEndMarker(data, 0));
     }
 
-    // ═══════════════════════════════════════════════════════════════
+    // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
     // IsWCharPrefix
-    // ═══════════════════════════════════════════════════════════════
+    // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 
     [Fact]
     public void IsWCharPrefix_ValidPrefix_ReturnsTrue()
@@ -83,9 +83,9 @@ public class MfcPrimitivesTests
         Assert.False(MfcPrimitives.IsWCharPrefix(data, 0));
     }
 
-    // ═══════════════════════════════════════════════════════════════
+    // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
     // ReadMfcTag
-    // ═══════════════════════════════════════════════════════════════
+    // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 
     [Fact]
     public void ReadMfcTag_ReadsClassName()
@@ -151,9 +151,9 @@ public class MfcPrimitivesTests
         Assert.Equal("moSensorFolder_cM", tag.ClassName);
     }
 
-    // ═══════════════════════════════════════════════════════════════
+    // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
     // ReadWChar
-    // ═══════════════════════════════════════════════════════════════
+    // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 
     [Fact]
     public void ReadWChar_ReadsUnicodeString()
@@ -196,9 +196,9 @@ public class MfcPrimitivesTests
         Assert.Equal(0, offset); // offset unchanged
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // Numeric Readers — Endianness
-    // ═══════════════════════════════════════════════════════════════
+    // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+    // Numeric Readers 鈥?Endianness
+    // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 
     [Fact]
     public void ReadU16_ReadsLittleEndian()
@@ -260,14 +260,14 @@ public class MfcPrimitivesTests
         Assert.Equal("00112233-4455-6677-8899-AABBCCDDEEFF", guid);
     }
 
-    // ═══════════════════════════════════════════════════════════════
+    // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
     // ScanMfcTags
-    // ═══════════════════════════════════════════════════════════════
+    // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 
     [Fact]
     public void ScanMfcTags_FindsAllTags()
     {
-        var writer = new SldFile.Binary.MfcStreamWriter();
+        var writer = new SldFile.Mfc.MfcStreamWriter();
         writer.WriteMfcTag("moHeader_c");
         writer.WriteMfcTag("suObList");
         var data = writer.ToArray();
@@ -282,7 +282,7 @@ public class MfcPrimitivesTests
     [Fact]
     public void ScanMfcTags_CorrectlyPositionsTags()
     {
-        var writer = new SldFile.Binary.MfcStreamWriter();
+        var writer = new SldFile.Mfc.MfcStreamWriter();
         writer.WriteMfcTag("moLogs_c");
         writer.WriteU16(1);
         writer.WriteU32(100);
@@ -314,7 +314,7 @@ public class MfcPrimitivesTests
     [Fact]
     public void ScanMfcTags_WithMultipleClasses_FindsAll()
     {
-        var writer = new SldFile.Binary.MfcStreamWriter();
+        var writer = new SldFile.Mfc.MfcStreamWriter();
         writer.WriteMfcTag("moSensorFolder_ct");
         writer.WriteBytes(new byte[] { 0xFF, 0xFE, 0xFF, 0x05, 0x48, 0x00, 0x65, 0x00, 0x6C, 0x00, 0x6C, 0x00, 0x6F, 0x00 });
         writer.WriteBytes(new byte[90]);
@@ -347,7 +347,7 @@ public class MfcPrimitivesTests
     [Fact]
     public void ScanMfcTags_SkipsEndMarkers()
     {
-        var writer = new SldFile.Binary.MfcStreamWriter();
+        var writer = new SldFile.Mfc.MfcStreamWriter();
         writer.WriteMfcTag("moHeader_c");
         // End marker: FF FF 00 00 00 00
         writer.WriteBytes(new byte[] { 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00 });
@@ -359,9 +359,9 @@ public class MfcPrimitivesTests
         Assert.Equal("moHeader_c", tags[0].ClassName);
     }
 
-    // ═══════════════════════════════════════════════════════════════
+    // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
     // ClassifyStreamType
-    // ═══════════════════════════════════════════════════════════════
+    // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 
     [Fact]
     public void ClassifyStreamType_Part_ReturnsCorrectString()
@@ -386,9 +386,9 @@ public class MfcPrimitivesTests
         Assert.Equal("Unknown", result);
     }
 
-    // ═══════════════════════════════════════════════════════════════
+    // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
     // OleDate conversion
-    // ═══════════════════════════════════════════════════════════════
+    // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 
     [Fact]
     public void OleDateToDateTime_DefaultTimestamp_IsEpoch()

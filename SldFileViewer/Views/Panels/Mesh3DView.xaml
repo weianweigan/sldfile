@@ -257,6 +257,16 @@
                             <TextBlock Text="导出 Parasolid (.x_b)" FontSize="11"/>
                         </StackPanel>
                     </Button>
+                    <Button Command="{Binding ExportStepCommand}"
+                            Style="{StaticResource Style.Button.Secondary}"
+                            Padding="12,4"
+                            Margin="6,0,0,0"
+                            ToolTip="导出为高精度 STEP AP214 (*.step) 标准 CAD 交换模型">
+                        <StackPanel Orientation="Horizontal">
+                            <iconPacks:PackIconMaterial Kind="CubeOutline" Foreground="{StaticResource Brush.Accent.Orange}" Width="12" Height="12" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="导出 STEP (.step)" FontSize="11" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
             </DockPanel>
         </Border>

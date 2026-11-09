@@ -31,7 +31,7 @@
         <InternalsVisibleTo Include="SldFile.Tests.Integration" />
         <InternalsVisibleTo Include="FeatureLab" />
     </ItemGroup>
-
+	
     <ItemGroup>
         <None Include="..\Assets\sldfile-128x.png">
             <Pack>True</Pack>

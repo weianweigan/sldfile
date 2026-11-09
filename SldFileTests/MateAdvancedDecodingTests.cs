@@ -169,8 +169,8 @@ public class MateAdvancedDecodingTests
         int headerStart = cursor + 2;
         stream[headerStart + 161] = 1; // non-Closest mode is not controlled
 
-        var model = new MatesListData();
-        MatesListSchemaMapper.Map(stream, model);
+        var model = new MatesListModel();
+        MfcArchive.DeserializeInto(stream, model);
         var info = new AssemblyMateInfo(Assert.Single(model.Mates));
         Assert.Equal(AssemblyMateType.Unknown, info.MateType);
         Assert.Null(info.MateTypeId);
@@ -187,8 +187,8 @@ public class MateAdvancedDecodingTests
         Assert.True(d2 > 0);
         BitConverter.GetBytes(0.0).CopyTo(stream, d2 + 32);
 
-        var model = new MatesListData();
-        MatesListSchemaMapper.Map(stream, model);
+        var model = new MatesListModel();
+        MfcArchive.DeserializeInto(stream, model);
         var mate = new AssemblyMateInfo(Assert.Single(model.Mates));
         Assert.Equal(AssemblyMateType.Gear, mate.MateType);
         Assert.Equal(1.0, mate.GearRatioNumerator!.Value, 12);
@@ -200,8 +200,8 @@ public class MateAdvancedDecodingTests
     {
         byte[] stream = ReadMatesStream("screw_5mm");
         byte[] before = (byte[])stream.Clone();
-        var model = new MatesListData();
-        MatesListSchemaMapper.Map(stream, model);
+        var model = new MatesListModel();
+        MfcArchive.DeserializeInto(stream, model);
         Assert.Single(model.Mates);
         Assert.Equal(before, stream);
     }

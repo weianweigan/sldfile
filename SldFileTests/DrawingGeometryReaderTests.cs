@@ -151,12 +151,7 @@ public class DrawingGeometryReaderTests
     [Fact]
     public void ReadSheetGeometryAndViews_WithRealUserDrawing_ExtractsCadLinesAndViewsAccurately()
     {
-        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
-        if (!File.Exists(realPath))
-        {
-            _output.WriteLine("Real file not found, skipping.");
-            return;
-        }
+        string realPath = TestFileProvider.Resolve(Path.Combine("Drawings", "D8001507933"), "D8001507933.SLDDRW");
 
         using var swFile = SwFile.Open(realPath, readOnly: true);
         _output.WriteLine("=== ALL RAW STREAMS IN FILE ===");

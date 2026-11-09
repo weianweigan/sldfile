@@ -3,11 +3,13 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="700">
 
     <Grid Background="{StaticResource Brush.Figma.Canvas}">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
@@ -79,8 +81,27 @@
             </DockPanel>
         </Border>
 
+        <!-- Precomputed Mass Properties & Physical Info Card (Feature 6) -->
+        <Border Grid.Row="1"
+                Visibility="{Binding HasMassProperties, Converter={StaticResource BoolToVisibilityConverter}}"
+                Background="{StaticResource Brush.Figma.BlockCream}"
+                BorderBrush="{StaticResource Brush.Figma.Hairline}"
+                BorderThickness="0,0,0,1"
+                Padding="16,8">
+            <DockPanel LastChildFill="True">
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Margin="0,0,12,0" VerticalAlignment="Center">
+                    <iconPacks:PackIconMaterial Kind="WeightKilogram" Foreground="{StaticResource Brush.Accent.Orange}" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                    <TextBlock Text="预计算质量属性 (Mass Properties):" FontWeight="Bold" FontSize="11" Foreground="{StaticResource Brush.Figma.Ink}" VerticalAlignment="Center"/>
+                </StackPanel>
+                <TextBlock Text="{Binding MassPropertiesSummary}"
+                           FontFamily="Consolas, Cascadia Code, Segoe UI"
+                           FontSize="11" Foreground="{StaticResource Brush.Figma.Ink}"
+                           VerticalAlignment="Center" LineHeight="16"/>
+            </DockPanel>
+        </Border>
+
         <!-- Properties DataGrid -->
-        <DataGrid Grid.Row="1"
+        <DataGrid Grid.Row="2"
                   ItemsSource="{Binding FilteredProperties}"
                   Margin="0">
             <DataGrid.Columns>

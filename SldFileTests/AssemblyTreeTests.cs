@@ -9,6 +9,27 @@ namespace SldFileTests;
 public class AssemblyTreeTests
 {
     [Fact]
+    public void StitchAssembly_WithMissingLeaf_DoesNotReturnPartialMesh()
+    {
+        using var file = SwFile.Open(TestFileProvider.Assembly);
+        var xml = System.Xml.Linq.XDocument.Parse(file.CompInstanceTreeXml!);
+        var records = xml.Descendants().Where(e => e.Name.LocalName == "swFile").ToList();
+        foreach (var record in records)
+        {
+            var path = record.Attribute("swPath");
+            if (path == null) continue;
+            if (path.Value.EndsWith("cube.SLDPRT", System.StringComparison.OrdinalIgnoreCase))
+                path.Value = TestFileProvider.CubePart;
+            else if (path.Value.EndsWith("cylinder.SLDPRT", System.StringComparison.OrdinalIgnoreCase))
+                path.Value = Path.Combine(Path.GetTempPath(), System.Guid.NewGuid() + ".SLDPRT");
+        }
+        file.CompInstanceTreeXml = xml.ToString();
+        Assert.Contains(file.GetAssemblyTree(), c => File.Exists(c.FilePath));
+        Assert.Contains(file.GetAssemblyTree(), c => !File.Exists(c.FilePath));
+        Assert.Null(file.StitchAssemblyMeshFromComponents());
+    }
+
+    [Fact]
     public void Assembly_2012_GetAssemblyTree_ParsesComponents()
     {
         using var file = SwFile.Open(TestFileProvider.Assembly, readOnly: true);

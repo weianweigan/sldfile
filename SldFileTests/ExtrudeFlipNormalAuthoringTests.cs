@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using SldFile;
@@ -43,7 +43,7 @@ public class ExtrudeFlipNormalAuthoringTests
         return temp;
     }
 
-    private static ExtrudeFeatureDefinitionData Flip() => new()
+    private static ExtrudeFeatureModel Flip() => new()
     {
         IsCut = true,
         FlipSideToCut = true,
@@ -52,7 +52,7 @@ public class ExtrudeFlipNormalAuthoringTests
         Merge = true
     };
 
-    private static ExtrudeFeatureDefinitionData Normal() => new()
+    private static ExtrudeFeatureModel Normal() => new()
     {
         IsCut = true,
         NormalCut = true,
@@ -61,11 +61,11 @@ public class ExtrudeFlipNormalAuthoringTests
         Merge = true
     };
 
-    private static ExtrudeFeatureDefinitionData ReadCut(SwFile file)
+    private static ExtrudeFeatureModel ReadCut(SwFile file)
     {
         var feature = Assert.Single(file.Features.Where(f => f.TypeName == "moICE_c"
-            && f.Definition is ExtrudeFeatureDefinitionData));
-        return Assert.IsType<ExtrudeFeatureDefinitionData>(feature.Definition);
+            && f.Model is ExtrudeFeatureModel));
+        return Assert.IsType<ExtrudeFeatureModel>(feature.Model);
     }
 
     [Theory]
@@ -79,8 +79,8 @@ public class ExtrudeFlipNormalAuthoringTests
         var definition = ReadCut(file);
         Assert.Equal(flip, definition.FlipSideToCut);
         Assert.Equal(normal, definition.NormalCut);
-        if (flip) Assert.True(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.FlipSideToCut)));
-        if (normal) Assert.True(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.NormalCut)));
+        if (flip) Assert.True(definition.IsResolved(nameof(ExtrudeFeatureModel.FlipSideToCut)));
+        if (normal) Assert.True(definition.IsResolved(nameof(ExtrudeFeatureModel.NormalCut)));
     }
 
     [Theory]

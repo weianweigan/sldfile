@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using Xunit;
 using SldFile;
-using SldFile.Sketches;
+using SldFile.Mfc;
 using SldFile.Tests.Integration.Framework;
 using SolidWorks.Interop.sldworks;
 
@@ -89,7 +89,7 @@ public class SketchIntegrationTests
     public void ProgrammaticSketchAuthoring_BuildsCompleteValidGraph()
     {
         // Standalone authoring test (runs in any environment without CAD startup)
-        var sketch = new SketchFeature("AuthoredSketch");
+        var sketch = new SketchFeatureModel("AuthoredSketch");
 
         var p1 = sketch.AddPoint(0, 0);
         var p2 = sketch.AddPoint(0.1, 0);

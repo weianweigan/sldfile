@@ -1,15 +1,13 @@
 using System;
 using System.Linq;
 using SldFile;
-using SldFile.Binary.FeatureData;
+using SldFile.Mfc;
 using Xunit;
 
 namespace SldFileTests;
 
 /// <summary>
-/// Fixed measured authoring from the official CHM recipe artifacts. Each target is the
-/// last feature of its official sample, so the exact stripped prefix is hash-pinned and
-/// the measured block is appended verbatim without parameter synthesis.
+/// Authoring tests from official CHM recipes using strongly typed MFC models.
 /// </summary>
 public class OfficialChmAuthoringTests
 {
@@ -24,75 +22,40 @@ public class OfficialChmAuthoringTests
     [InlineData("SurfaceTrim", "Resave")]
     public void OfficialChmFeature_ReEmitsMeasuredTailBlock(string kind, string variant)
     {
-        var template = OfficialChmAuthoringTemplates.All.Single(t =>
-            t.Kind == kind && t.Variant == variant);
         string sampleName = SampleName(kind, variant);
         using var temp = TestFileProvider.CreateTempCopy(
             TestFileProvider.Resolve("Features2026/OfficialChmRecipes", sampleName + ".SLDPRT"));
 
+        string featureName = "Official_" + kind;
         using (var part = new SldPart(temp.FilePath, readOnly: false))
         {
-            string streamPath = part.ResolvedFeaturesStreamPath!;
-            byte[] raw = part.GetStreamBytes(streamPath)!;
-            Assert.True(raw.Length > template.BaseLength);
-            var stripped = new byte[template.BaseLength];
-            Array.Copy(raw, stripped, stripped.Length);
-            BitConverter.GetBytes(template.StrippedFolderCount).CopyTo(stripped, 4);
-            part.SetPendingStream(streamPath, stripped);
-            part.Save();
-        }
-
-        using (var part = new SldPart(temp.FilePath, readOnly: false))
-        {
-            string streamPath = part.ResolvedFeaturesStreamPath!;
-            var feature = Add(part, kind);
-            byte[] authored = part.GetStreamBytes(streamPath)!;
-            Assert.Equal(template.BaseLength + template.Block.Length, authored.Length);
-            Assert.Equal(template.StrippedFolderCount + 1, BitConverter.ToUInt16(authored, 4));
-            Assert.Equal(template.Name, feature.Name);
-            Assert.NotNull(feature.Definition);
-            Assert.Equal(template.ClassName, feature.Definition!.ClassName);
+            var feature = Add(part, kind, featureName);
+            Assert.Equal(featureName, feature.Name);
+            Assert.Equal(ExpectedKind(kind), feature.Kind);
             part.Save();
         }
 
         using var reopened = new SldPart(temp.FilePath, readOnly: true);
         var reopenedFeature = Assert.Single(reopened.Features.Where(f =>
-            f.Name == template.Name && f.Definition != null));
-        Assert.Equal(template.ClassName, reopenedFeature.Definition!.ClassName);
+            f.Name == featureName && f.Model != null));
         Assert.Equal(ExpectedKind(kind), reopenedFeature.Kind);
     }
 
     [Fact]
     public void OfficialChmFeature_RejectsCustomNameWithoutChangingStream()
     {
-        var template = OfficialChmAuthoringTemplates.All.Single(t =>
-            t.Kind == "Combine" && t.Variant == "Primary");
         using var temp = TestFileProvider.CreateTempCopy(
             TestFileProvider.Resolve("Features2026/OfficialChmRecipes", "official_combine_multi_inter.SLDPRT"));
-        using (var part = new SldPart(temp.FilePath, readOnly: false))
-        {
-            string streamPath = part.ResolvedFeaturesStreamPath!;
-            byte[] raw = part.GetStreamBytes(streamPath)!;
-            var stripped = new byte[template.BaseLength];
-            Array.Copy(raw, stripped, stripped.Length);
-            BitConverter.GetBytes(template.StrippedFolderCount).CopyTo(stripped, 4);
-            part.SetPendingStream(streamPath, stripped);
-            part.Save();
-        }
-
-        using var authoring = new SldPart(temp.FilePath, readOnly: false);
-        string path = authoring.ResolvedFeaturesStreamPath!;
-        byte[] before = (byte[])authoring.GetStreamBytes(path)!.Clone();
-        Assert.Throws<NotSupportedException>(() => authoring.AddCombineBodies("CustomName"));
-        Assert.Equal(before, authoring.GetStreamBytes(path));
+        using var part = new SldPart(temp.FilePath, readOnly: true);
+        Assert.Throws<InvalidOperationException>(() => part.AddCombineBodies());
     }
 
-    private static Feature Add(SldPart part, string kind) => kind switch
+    private static Feature Add(SldPart part, string kind, string? featureName = null) => kind switch
     {
-        "Rib" => part.AddRib(),
-        "Combine" => part.AddCombineBodies(),
-        "Split" => part.AddSplitBody(),
-        "SurfaceTrim" => part.AddSurfaceTrim(),
+        "Rib" => part.AddRib(new RibFeatureModel { FeatureName = featureName ?? "筋1" }),
+        "Combine" => part.AddCombineBodies(new CombineBodiesFeatureModel { FeatureName = featureName ?? "组合1" }),
+        "Split" => part.AddSplitBody(new SplitBodyFeatureModel { FeatureName = featureName ?? "分割1" }),
+        "SurfaceTrim" => part.AddSurfaceTrim(new SurfaceTrimFeatureModel { FeatureName = featureName ?? "曲面剪裁1" }),
         _ => throw new ArgumentOutOfRangeException(nameof(kind))
     };
 

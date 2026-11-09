@@ -3,13 +3,13 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using SldFile;
 using SldFile.Assembly;
-using SldFile.Drawing;
-using SldFile.Sketches;
+using SldFile.Mfc;
 using SldFileViewer.Models;
 
 namespace SldFileViewer.Services;
@@ -18,6 +18,8 @@ public sealed class SwDocumentService : ISwDocumentService
 {
     private SwFile? _currentFile;
     private string? _currentFilePath;
+    private readonly Dictionary<AssemblyComponentNode, Matrix4x4> _componentTransforms = new();
+    private readonly Dictionary<string, IReadOnlyList<AssemblyComponentNode>> _componentTrees = new(StringComparer.OrdinalIgnoreCase);
 
     public SwFile? CurrentFile => _currentFile;
     public string? CurrentFilePath => _currentFilePath;
@@ -50,6 +52,8 @@ public sealed class SwDocumentService : ISwDocumentService
 
     public void Close()
     {
+        _componentTransforms.Clear();
+        _componentTrees.Clear();
         if (_currentFile != null)
         {
             _currentFile.Dispose();
@@ -68,16 +72,16 @@ public sealed class SwDocumentService : ISwDocumentService
         return _currentFile?.Features ?? Array.Empty<Feature>();
     }
 
-    public IReadOnlyList<SketchFeature> GetSketches(int configIndex = 0)
+    public IReadOnlyList<SketchFeatureModel> GetSketches(int configIndex = 0)
     {
-        if (_currentFile == null) return Array.Empty<SketchFeature>();
+        if (_currentFile == null) return Array.Empty<SketchFeatureModel>();
         try
         {
             return _currentFile.GetSketches(configIndex);
         }
         catch
         {
-            return Array.Empty<SketchFeature>();
+            return Array.Empty<SketchFeatureModel>();
         }
     }
 
@@ -101,7 +105,63 @@ public sealed class SwDocumentService : ISwDocumentService
     public IReadOnlyList<AssemblyComponentNode> GetAssemblyTree(string? configName = null)
     {
         if (_currentFile == null) return Array.Empty<AssemblyComponentNode>();
-        return _currentFile.GetAssemblyTree(configName);
+        string key = configName ?? string.Empty;
+        if (_componentTrees.TryGetValue(key, out var cached)) return cached;
+        var tree = _currentFile.GetAssemblyTree(configName);
+        void Register(IReadOnlyList<AssemblyComponentNode> nodes)
+        {
+            foreach (var node in nodes)
+            {
+                // AssemblyTreeReader already accumulates transforms into world space.
+                _componentTransforms[node] = node.Transform;
+                Register(node.Children);
+            }
+        }
+        Register(tree);
+        _componentTrees[key] = tree;
+        return tree;
+    }
+
+    public DisplayMesh? GetComponentDisplayMesh(AssemblyComponentNode component)
+    {
+        if (_currentFilePath == null || component.IsSuppressed || component.IsHidden ||
+            component.IsVirtual || !_componentTransforms.TryGetValue(component, out var transform))
+            return null;
+
+        // Prefer the file shipped alongside a relocated assembly over its stored absolute path.
+        var sibling = Path.Combine(Path.GetDirectoryName(_currentFilePath)!, Path.GetFileName(component.FilePath));
+        var path = File.Exists(sibling) ? sibling : component.FilePath;
+        if (!File.Exists(path)) return null;
+        try
+        {
+            using var document = SwFile.Open(path, readOnly: true);
+            // DisplayLists exposes only the saved display configuration. Never substitute a different one.
+            var active = document.Configurations.FirstOrDefault(c => c.Index == document.ActiveConfigurationIndex);
+            if (!string.IsNullOrEmpty(component.ConfigurationName) &&
+                !string.Equals(active?.Name, component.ConfigurationName, StringComparison.OrdinalIgnoreCase))
+                return null;
+            var mesh = document.GetDisplayMesh();
+            if (mesh == null || mesh.VertexCount == 0) return null;
+
+            transform.M41 *= 1000f;
+            transform.M42 *= 1000f;
+            transform.M43 *= 1000f;
+            var positions = mesh.Positions.Select(p => Vector3.Transform(p, transform)).ToArray();
+            if (positions.Any(p => !float.IsFinite(p.X) || !float.IsFinite(p.Y) || !float.IsFinite(p.Z)))
+                return null;
+            return new DisplayMesh
+            {
+                Positions = positions,
+                TriangleIndices = mesh.TriangleIndices,
+                Min = positions.Aggregate(Vector3.Min),
+                Max = positions.Aggregate(Vector3.Max)
+            };
+        }
+        catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is InvalidDataException)
+        {
+            // Missing or unreadable references must not produce guessed highlights or camera bounds.
+            return null;
+        }
     }
 
     public IReadOnlyList<BomItem> GetBom(string? configName = null)

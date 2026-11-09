@@ -6,7 +6,7 @@ using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Sketches;
+using SldFile.Mfc;
 using SldFileViewer.Models;
 using SldFileViewer.Services;
 
@@ -187,7 +187,7 @@ public void RequestComponentAction(AssemblyComponentNode comp, ComponentTreeActi
                 sub = f.Dimensions.Count > 0 ? $"{f.Name} ({f.Dimensions[0].Name}={f.Dimensions[0].Value})" : f.Name;
             }
 
-            if (f.Definition != null)
+            if (f.Model != null)
             {
                 sub = $"{sub} · FeatureData 已解析";
             }
@@ -238,7 +238,7 @@ public void RequestComponentAction(AssemblyComponentNode comp, ComponentTreeActi
             // Match the FeatureDetailViewModel classification so the tree badge and the
             // detail panel always agree: parsed definition vs. registered parser vs. none.
             total++;
-            if (feature.Definition != null)
+            if (feature.Model != null)
             {
                 resolved++;
             }
@@ -371,12 +371,13 @@ public void RequestComponentAction(AssemblyComponentNode comp, ComponentTreeActi
         }
     }
 
-    private static Dictionary<string, SketchFeature> CreateSketchDictionary(IReadOnlyList<SketchFeature> sketches)
+    private static Dictionary<string, SketchFeatureModel> CreateSketchDictionary(IReadOnlyList<SketchFeatureModel> sketches)
     {
-        var dict = new Dictionary<string, SketchFeature>(StringComparer.OrdinalIgnoreCase);
+        var dict = new Dictionary<string, SketchFeatureModel>(StringComparer.OrdinalIgnoreCase);
         foreach (var sk in sketches)
         {
-            if (!string.IsNullOrEmpty(sk.Name))
+            if (!string.IsNullOrEmpty(sk.Name) &&
+                (!dict.TryGetValue(sk.Name, out var existing) || (existing.Segments.Count == 0 && sk.Segments.Count > 0)))
             {
                 dict[sk.Name] = sk;
             }

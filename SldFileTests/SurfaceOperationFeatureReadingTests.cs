@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 
 namespace SldFileTests;
@@ -21,7 +20,7 @@ public class SurfaceOperationFeatureReadingTests
     [InlineData("surf_knit_two_resave")]
     public void KnitSample_DecodesBodyReference(string name)
     {
-        var definition = Assert.IsType<SurfaceKnitFeatureDefinitionData>(ReadDefinition(name, "曲面-缝合2"));
+        var definition = Assert.IsType<SurfaceKnitFeatureModel>(ReadDefinition(name, "曲面-缝合2"));
         Assert.Equal("moSewRefSurface_c", definition.ClassName);
         Assert.Equal(0x4Eu, definition.SerializedTypeId);
         var entity = Assert.Single(definition.Entities!);
@@ -41,7 +40,7 @@ public class SurfaceOperationFeatureReadingTests
     [InlineData("surf_extend_5mm_resave")]
     public void ExtendSample_DecodesEdgeItem(string name)
     {
-        var definition = Assert.IsType<SurfaceExtendFeatureDefinitionData>(ReadDefinition(name, "曲面-延伸1"));
+        var definition = Assert.IsType<SurfaceExtendFeatureModel>(ReadDefinition(name, "曲面-延伸1"));
         Assert.Equal("moExtendRefSurface_c", definition.ClassName);
         Assert.Equal(0x54u, definition.SerializedTypeId);
         var item = Assert.Single(definition.Items!);
@@ -57,7 +56,7 @@ public class SurfaceOperationFeatureReadingTests
     [InlineData("surf_offset_5mm_resave")]
     public void OffsetSample_DecodesBodyReference(string name)
     {
-        var definition = Assert.IsType<SurfaceOffsetFeatureDefinitionData>(ReadDefinition(name, "曲面-等距1"));
+        var definition = Assert.IsType<SurfaceOffsetFeatureModel>(ReadDefinition(name, "曲面-等距1"));
         Assert.Equal("moOffsetRefSurface_c", definition.ClassName);
         Assert.Equal(0x51u, definition.SerializedTypeId);
         var entity = Assert.Single(definition.Entities!);
@@ -77,7 +76,7 @@ public class SurfaceOperationFeatureReadingTests
     [InlineData("surf_fill_region_resave")]
     public void FillSample_DecodesClassTypeAndResolutionControl(string name)
     {
-        var definition = Assert.IsType<FillSurfaceFeatureDefinitionData>(ReadDefinition(name, "曲面填充1"));
+        var definition = Assert.IsType<FillSurfaceFeatureModel>(ReadDefinition(name, "曲面填充1"));
         Assert.Equal("moFillRefSurface_c", definition.ClassName);
         Assert.Equal(0x4Au, definition.SerializedTypeId);
         Assert.Null(definition.Merge);
@@ -100,7 +99,7 @@ public class SurfaceOperationFeatureReadingTests
         var definition = ReadDefinition(name, kind == "Knit" ? "曲面-缝合2" : "曲面-等距1");
         if (kind == "Knit")
         {
-            var knit = Assert.IsType<SurfaceKnitFeatureDefinitionData>(definition);
+            var knit = Assert.IsType<SurfaceKnitFeatureModel>(definition);
             var reference = Assert.Single(knit.StitchReferences!);
             Assert.Equal(SelectionEntityType.Body, reference.EntityType);
             Assert.True(reference.EntityId > 0);
@@ -108,7 +107,7 @@ public class SurfaceOperationFeatureReadingTests
         }
         else
         {
-            var offset = Assert.IsType<SurfaceOffsetFeatureDefinitionData>(definition);
+            var offset = Assert.IsType<SurfaceOffsetFeatureModel>(definition);
             var reference = Assert.Single(offset.BodyReferences!);
             Assert.Equal(SelectionEntityType.Body, reference.EntityType);
             Assert.True(reference.EntityId > 0);
@@ -130,7 +129,7 @@ public class SurfaceOperationFeatureReadingTests
     public void FillVariants_DecodeResolutionControlFromSingleVariableVariant(
         string name, int resolutionControl)
     {
-        var definition = Assert.IsType<FillSurfaceFeatureDefinitionData>(
+        var definition = Assert.IsType<FillSurfaceFeatureModel>(
             ReadDefinition(name, "曲面填充1"));
         Assert.Equal("moFillRefSurface_c", definition.ClassName);
         Assert.Equal(0x4Au, definition.SerializedTypeId);
@@ -162,8 +161,8 @@ public class SurfaceOperationFeatureReadingTests
     public void SurfaceOperationParsers_RejectUnknownLayout(string className, ushort version)
     {
         byte[] stream = BuildStream(className, version);
-        var model = new ResolvedFeaturesData();
-        ResolvedFeaturesSchemaMapper.Map(MfcDocument.Parse(stream), model);
+        var model = new ResolvedFeaturesModel();
+        ResolvedFeaturesModel.Map(MfcDocument.Parse(stream), model);
         var folder = Assert.Single(model.Folders);
         Assert.Equal(className, folder.ClassName);
         Assert.Null(folder.FeatureData);
@@ -176,7 +175,7 @@ public class SurfaceOperationFeatureReadingTests
         var stream = file.RawStreams.First(k => k.Key.EndsWith("-ResolvedFeatures")).Value;
         byte[] before = (byte[])stream.Clone();
         var element = MfcDocument.Parse(stream).AllElements.First(e => e.ClassName == "moSewRefSurface_c");
-        Assert.NotNull(SurfaceOperationFeatureParsers.ParseKnit(element));
+        Assert.NotNull(SurfaceKnitFeatureModel.Parse(element));
         Assert.Equal(before, stream);
     }
 
@@ -184,7 +183,7 @@ public class SurfaceOperationFeatureReadingTests
     {
         using var file = SwFile.Open(Resolve(name), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f => f.Name == featureName));
-        return feature.Definition!;
+        return feature.Model!;
     }
 
     private static string Resolve(string name) =>

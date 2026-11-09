@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -40,11 +40,11 @@ public class SheetMetalOptionReadingTests
         throw new FileNotFoundException($"SheetMetalOptions/{name} not found");
     }
 
-    private static (SheetMetalBaseFlangeDefinitionData Definition, byte[] Raw, IReadOnlyList<FeatureFolder> Folders) Load(string name)
+    private static (SheetMetalBaseFlangeModel Definition, byte[] Raw, IReadOnlyList<FeatureFolder> Folders) Load(string name)
     {
         using var file = SwFile.Open(Sample(name), readOnly: true);
         var folders = file.ResolvedFeatures.Folders;
-        var definition = Assert.IsType<SheetMetalBaseFlangeDefinitionData>(
+        var definition = Assert.IsType<SheetMetalBaseFlangeModel>(
             folders.Single(f => f.ClassName == "moSMBaseFlange_c").FeatureData);
         return (definition, (byte[])file.RawStreams[StreamPath].Clone(), folders);
     }

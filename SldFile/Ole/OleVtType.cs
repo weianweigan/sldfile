@@ -1,4 +1,4 @@
-namespace SldFile.Ole;
+﻿namespace SldFile.Ole;
 
 /// <summary>
 /// OLE Variant types used in property set streams.

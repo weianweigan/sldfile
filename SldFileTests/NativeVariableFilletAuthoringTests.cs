@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 using Xunit;
 
@@ -47,9 +46,9 @@ public class NativeVariableFilletAuthoringTests
         return temp;
     }
 
-    private static VariableFilletFeatureDefinitionData Definition(double radius0, double radius1)
+    private static VariableFilletFeatureModel Definition(double radius0, double radius1)
     {
-        var d = new VariableFilletFeatureDefinitionData();
+        var d = new VariableFilletFeatureModel();
         d.SetControlPointRadii(new[] { radius0, radius1 });
         return d;
     }
@@ -79,10 +78,10 @@ public class NativeVariableFilletAuthoringTests
         var featureElement = Assert.Single(doc.AllElements.Where(e => e.ClassName == "VarFillet_c"));
         Assert.Equal(nativeBlock, stream.AsSpan(featureElement.TagOffset).ToArray());
 
-        var definition = Assert.IsType<VariableFilletFeatureDefinitionData>(
-            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Fillet)).Definition);
+        var definition = Assert.IsType<VariableFilletFeatureModel>(
+            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Fillet)).Model);
         Assert.Equal(new[] { radius0, radius1 }, definition.ControlPointRadii!.ToArray());
-        Assert.True(definition.IsResolved(nameof(VariableFilletFeatureDefinitionData.ControlPointRadii)));
+        Assert.True(definition.IsResolved(nameof(VariableFilletFeatureModel.ControlPointRadii)));
     }
 
     [Theory]
@@ -96,11 +95,11 @@ public class NativeVariableFilletAuthoringTests
         string sample, double radius0, double radius1)
     {
         using var file = SwFile.Open(SamplePath(sample), readOnly: true);
-        var definition = Assert.IsType<VariableFilletFeatureDefinitionData>(
-            Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Fillet)).Definition);
+        var definition = Assert.IsType<VariableFilletFeatureModel>(
+            Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Fillet)).Model);
         Assert.Equal(new[] { radius0, radius1 }, definition.ControlPointRadii!.ToArray());
         Assert.Equal(2, definition.ControlPointCount);
-        Assert.True(definition.IsResolved(nameof(VariableFilletFeatureDefinitionData.ControlPointRadii)));
+        Assert.True(definition.IsResolved(nameof(VariableFilletFeatureModel.ControlPointRadii)));
     }
 
     [Fact]
@@ -117,7 +116,7 @@ public class NativeVariableFilletAuthoringTests
         Assert.Throws<NotSupportedException>(() =>
             part.AddVariableFillet(Definition(0.001, 0.003), "Custom"));
         Assert.Throws<NotSupportedException>(() => part.AddVariableFillet(
-            new VariableFilletFeatureDefinitionData { DefaultRadius = 0.002 }));
+            new VariableFilletFeatureModel { DefaultRadius = 0.002 }));
         Assert.Equal(before, part.RawStreams[ResolvedStream]);
     }
 

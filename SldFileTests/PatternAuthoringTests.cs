@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 using Xunit;
 
@@ -60,8 +59,8 @@ public class PatternAuthoringTests
         return MfcPrimitives.CopyRange(doc.SourceData, start, start + expectedLength);
     }
 
-    private static LinearPatternFeatureDefinitionData AuthorAndParseLinear(
-        LinearPatternFeatureDefinitionData definition, out byte[] stream, out string featureName)
+    private static LinearPatternFeatureModel AuthorAndParseLinear(
+        LinearPatternFeatureModel definition, out byte[] stream, out string featureName)
     {
         using var temp = CreateStrippedPatternBase("lpattern_2dir_2x3_10_15");
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
@@ -82,8 +81,8 @@ public class PatternAuthoringTests
         return parsed!;
     }
 
-    private static CircularPatternFeatureDefinitionData AuthorAndParseCircular(
-        CircularPatternFeatureDefinitionData definition, out byte[] stream, out string featureName)
+    private static CircularPatternFeatureModel AuthorAndParseCircular(
+        CircularPatternFeatureModel definition, out byte[] stream, out string featureName)
     {
         using var temp = CreateStrippedPatternBase("cirpattern_4x90");
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
@@ -107,7 +106,7 @@ public class PatternAuthoringTests
     [Fact]
     public void LinearPatternAuthoring_RoundtripsCountsAndSpacings()
     {
-        var read = AuthorAndParseLinear(new LinearPatternFeatureDefinitionData
+        var read = AuthorAndParseLinear(new LinearPatternFeatureModel
         {
             D1TotalInstances = 2,
             D1Spacing = 0.010,
@@ -122,7 +121,7 @@ public class PatternAuthoringTests
         Assert.Equal(1, read.D1AxisType);
         Assert.Equal(1, read.D2AxisType);
         Assert.True(read.IsDirection2Specified());
-        Assert.True(read.IsResolved(nameof(LinearPatternFeatureDefinitionData.D1Spacing)));
+        Assert.True(read.IsResolved(nameof(LinearPatternFeatureModel.D1Spacing)));
         Assert.Null(read.GeometryPattern);
         Assert.Null(read.PatternFeatureArray);
         Assert.Equal("线性阵列1", featureName);
@@ -131,7 +130,7 @@ public class PatternAuthoringTests
     [Fact]
     public void CircularPatternAuthoring_RoundtripsCountAndSpacing()
     {
-        var read = AuthorAndParseCircular(new CircularPatternFeatureDefinitionData
+        var read = AuthorAndParseCircular(new CircularPatternFeatureModel
         {
             TotalInstances = 4,
             Spacing = Math.PI / 2.0
@@ -141,7 +140,7 @@ public class PatternAuthoringTests
         Assert.Equal(Math.PI / 2.0, read.Spacing!.Value, 12);
         Assert.True(read.EqualSpacing);
         Assert.Equal(1, read.AxisType);
-        Assert.True(read.IsResolved(nameof(CircularPatternFeatureDefinitionData.Spacing)));
+        Assert.True(read.IsResolved(nameof(CircularPatternFeatureModel.Spacing)));
         Assert.Null(read.ReverseDirection);
         Assert.Null(read.PatternFeatureArray);
         Assert.Equal("圆周阵列1", featureName);
@@ -150,7 +149,7 @@ public class PatternAuthoringTests
     [Fact]
     public void LinearPatternAuthoring_WritesMeasuredSlots()
     {
-        AuthorAndParseLinear(new LinearPatternFeatureDefinitionData
+        AuthorAndParseLinear(new LinearPatternFeatureModel
         {
             D1TotalInstances = 2,
             D1Spacing = 0.010,
@@ -179,7 +178,7 @@ public class PatternAuthoringTests
     public void CircularPatternAuthoring_WritesMeasuredSlots()
     {
         double spacing = Math.PI / 2.0;
-        AuthorAndParseCircular(new CircularPatternFeatureDefinitionData
+        AuthorAndParseCircular(new CircularPatternFeatureModel
         {
             TotalInstances = 4,
             Spacing = spacing
@@ -215,8 +214,8 @@ public class PatternAuthoringTests
 
         // Use the scalar values parsed back from the native sample so the authored doubles carry
         // exactly the native bit patterns.
-        LinearPatternFeatureDefinitionData linear = null!;
-        CircularPatternFeatureDefinitionData circular = null!;
+        LinearPatternFeatureModel linear = null!;
+        CircularPatternFeatureModel circular = null!;
         if (className == "moLPattern_c")
         {
             linear = PatternFeatureParser.ParseLinearPattern(
@@ -238,7 +237,7 @@ public class PatternAuthoringTests
                 var part = Assert.IsType<SldPart>(sw);
                 if (className == "moLPattern_c")
                 {
-                    part.AddLinearPattern(new LinearPatternFeatureDefinitionData
+                    part.AddLinearPattern(new LinearPatternFeatureModel
                     {
                         D1TotalInstances = linear.D1TotalInstances,
                         D1Spacing = linear.D1Spacing,
@@ -248,7 +247,7 @@ public class PatternAuthoringTests
                 }
                 else
                 {
-                    part.AddCircularPattern(new CircularPatternFeatureDefinitionData
+                    part.AddCircularPattern(new CircularPatternFeatureModel
                     {
                         TotalInstances = circular.TotalInstances,
                         Spacing = circular.Spacing
@@ -274,7 +273,7 @@ public class PatternAuthoringTests
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
         {
             var part = Assert.IsType<SldPart>(sw);
-            part.AddLinearPattern(new LinearPatternFeatureDefinitionData
+            part.AddLinearPattern(new LinearPatternFeatureModel
             {
                 D1TotalInstances = 2,
                 D1Spacing = 0.010,
@@ -293,8 +292,8 @@ public class PatternAuthoringTests
 
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         Assert.Equal(before, reopened.RawStreams[ResolvedStream]);
-        var definition = Assert.IsType<LinearPatternFeatureDefinitionData>(
-            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Pattern)).Definition);
+        var definition = Assert.IsType<LinearPatternFeatureModel>(
+            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Pattern)).Model);
         Assert.Equal(2, definition.D1TotalInstances);
         Assert.Equal(0.010, definition.D1Spacing!.Value, 12);
         Assert.Equal(3, definition.D2TotalInstances);
@@ -311,7 +310,7 @@ public class PatternAuthoringTests
         double count1, double spacing1, double count2, double spacing2)
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => PatternFeatureBuilder.ValidateLinearDefinition(
-            new LinearPatternFeatureDefinitionData
+            new LinearPatternFeatureModel
             {
                 D1TotalInstances = (int)count1,
                 D1Spacing = spacing1,
@@ -329,7 +328,7 @@ public class PatternAuthoringTests
     public void CircularPatternAuthoringRejectsInvalidCountOrSpacing(double count, double spacing)
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => PatternFeatureBuilder.ValidateCircularDefinition(
-            new CircularPatternFeatureDefinitionData
+            new CircularPatternFeatureModel
             {
                 TotalInstances = (int)count,
                 Spacing = spacing
@@ -346,7 +345,7 @@ public class PatternAuthoringTests
             using var sw = SwFile.Open(temp.FilePath, readOnly: false);
             var part = Assert.IsType<SldPart>(sw);
             var original = (byte[])part.RawStreams[ResolvedStream].Clone();
-            Assert.Throws<NotSupportedException>(() => part.AddLinearPattern(new LinearPatternFeatureDefinitionData
+            Assert.Throws<NotSupportedException>(() => part.AddLinearPattern(new LinearPatternFeatureModel
             {
                 D1TotalInstances = 3,
                 D1Spacing = 0.012,
@@ -361,7 +360,7 @@ public class PatternAuthoringTests
             using var sw = SwFile.Open(temp.FilePath, readOnly: false);
             var part = Assert.IsType<SldPart>(sw);
             var original = (byte[])part.RawStreams[ResolvedStream].Clone();
-            Assert.Throws<NotSupportedException>(() => part.AddCircularPattern(new CircularPatternFeatureDefinitionData
+            Assert.Throws<NotSupportedException>(() => part.AddCircularPattern(new CircularPatternFeatureModel
             {
                 TotalInstances = 6,
                 Spacing = Math.PI / 3.0
@@ -374,42 +373,42 @@ public class PatternAuthoringTests
     public void PatternAuthoringRejectsUnverifiedFields()
     {
         Assert.Throws<NotSupportedException>(() => PatternFeatureBuilder.ValidateLinearDefinition(
-            new LinearPatternFeatureDefinitionData
+            new LinearPatternFeatureModel
             {
                 D1TotalInstances = 2, D1Spacing = .01, D2TotalInstances = 3, D2Spacing = .015,
                 GeometryPattern = true
             }));
         Assert.Throws<NotSupportedException>(() => PatternFeatureBuilder.ValidateLinearDefinition(
-            new LinearPatternFeatureDefinitionData
+            new LinearPatternFeatureModel
             {
                 D1TotalInstances = 2, D1Spacing = .01, D2TotalInstances = 3, D2Spacing = .015,
                 VarySketch = false
             }));
         Assert.Throws<NotSupportedException>(() => PatternFeatureBuilder.ValidateLinearDefinition(
-            new LinearPatternFeatureDefinitionData
+            new LinearPatternFeatureModel
             {
                 D1TotalInstances = 2, D1Spacing = .01, D2TotalInstances = 3, D2Spacing = .015,
                 D1Axis = new FeatureReferenceData { EntityId = 1 }
             }));
         Assert.Throws<NotSupportedException>(() => PatternFeatureBuilder.ValidateLinearDefinition(
-            new LinearPatternFeatureDefinitionData
+            new LinearPatternFeatureModel
             {
                 D1TotalInstances = 2, D1Spacing = .01, D2TotalInstances = 3, D2Spacing = .015,
                 SkippedItemArray = new uint[] { 1 }
             }));
 
         Assert.Throws<NotSupportedException>(() => PatternFeatureBuilder.ValidateCircularDefinition(
-            new CircularPatternFeatureDefinitionData
+            new CircularPatternFeatureModel
             {
                 TotalInstances = 4, Spacing = Math.PI / 2, ReverseDirection = true
             }));
         Assert.Throws<NotSupportedException>(() => PatternFeatureBuilder.ValidateCircularDefinition(
-            new CircularPatternFeatureDefinitionData
+            new CircularPatternFeatureModel
             {
                 TotalInstances = 4, Spacing = Math.PI / 2, Symmetric = false
             }));
         Assert.Throws<NotSupportedException>(() => PatternFeatureBuilder.ValidateCircularDefinition(
-            new CircularPatternFeatureDefinitionData
+            new CircularPatternFeatureModel
             {
                 TotalInstances = 4, Spacing = Math.PI / 2, Axis = new FeatureReferenceData { EntityId = 1 }
             }));
@@ -425,7 +424,7 @@ public class PatternAuthoringTests
             var part = Assert.IsType<SldPart>(sw);
             var original = (byte[])part.RawStreams[ResolvedStream].Clone();
             var error = Assert.Throws<NotSupportedException>(() => part.AddLinearPattern(
-                new LinearPatternFeatureDefinitionData
+                new LinearPatternFeatureModel
                 {
                     D1TotalInstances = 2, D1Spacing = .01, D2TotalInstances = 3, D2Spacing = .015
                 }));
@@ -439,7 +438,7 @@ public class PatternAuthoringTests
             var part = Assert.IsType<SldPart>(sw);
             var original = (byte[])part.RawStreams[ResolvedStream].Clone();
             var error = Assert.Throws<NotSupportedException>(() => part.AddCircularPattern(
-                new CircularPatternFeatureDefinitionData { TotalInstances = 4, Spacing = Math.PI / 2 }));
+                new CircularPatternFeatureModel { TotalInstances = 4, Spacing = Math.PI / 2 }));
             Assert.Contains("controlled PatternOptions base body", error.Message);
             Assert.Equal(original, part.RawStreams[ResolvedStream]);
         }
@@ -450,7 +449,7 @@ public class PatternAuthoringTests
             using var sw = SwFile.Open(temp.FilePath, readOnly: false);
             var part = Assert.IsType<SldPart>(sw);
             var error = Assert.Throws<NotSupportedException>(() => part.AddLinearPattern(
-                new LinearPatternFeatureDefinitionData
+                new LinearPatternFeatureModel
                 {
                     D1TotalInstances = 2, D1Spacing = .01, D2TotalInstances = 3, D2Spacing = .015
                 }));
@@ -470,7 +469,7 @@ public class PatternAuthoringTests
             using var sw2 = SwFile.Open(temp.FilePath, readOnly: false);
             var part = Assert.IsType<SldPart>(sw2);
             var error = Assert.Throws<NotSupportedException>(() => part.AddLinearPattern(
-                new LinearPatternFeatureDefinitionData
+                new LinearPatternFeatureModel
                 {
                     D1TotalInstances = 2, D1Spacing = .01, D2TotalInstances = 3, D2Spacing = .015
                 }));
@@ -527,7 +526,7 @@ public class PatternAuthoringTests
         {
             var part = Assert.IsType<SldPart>(sw);
             var error = Assert.Throws<NotSupportedException>(() => part.AddLinearPattern(
-                new LinearPatternFeatureDefinitionData
+                new LinearPatternFeatureModel
                 {
                     D1TotalInstances = 2, D1Spacing = .01, D2TotalInstances = 3, D2Spacing = .015
                 }));

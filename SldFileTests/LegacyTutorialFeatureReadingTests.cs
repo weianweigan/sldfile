@@ -2,9 +2,9 @@ using System;
 using System.IO;
 using System.Linq;
 using SldFile;
-using SldFile.Binary.FeatureData;
 using Xunit;
 
+using SldFile.Mfc;
 namespace SldFileTests;
 
 /// <summary>
@@ -27,10 +27,10 @@ public class LegacyTutorialFeatureReadingTests
     {
         using var file = SwFile.Open(Sample(sample), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f =>
-            f.Name == featureName && f.Definition is RibFeatureDefinitionData));
+            f.Name == featureName && f.Model is RibFeatureModel));
 
         Assert.Equal(FeatureKind.Rib, feature.Kind);
-        var definition = Assert.IsType<RibFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<RibFeatureModel>(feature.Model);
         Assert.Equal("moRib_c", definition.ClassName);
         Assert.Equal(typeId, definition.SerializedTypeId);
         Assert.Equal(typeId, definition.TypeId);
@@ -53,9 +53,9 @@ public class LegacyTutorialFeatureReadingTests
         string sample, uint typeId, bool measured, int? profileType, double? thickness)
     {
         using var file = SwFile.Open(Sample(sample), readOnly: true);
-        var definition = Assert.IsType<GussetFeatureDefinitionData>(
-            Assert.Single(file.Features.Where(f => f.Definition is GussetFeatureDefinitionData)).Definition);
-        var feature = Assert.Single(file.Features.Where(f => f.Definition == definition));
+        var definition = Assert.IsType<GussetFeatureModel>(
+            Assert.Single(file.Features.Where(f => f.Model is GussetFeatureModel)).Model);
+        var feature = Assert.Single(file.Features.Where(f => f.Model == definition));
 
         Assert.Equal(FeatureKind.Gusset, feature.Kind);
         Assert.Equal("Gusset1", feature.Name);
@@ -85,10 +85,10 @@ public class LegacyTutorialFeatureReadingTests
     {
         using var file = SwFile.Open(Sample(sample), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f =>
-            f.Name == featureName && f.Definition is CombineBodiesFeatureDefinitionData));
+            f.Name == featureName && f.Model is CombineBodiesFeatureModel));
 
         Assert.Equal(FeatureKind.CombineBodies, feature.Kind);
-        var definition = Assert.IsType<CombineBodiesFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<CombineBodiesFeatureModel>(feature.Model);
         Assert.Equal("moCombineBodies_c", definition.ClassName);
         Assert.Equal(typeId, definition.SerializedTypeId);
         Assert.True(definition.Resolution.ClassName);
@@ -109,10 +109,10 @@ public class LegacyTutorialFeatureReadingTests
     {
         using var file = SwFile.Open(Sample(sample), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f =>
-            f.Name == featureName && f.Definition is SplitBodyFeatureDefinitionData));
+            f.Name == featureName && f.Model is SplitBodyFeatureModel));
 
         Assert.Equal(FeatureKind.SplitBody, feature.Kind);
-        var definition = Assert.IsType<SplitBodyFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<SplitBodyFeatureModel>(feature.Model);
         Assert.Equal("moSplit_c", definition.ClassName);
         Assert.Equal("moSplit_c", definition.SerializedClassName);
         Assert.Equal(typeId, definition.SerializedTypeId);
@@ -134,10 +134,10 @@ public class LegacyTutorialFeatureReadingTests
     {
         using var file = SwFile.Open(Sample(sample), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f =>
-            f.Name == featureName && f.Definition is SurfaceTrimFeatureDefinitionData));
+            f.Name == featureName && f.Model is SurfaceTrimFeatureModel));
 
         Assert.Equal(FeatureKind.SurfaceTrim, feature.Kind);
-        var definition = Assert.IsType<SurfaceTrimFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<SurfaceTrimFeatureModel>(feature.Model);
         Assert.Equal("moTrimRefSurface_c", definition.ClassName);
         Assert.Equal(typeId, definition.SerializedTypeId);
         Assert.True(definition.Resolution.ClassName);
@@ -152,15 +152,15 @@ public class LegacyTutorialFeatureReadingTests
     public void RibThicknessAnchor_RequiresExactMarkerAndValueRange()
     {
         byte[] valid = BuildRibAnchor(0.03);
-        Assert.Equal(0.03, LegacyTutorialFeatureParsers.FindRibThickness(valid, 0, valid.Length));
+        Assert.Equal(0.03, RibFeatureModel.FindRibThickness(valid, 0, valid.Length));
 
         byte[] brokenMarker = BuildRibAnchor(0.03);
         brokenMarker[AnchorOffset + 8] = 0x00;
-        Assert.Null(LegacyTutorialFeatureParsers.FindRibThickness(
+        Assert.Null(RibFeatureModel.FindRibThickness(
             brokenMarker, 0, brokenMarker.Length));
 
         byte[] outOfRange = BuildRibAnchor(0.25);
-        Assert.Null(LegacyTutorialFeatureParsers.FindRibThickness(
+        Assert.Null(RibFeatureModel.FindRibThickness(
             outOfRange, 0, outOfRange.Length));
 
         byte[] single = BuildRibAnchor(0.03);
@@ -169,7 +169,7 @@ public class LegacyTutorialFeatureReadingTests
         single.CopyTo(duplicate, 0x40);
         // A later anchor may belong to a following class-reference Rib feature;
         // the first anchor is the recognized feature's thickness.
-        Assert.Equal(0.03, LegacyTutorialFeatureParsers.FindRibThickness(
+        Assert.Equal(0.03, RibFeatureModel.FindRibThickness(
             duplicate, 0, duplicate.Length));
     }
 

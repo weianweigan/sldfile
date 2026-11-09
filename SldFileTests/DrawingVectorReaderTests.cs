@@ -10,6 +10,24 @@ namespace SldFileTests;
 
 public class DrawingVectorReaderTests
 {
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void MultiSheetDrawing_DoesNotReuseDocumentWidePrimitives(int sheetIndex)
+    {
+        using var file = SwFile.Open(TestFileProvider.Resolve(Path.Combine("Drawings", "D8001507933"), "D8001507933.SLDDRW"));
+        var definition = file.RawStreams["Contents/Definition"];
+        var display = file.RawStreams["Contents/DisplayLists"];
+        const string xml = "<Drawing><Sheet Name='First'/><Sheet Name='Second'/></Drawing>";
+        var data = DrawingVectorReader.ReadVectorData(definition, xml, sheetIndex, displayListsStream: display);
+        Assert.False(data.HasVectorData);
+        Assert.Empty(data.Texts);
+        Assert.Empty(data.Lines);
+
+        var withoutXml = DrawingVectorReader.ReadVectorData(definition, null, sheetIndex, displayListsStream: display, sheetCount: 2);
+        Assert.False(withoutXml.HasVectorData);
+    }
+
     [Fact]
     public void DrawingVectorReader_WithNullOrEmptyDefinition_ReturnsSafeEmptyResult()
     {

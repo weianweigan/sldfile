@@ -232,8 +232,8 @@ public class MateVariantDecodingTests
 
     private static AssemblyMateInfo Decode(byte[] stream)
     {
-        var model = new MatesListData();
-        MatesListSchemaMapper.Map(stream, model);
+        var model = new MatesListModel();
+        MfcArchive.DeserializeInto(stream, model);
         return new AssemblyMateInfo(Assert.Single(model.Mates));
     }
 

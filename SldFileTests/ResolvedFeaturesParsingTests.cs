@@ -1,3 +1,4 @@
+using SldFile.Mfc;
 using SldFile;
 using System.Linq;
 using SldFile.Binary;

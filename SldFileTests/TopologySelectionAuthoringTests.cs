@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Linq;
 using SldFile;
-using SldFile.Binary.Topology;
 using SldFile.Mfc;
 using Xunit;
 
@@ -34,8 +33,8 @@ public class TopologySelectionAuthoringTests
         string name, string contours, string regionEdges)
     {
         using var file = SwFile.Open(SamplePath(name), readOnly: true);
-        var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(
-            Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Definition);
+        var definition = Assert.IsType<ExtrudeFeatureModel>(
+            Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Model);
         Assert.Equal(SketchSelectionMode.ExplicitSelection, definition.SketchSelectionMode);
 
         string[] expectedContours = contours.Length == 0 ? Array.Empty<string>() : contours.Split('|');
@@ -526,8 +525,8 @@ public class TopologySelectionAuthoringTests
     private static (int Mode, string Contours, string Regions) Decode(string name)
     {
         using var file = SwFile.Open(SamplePath(name), readOnly: true);
-        var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(
-            Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Definition);
+        var definition = Assert.IsType<ExtrudeFeatureModel>(
+            Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Model);
         string contours = string.Join("|", definition.SelectedContours.Select(c => string.Join(",", c.EntityIndices)));
         string regions = string.Join("|", definition.SelectedRegions.Select(r => string.Join(",", r.EdgeIds)));
         return ((int)definition.SketchSelectionMode, contours, regions);

@@ -76,6 +76,7 @@ internal static class TestFileProvider
 internal sealed class TempTestFile : IDisposable
 {
     public string FilePath { get; }
+    public string Path => FilePath;
 
     public TempTestFile(string filePath) => FilePath = filePath;
 

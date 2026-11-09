@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Linq;
 using SldFile;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 using Xunit;
 
@@ -30,7 +29,7 @@ public class PatternReadingTests
         Assert.Equal("moLPattern_c", feature.TypeName);
         Assert.Equal(0x5D, feature.Id);
 
-        var definition = Assert.IsType<LinearPatternFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<LinearPatternFeatureModel>(feature.Model);
         Assert.Equal(2, definition.D1TotalInstances);
         Assert.Equal(0.010, definition.D1Spacing!.Value, 12);
         Assert.Equal(3, definition.D2TotalInstances);
@@ -43,8 +42,8 @@ public class PatternReadingTests
         Assert.NotNull(definition.D2Axis);
         Assert.Equal(SelectionEntityType.Edge, definition.D2Axis!.EntityType);
 
-        Assert.True(definition.IsResolved(nameof(LinearPatternFeatureDefinitionData.D1Spacing)));
-        Assert.True(definition.IsResolved(nameof(LinearPatternFeatureDefinitionData.D2Spacing)));
+        Assert.True(definition.IsResolved(nameof(LinearPatternFeatureModel.D1Spacing)));
+        Assert.True(definition.IsResolved(nameof(LinearPatternFeatureModel.D2Spacing)));
         // Not yet decoded: geometry flags and source-feature selections.
         Assert.Null(definition.GeometryPattern);
         Assert.Null(definition.VarySketch);
@@ -63,7 +62,7 @@ public class PatternReadingTests
         Assert.Equal("moCirPattern_c", feature.TypeName);
         Assert.Equal(0x63, feature.Id);
 
-        var definition = Assert.IsType<CircularPatternFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<CircularPatternFeatureModel>(feature.Model);
         Assert.Equal(4, definition.TotalInstances);
         Assert.Equal(Math.PI / 2.0, definition.Spacing!.Value, 12);
         Assert.True(definition.EqualSpacing);
@@ -71,8 +70,8 @@ public class PatternReadingTests
         Assert.NotNull(definition.Axis);
         Assert.Equal(SelectionEntityType.Edge, definition.Axis!.EntityType);
 
-        Assert.True(definition.IsResolved(nameof(CircularPatternFeatureDefinitionData.Spacing)));
-        Assert.True(definition.IsResolved(nameof(CircularPatternFeatureDefinitionData.EqualSpacing)));
+        Assert.True(definition.IsResolved(nameof(CircularPatternFeatureModel.Spacing)));
+        Assert.True(definition.IsResolved(nameof(CircularPatternFeatureModel.EqualSpacing)));
         // Not yet decoded: direction/geometry flags and source-feature selections.
         Assert.Null(definition.ReverseDirection);
         Assert.Null(definition.GeometryPattern);

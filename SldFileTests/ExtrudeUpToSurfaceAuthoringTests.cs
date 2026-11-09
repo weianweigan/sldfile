@@ -44,9 +44,9 @@ public class ExtrudeUpToSurfaceAuthoringTests
         return temp;
     }
 
-    private static ExtrudeFeatureDefinitionData Definition(uint? faceId = null, uint? bodyId = null)
+    private static ExtrudeFeatureModel Definition(uint? faceId = null, uint? bodyId = null)
     {
-        var definition = new ExtrudeFeatureDefinitionData
+        var definition = new ExtrudeFeatureModel
         {
             IsCut = true,
             EndCondition = 4,
@@ -81,10 +81,10 @@ public class ExtrudeUpToSurfaceAuthoringTests
         return definition;
     }
 
-    private static ExtrudeFeatureDefinitionData ReadCut(SwFile file)
+    private static ExtrudeFeatureModel ReadCut(SwFile file)
     {
-        var feature = Assert.Single(file.Features.Where(f => f.TypeName == "moICE_c" && f.Definition is ExtrudeFeatureDefinitionData));
-        return Assert.IsType<ExtrudeFeatureDefinitionData>(feature.Definition);
+        var feature = Assert.Single(file.Features.Where(f => f.TypeName == "moICE_c" && f.Model is ExtrudeFeatureModel));
+        return Assert.IsType<ExtrudeFeatureModel>(feature.Model);
     }
 
     [Fact]
@@ -103,16 +103,16 @@ public class ExtrudeUpToSurfaceAuthoringTests
         var definition = ReadCut(reopened);
         Assert.True(definition.IsCut);
         Assert.Equal(4u, definition.EndCondition);
-        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.EndCondition)));
+        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureModel.EndCondition)));
         Assert.Equal(0d, definition.Depth);
         Assert.Equal(SelectionEntityType.Face, definition.EndConditionEntity!.EntityType);
         Assert.Equal(0x7CBu, definition.EndConditionEntity.EntityId);
-        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.EndConditionEntity)));
-        Assert.False(definition.BodyScope.AutoSelect);
+        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureModel.EndConditionEntity)));
+        Assert.False(definition.BodyScope!.AutoSelect);
         Assert.Equal(new[] { BodyId }, definition.BodyScope.BodyIds.ToArray());
         Assert.True(definition.FeatureScope);
         Assert.False(definition.AutoSelect);
-        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.BodyScope)));
+        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureModel.BodyScope)));
 
         byte[] before;
         using (var resave = SwFile.Open(temp.FilePath, readOnly: false))
@@ -139,7 +139,7 @@ public class ExtrudeUpToSurfaceAuthoringTests
         var definition = ReadCut(reopened);
         Assert.Equal(4u, definition.EndCondition);
         Assert.Equal(0x0AFAu, definition.EndConditionEntity!.EntityId);
-        Assert.Equal(new[] { BodyId }, definition.BodyScope.BodyIds.ToArray());
+        Assert.Equal(new[] { BodyId }, definition.BodyScope!.BodyIds.ToArray());
     }
 
     [Fact]
@@ -156,7 +156,7 @@ public class ExtrudeUpToSurfaceAuthoringTests
         var definition = ReadCut(reopened);
         Assert.Equal(4u, definition.EndCondition);
         Assert.Equal(0x7CBu, definition.EndConditionEntity!.EntityId);
-        Assert.Equal(new[] { BodyId }, definition.BodyScope.BodyIds.ToArray());
+        Assert.Equal(new[] { BodyId }, definition.BodyScope!.BodyIds.ToArray());
     }
 
     [Fact]

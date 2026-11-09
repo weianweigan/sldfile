@@ -26,9 +26,29 @@ public static class DrawingVectorReader
         string? keywordsXml,
         int sheetIndex = 0,
         byte[]? vbListsStream = null,
-        byte[]? displayListsStream = null)
+        byte[]? displayListsStream = null,
+        int sheetCount = 1)
     {
         var vectorData = new DrawingSheetVectorData();
+
+        // These heuristic readers have no sheet record boundaries. Never apply
+        // document-wide primitives to an individual page of a multi-sheet drawing.
+        if (!string.IsNullOrEmpty(keywordsXml))
+        {
+            int xmlStart = keywordsXml!.IndexOf('<');
+            if (xmlStart >= 0)
+            {
+                try
+                {
+                    var doc = XDocument.Parse(keywordsXml.Substring(xmlStart));
+                    sheetCount = Math.Max(sheetCount, doc.Descendants().Count(e => e.Name.LocalName == "Sheet" &&
+                        !string.Equals(e.Attribute("Type")?.Value, "图纸格式", StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(e.Attribute("Type")?.Value, "SheetFormat", StringComparison.OrdinalIgnoreCase)));
+                }
+                catch (System.Xml.XmlException) { }
+            }
+        }
+        if (sheetCount != 1 || sheetIndex != 0) return vectorData;
 
         bool hasStreamData = (definitionStream != null && definitionStream.Length > 0) ||
                              (vbListsStream != null && vbListsStream.Length > 0) ||

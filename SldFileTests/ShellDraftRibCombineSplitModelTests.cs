@@ -19,12 +19,12 @@ public class ShellDraftRibCombineSplitModelTests
 {
     public static IEnumerable<object[]> Definitions()
     {
-        yield return new object[] { new ShellFeatureDefinitionData(), "moShell_c" };
-        yield return new object[] { new DraftFeatureDefinitionData(), "moDraft_c" };
-        yield return new object[] { new RibFeatureDefinitionData(), "moRib_c" };
-        yield return new object[] { new CombineBodiesFeatureDefinitionData(), "moCombineBodies_c" };
-        yield return new object[] { new SplitBodyFeatureDefinitionData(), "moSplitBody_c" };
-        yield return new object[] { new DeleteBodyFeatureDefinitionData(), "moDeleteBody_c" };
+        yield return new object[] { new ShellFeatureModel(), "moShell_c" };
+        yield return new object[] { new DraftFeatureModel(), "moDraft_c" };
+        yield return new object[] { new RibFeatureModel(), "moRib_c" };
+        yield return new object[] { new CombineBodiesFeatureModel(), "moCombineBodies_c" };
+        yield return new object[] { new SplitBodyFeatureModel(), "moSplitBody_c" };
+        yield return new object[] { new DeleteBodyFeatureModel(), "moDeleteBody_c" };
     }
 
     [Theory]
@@ -47,7 +47,18 @@ public class ShellDraftRibCombineSplitModelTests
         {
             if (property.Name == nameof(IFeatureData.ClassName) ||
                 property.Name == nameof(IFeatureData.TypeId) ||
-                property.Name == "Resolution")
+                property.Name == "Resolution" ||
+                property.Name == "SerializedClassName" ||
+                property.Name == "SerializedTypeId" ||
+                property.Name == "FeatureName" ||
+                property.Name == "Version" ||
+                property.Name == "RawBlock" ||
+                property.Name == "ResolvedProperties" ||
+                property.Name == "Parameter" ||
+                property.Name == "DisplayDimension" ||
+                property.Name == "Dimension" ||
+                property.Name == "Dimensions" ||
+                property.Name.EndsWith("Count", StringComparison.Ordinal))
                 continue;
 
             // Every parameter/reference/type-code field is nullable and unset.
@@ -58,7 +69,7 @@ public class ShellDraftRibCombineSplitModelTests
     [Fact]
     public void AuthoringInputs_DoNotFlipResolutionFlags()
     {
-        var shell = new ShellFeatureDefinitionData
+        var shell = new ShellFeatureModel
         {
             Thickness = 0.002,
             Direction = 0,
@@ -71,7 +82,7 @@ public class ShellDraftRibCombineSplitModelTests
         Assert.False(shell.Resolution.Direction);
         Assert.False(shell.Resolution.FacesRemoved);
 
-        var combine = new CombineBodiesFeatureDefinitionData
+        var combine = new CombineBodiesFeatureModel
         {
             OperationType = 0,
             MainBody = new EntityReference { EntityId = 1, EntityType = SelectionEntityType.Body }
@@ -109,8 +120,8 @@ public class ShellDraftRibCombineSplitModelTests
         byte[] stream = BuildResolvedFeaturesStream(className, "Feature1");
         byte[] before = (byte[])stream.Clone();
 
-        var model = new ResolvedFeaturesData();
-        ResolvedFeaturesSchemaMapper.Map(MfcDocument.Parse(stream), model);
+        var model = new ResolvedFeaturesModel();
+        ResolvedFeaturesModel.Map(MfcDocument.Parse(stream), model);
 
         var folder = Assert.Single(model.Folders);
         Assert.Equal(className, folder.ClassName);

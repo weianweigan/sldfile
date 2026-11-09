@@ -3,8 +3,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using SldFile;
-using SldFile.Binary.Topology;
-using SldFile.Sketches;
+using SldFile.Mfc;
+using SketchFeature = SldFile.Mfc.SketchFeatureModel;
+using SketchPoint = SldFile.Mfc.SketchPointModel;
+using SketchSegment = SldFile.Mfc.SketchSegmentModel;
+using SketchRelation = SldFile.Mfc.SketchRelationModel;
+using SketchDimension = SldFile.Mfc.SketchDimensionModel;
 using Xunit;
 
 namespace SldFileTests;
@@ -33,8 +37,8 @@ public class TopologyRegionLoopOrderTests
         string relativePath, uint[] nativeLoopOrder)
     {
         using var file = SwFile.Open(SamplePath(relativePath), readOnly: true);
-        var definition = file.Features.Select(f => f.Definition)
-            .OfType<ExtrudeFeatureDefinitionData>().FirstOrDefault(d => d.SelectedRegions.Count > 0);
+        var definition = file.Features.Select(f => f.Model)
+            .OfType<ExtrudeFeatureModel>().FirstOrDefault(d => d.SelectedRegions.Count > 0);
         Assert.NotNull(definition);
         var edges = definition!.SelectedRegions[0].EdgeIds;
         var sketch = FindSketch(file, edges);
@@ -67,8 +71,8 @@ public class TopologyRegionLoopOrderTests
         Assert.NotNull(template);
         Assert.Equal(nativeLoopOrder, template!.NativeLoopOrder);
 
-        var definition = file.Features.Select(f => f.Definition)
-            .OfType<ExtrudeFeatureDefinitionData>().FirstOrDefault(d => d.SelectedRegions.Count > 0);
+        var definition = file.Features.Select(f => f.Model)
+            .OfType<ExtrudeFeatureModel>().FirstOrDefault(d => d.SelectedRegions.Count > 0);
         var edges = definition!.SelectedRegions[0].EdgeIds;
         var sketch = FindSketch(file, edges);
         byte[] payload = template.BuildPayloadFromSketch(sketch, edges);

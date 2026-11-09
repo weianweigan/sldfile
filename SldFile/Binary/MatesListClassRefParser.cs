@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using SldFile.Mfc;
@@ -73,37 +73,19 @@ internal static class MatesListClassRefParser
         byte[] data, List<(int Offset, MateEntry Entry)> result,
         string displayPrefix, uint typeId, bool isAngle, bool allowZero)
     {
-        byte code0 = 0, code1 = 0;
-        bool found = false;
-        for (int i = 0; i + 12 < data.Length; i++)
-        {
-            if ((data[i + 1] != 0x80 && data[i + 1] != 0x81) ||
-                data[i + 2] != 0x06 || data[i + 3] != 0x80 ||
-                !MfcPrimitives.IsWCharPrefix(data, i + 4))
-                continue;
-            int cursor = i + 4;
-            string? name = MfcPrimitives.ReadWChar(data, ref cursor, data.Length);
-            if (name == null || !name.StartsWith(displayPrefix, StringComparison.Ordinal) ||
-                name.Length == displayPrefix.Length)
-                continue;
-            code0 = data[i];
-            code1 = data[i + 1];
-            found = true;
-            break;
-        }
-        if (!found) return;
+        var matches = MfcArchiveContext.ScanRepeatedNamedRecords(
+            data,
+            expectedSchemaWord: 0x8006,
+            displayNamePredicate: name =>
+                name.StartsWith(displayPrefix, StringComparison.Ordinal) &&
+                name.Length > displayPrefix.Length,
+            maxRecords: MaxClassRefRecords);
 
-        for (int i = 0; i + 12 < data.Length && result.Count < MaxClassRefRecords; i++)
+        foreach (var (i, tag, display) in matches)
         {
-            if (data[i] != code0 || data[i + 1] != code1 ||
-                data[i + 2] != 0x06 || data[i + 3] != 0x80 ||
-                !MfcPrimitives.IsWCharPrefix(data, i + 4))
-                continue;
-            int cursor = i + 4;
-            string? display = MfcPrimitives.ReadWChar(data, ref cursor, data.Length);
-            if (display == null || !display.StartsWith(displayPrefix, StringComparison.Ordinal) ||
-                display.Length == displayPrefix.Length)
-                continue;
+            if (result.Count >= MaxClassRefRecords) break;
+            byte code0 = (byte)(tag & 0xFF);
+            byte code1 = (byte)((tag >> 8) & 0xFF);
             int windowEnd = FindMechanicalWindowEnd(data, i + 4, code0, code1);
             if (windowEnd <= i) continue;
             string className = typeId == 22u ? "moMateHinge" : "moMatePlanarAngleDim_c";
@@ -168,30 +150,18 @@ internal static class MatesListClassRefParser
     /// </summary>
     private static void ScanPath(byte[] data, List<(int Offset, MateEntry Entry)> result)
     {
-        byte prefix0 = 0, prefix1 = 0;
-        bool found = false;
-        for (int i = 0; i + 12 < data.Length; i++)
-        {
-            if (data[i + 1] != 0x80 || data[i + 2] != 0x0A || data[i + 3] != 0x80 ||
-                !MfcPrimitives.IsWCharPrefix(data, i + 4))
-                continue;
-            int cursor = i + 4;
-            string? name = MfcPrimitives.ReadWChar(data, ref cursor, data.Length);
-            if (name == null || !name.StartsWith("PathMate", StringComparison.Ordinal))
-                continue;
-            prefix0 = data[i];
-            prefix1 = data[i + 1];
-            found = true;
-            break;
-        }
-        if (!found) return;
+        var matches = MfcArchiveContext.ScanRepeatedNamedRecords(
+            data,
+            expectedSchemaWord: 0x800A,
+            displayNamePredicate: name => name.StartsWith("PathMate", StringComparison.Ordinal),
+            maxRecords: MaxClassRefRecords);
 
-        for (int i = 0; i + 12 < data.Length && result.Count < MaxClassRefRecords; i++)
+        foreach (var (i, tag, _) in matches)
         {
-            if (data[i] != prefix0 || data[i + 1] != prefix1 ||
-                data[i + 2] != 0x0A || data[i + 3] != 0x80 ||
-                !MfcPrimitives.IsWCharPrefix(data, i + 4))
-                continue;
+            if (result.Count >= MaxClassRefRecords) break;
+            byte prefix0 = (byte)(tag & 0xFF);
+            byte prefix1 = (byte)((tag >> 8) & 0xFF);
+            if (prefix1 != 0x80) continue;
             var entry = TryReadPath(data, i, prefix0, prefix1);
             if (entry != null) result.Add((i, entry));
         }

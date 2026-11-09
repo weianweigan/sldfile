@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using SldFile;
@@ -50,7 +50,7 @@ public class FlatPatternInline066Tests
         throw new InvalidOperationException("moFlatPattern_c tag not found");
     }
 
-    private static FlatPatternFeatureDefinitionData ParseWithMutation(Action<byte[], int> mutate)
+    private static FlatPatternFeatureModel ParseWithMutation(Action<byte[], int> mutate)
     {
         using var temp = TestFileProvider.CreateTempCopy(SamplePath());
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
@@ -64,7 +64,7 @@ public class FlatPatternInline066Tests
         var folder = Assert.Single(reopened.ResolvedFeatures.Folders,
             f => f.ClassName == "moFlatPattern_c");
         Assert.Equal(0x66u, folder.Header.TypeId);
-        return Assert.IsType<FlatPatternFeatureDefinitionData>(folder.FeatureData);
+        return Assert.IsType<FlatPatternFeatureModel>(folder.FeatureData);
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public class FlatPatternInline066Tests
         using var file = SwFile.Open(SamplePath(), readOnly: true);
         var folder = Assert.Single(file.ResolvedFeatures.Folders,
             f => f.ClassName == "moFlatPattern_c");
-        var data = Assert.IsType<FlatPatternFeatureDefinitionData>(folder.FeatureData);
+        var data = Assert.IsType<FlatPatternFeatureModel>(folder.FeatureData);
         Assert.Equal(0x66u, data.TypeId);
         Assert.True(data.MergeFace ?? false);
         Assert.True(data.CornerTreatment ?? false);
@@ -177,7 +177,7 @@ public class FlatPatternInline066Tests
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
         {
             var part = Assert.IsType<SldPart>(sw);
-            part.AddFlatPatternInline066(new FlatPatternFeatureDefinitionData
+            part.AddFlatPatternInline066(new FlatPatternFeatureModel
             {
                 MergeFace = true,
                 CornerTreatment = false,
@@ -196,7 +196,7 @@ public class FlatPatternInline066Tests
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         var folder = Assert.Single(reopened.ResolvedFeatures.Folders,
             f => f.ClassName == "moFlatPattern_c");
-        var data = Assert.IsType<FlatPatternFeatureDefinitionData>(folder.FeatureData);
+        var data = Assert.IsType<FlatPatternFeatureModel>(folder.FeatureData);
         Assert.True(data.MergeFace ?? false);
         Assert.False(data.CornerTreatment ?? true);
         Assert.False(data.SimplifyBends ?? true);
@@ -217,7 +217,7 @@ public class FlatPatternInline066Tests
         {
             var part = Assert.IsType<SldPart>(sw);
             var error = Assert.Throws<NotSupportedException>(() =>
-                part.AddFlatPatternInline066(new FlatPatternFeatureDefinitionData
+                part.AddFlatPatternInline066(new FlatPatternFeatureModel
                 {
                     CornerTrimReliefDistance = 0.003,
                     CornerTrimRatioToThickness = 2.0

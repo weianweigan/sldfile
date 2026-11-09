@@ -130,14 +130,18 @@
                     </StackPanel>
 
                     <!-- Switch to 3D Button -->
+                    <Button Command="{Binding ExportSvgCommand}"
+                            Visibility="{Binding IsDrawingSheet, Converter={StaticResource BoolToVisibilityConverter}}"
+                            Style="{StaticResource Style.Button.Secondary}"
+                            Padding="8,4" Margin="2,0" Content="导出 SVG" />
                     <Button Command="{Binding DataContext.SwitchTo3DViewCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                             Visibility="{Binding DataContext.MeshViewer.HasMesh, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}"
                             Style="{StaticResource Style.Button.Secondary}"
                             Padding="12,4"
-                            ToolTip="切换回 3D 模型网格交互检视器">
+                            ToolTip="切换到 3D 网格渲染查看器">
                         <StackPanel Orientation="Horizontal">
-                            <iconPacks:PackIconMaterial Kind="CubeOutline" Foreground="{StaticResource Brush.Figma.Ink}" Width="12" Height="12" Margin="0,0,4,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="3D 模型网格" FontSize="11"/>
+                            <iconPacks:PackIconMaterial Kind="CubeOutline" Width="12" Height="12" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="切换至 3D 视图" FontSize="11"/>
                         </StackPanel>
                     </Button>
                 </StackPanel>
@@ -159,7 +163,7 @@
             <Grid.ContextMenu>
                 <ContextMenu>
                     <MenuItem Header="🎨 矢量渲染模式 (eDrawings 引擎)" Visibility="{Binding HasVectorData, Converter={StaticResource BoolToVisibilityConverter}}">
-                        <MenuItem Header="纯矢量 CAD 视图 (推荐，发丝级平滑无重影)" Command="{Binding SetPureVectorCadModeCommand}" />
+                        <MenuItem Header="纯矢量 CAD 视图 (实验性，可能缺少图元)" Command="{Binding SetPureVectorCadModeCommand}" />
                         <MenuItem Header="图纸注释增强 (位图底图 + 矢量文字)" Command="{Binding SetSheetNotesOnlyModeCommand}" />
                         <MenuItem Header="全图 CAD 标注" Command="{Binding SetAllAnnotationsModeCommand}" />
                         <MenuItem Header="关闭矢量增强 (原始位图)" Command="{Binding SetOverlayOffModeCommand}" />

@@ -64,8 +64,8 @@ public class MateClassRefTests
         Assert.True(classRef > 0);
         stream[classRef] = 0xC2; // unknown class reference
 
-        var model = new MatesListData();
-        MatesListSchemaMapper.Map(stream, model);
+        var model = new MatesListModel();
+        MfcArchive.DeserializeInto(stream, model);
 
         Assert.Equal(3, model.Mates.Count);
         Assert.DoesNotContain(model.Mates, m => m.DisplayName == "Coincident5");
@@ -124,8 +124,8 @@ public class MateClassRefTests
         // The shared wrapper class is defined exactly once (first record).
         Assert.Equal(1, CountOccurrences(v4, Encoding.ASCII.GetBytes("moPlaneRef_w")));
 
-        var model = new MatesListData();
-        MatesListSchemaMapper.Map(v4, model);
+        var model = new MatesListModel();
+        MfcArchive.DeserializeInto(v4, model);
 
         Assert.Equal(2, model.Mates.Count);
         Assert.Equal("moMateCoincident", model.Mates[0].ClassName);

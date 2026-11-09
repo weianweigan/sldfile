@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using Xunit;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 
 
@@ -88,7 +87,7 @@ public class ChallengerExtrudeStressTests
         using (var reopened = SwFile.Open(temp.FilePath, readOnly: true))
         {
             var feat = Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Extrusion));
-            var reopenedDef = Assert.IsType<ExtrudeFeatureDefinitionData>(feat.Definition);
+            var reopenedDef = Assert.IsType<ExtrudeFeatureModel>(feat.Model);
 
             // Assert exact 64-bit IEEE 754 bit-pattern equality!
             long originalBits = BitConverter.DoubleToInt64Bits(exactDepth);
@@ -120,7 +119,7 @@ public class ChallengerExtrudeStressTests
         using (var reopened = SwFile.Open(temp.FilePath, readOnly: true))
         {
             var feat = Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Extrusion));
-            var reopenedDef = Assert.IsType<ExtrudeFeatureDefinitionData>(feat.Definition);
+            var reopenedDef = Assert.IsType<ExtrudeFeatureModel>(feat.Model);
             Assert.Equal(boundaryDepth, reopenedDef.Depth);
         }
     }
@@ -149,7 +148,7 @@ public class ChallengerExtrudeStressTests
             var feat = reopened.Features.FirstOrDefault(f => f.Kind == FeatureKind.Extrusion || f.Kind == FeatureKind.Cut);
             Assert.NotNull(feat);
 
-            var def = Assert.IsType<ExtrudeFeatureDefinitionData>(feat.Definition);
+            var def = Assert.IsType<ExtrudeFeatureModel>(feat.Model);
             bool reopenedAsCut = def.IsCut;
             Assert.True(reopenedAsCut, "ExtrudeFeatureBuilder serializes moICE_c, so isCut is persisted across re-open.");
             Assert.Equal(FeatureKind.Cut, feat.Kind);
@@ -174,7 +173,7 @@ public class ChallengerExtrudeStressTests
         using (var reopened = SwFile.Open(temp.FilePath, readOnly: true))
         {
             var feat = Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Extrusion));
-            var reopenedDef = Assert.IsType<ExtrudeFeatureDefinitionData>(feat.Definition);
+            var reopenedDef = Assert.IsType<ExtrudeFeatureModel>(feat.Model);
             Assert.Equal(6u, reopenedDef.EndCondition);
             Assert.True(reopenedDef.BothDirections);
             Assert.Equal(0.020, reopenedDef.Depth);
@@ -202,7 +201,7 @@ public class ChallengerExtrudeStressTests
         using (var reopened = SwFile.Open(temp.FilePath, readOnly: true))
         {
             var feat = Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Extrusion));
-            var reopenedDef = Assert.IsType<ExtrudeFeatureDefinitionData>(feat.Definition);
+            var reopenedDef = Assert.IsType<ExtrudeFeatureModel>(feat.Model);
             Assert.Equal(extremeDepth, reopenedDef.Depth);
         }
     }
@@ -232,7 +231,7 @@ public class ChallengerExtrudeStressTests
         using var sw = SwFile.Open(temp.FilePath, readOnly: false);
         var part = Assert.IsType<SldPart>(sw);
 
-        Assert.Throws<ArgumentNullException>(() => part.AddExtrude((ExtrudeFeatureDefinitionData)null!));
+        Assert.Throws<ArgumentNullException>(() => part.AddExtrude((ExtrudeFeatureModel)null!));
     }
 
     [Theory]
@@ -247,7 +246,7 @@ public class ChallengerExtrudeStressTests
         using var sw = SwFile.Open(temp.FilePath, readOnly: false);
         var part = Assert.IsType<SldPart>(sw);
 
-        var def = new ExtrudeFeatureDefinitionData
+        var def = new ExtrudeFeatureModel
         {
             Depth = 0.010,
             BothDirections = true,
@@ -303,7 +302,7 @@ public class ChallengerExtrudeStressTests
         {
             var feat = Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Extrusion));
             Assert.Equal("凸台-拉伸1", feat.Name);
-            var def = Assert.IsType<ExtrudeFeatureDefinitionData>(feat.Definition);
+            var def = Assert.IsType<ExtrudeFeatureModel>(feat.Model);
             Assert.Equal(0.015, def.Depth);
         }
     }
@@ -391,28 +390,28 @@ public class ChallengerExtrudeStressTests
             var rBoss1 = allExtrudes.FirstOrDefault(f => f.Name == "凸台-拉伸1");
             Assert.NotNull(rBoss1);
             Assert.Equal(FeatureKind.Extrusion, rBoss1!.Kind);
-            var b1Def = Assert.IsType<ExtrudeFeatureDefinitionData>(rBoss1.Definition);
+            var b1Def = Assert.IsType<ExtrudeFeatureModel>(rBoss1.Model);
             Assert.Equal(0.010, b1Def.Depth);
             Assert.False(b1Def.IsCut);
 
             var rCut1 = allExtrudes.FirstOrDefault(f => f.Name == "切除-拉伸1");
             Assert.NotNull(rCut1);
             Assert.Equal(FeatureKind.Cut, rCut1!.Kind);
-            var c1Def = Assert.IsType<ExtrudeFeatureDefinitionData>(rCut1.Definition);
+            var c1Def = Assert.IsType<ExtrudeFeatureModel>(rCut1.Model);
             Assert.Equal(0.005, c1Def.Depth);
             Assert.True(c1Def.IsCut);
 
             var rBoss2 = allExtrudes.FirstOrDefault(f => f.Name == "凸台-拉伸2");
             Assert.NotNull(rBoss2);
             Assert.Equal(FeatureKind.Extrusion, rBoss2!.Kind);
-            var b2Def = Assert.IsType<ExtrudeFeatureDefinitionData>(rBoss2.Definition);
+            var b2Def = Assert.IsType<ExtrudeFeatureModel>(rBoss2.Model);
             Assert.Equal(0.020, b2Def.Depth);
             Assert.False(b2Def.IsCut);
 
             var rCut2 = allExtrudes.FirstOrDefault(f => f.Name == "切除-拉伸2");
             Assert.NotNull(rCut2);
             Assert.Equal(FeatureKind.Cut, rCut2!.Kind);
-            var c2Def = Assert.IsType<ExtrudeFeatureDefinitionData>(rCut2.Definition);
+            var c2Def = Assert.IsType<ExtrudeFeatureModel>(rCut2.Model);
             Assert.Equal(0.003, c2Def.Depth);
             Assert.True(c2Def.IsCut);
         }
@@ -498,7 +497,7 @@ public class ChallengerExtrudeStressTests
             Assert.NotNull(feat);
             Assert.Equal(name, feat.Name);
             Assert.Equal(FeatureKind.Extrusion, feat.Kind);
-            var def = Assert.IsType<ExtrudeFeatureDefinitionData>(feat.Definition);
+            var def = Assert.IsType<ExtrudeFeatureModel>(feat.Model);
             Assert.Equal(0.015, def.Depth);
             Assert.False(def.IsCut);
         }
@@ -535,7 +534,7 @@ public class ChallengerExtrudeStressTests
             Assert.NotNull(feat);
             Assert.Equal(name, feat.Name);
             Assert.Equal(FeatureKind.Cut, feat.Kind);
-            var def = Assert.IsType<ExtrudeFeatureDefinitionData>(feat.Definition);
+            var def = Assert.IsType<ExtrudeFeatureModel>(feat.Model);
             Assert.Equal(0.005, def.Depth);
             Assert.True(def.IsCut);
         }
@@ -550,7 +549,7 @@ public class ChallengerExtrudeStressTests
     [InlineData("Extrude_Feature_30_Chars_Long!", 30)]
     public void MfcExtrudeSerializer_VariableLengthNames_MaintainsSubObjectIntegrity(string name, int expectedCharCount)
     {
-        var def = new ExtrudeFeatureDefinitionData { Depth = 0.018, EndCondition = 0, IsCut = false };
+        var def = new ExtrudeFeatureModel { Depth = 0.018, EndCondition = 0, IsCut = false };
         byte[] block = MfcExtrudeSerializer.SerializeBossExtrude(def, name, new uint[] { 1, 2, 3, 4 });
 
         // Delta is 2 bytes per char relative to 6-char baseline
@@ -615,7 +614,7 @@ public class ChallengerExtrudeStressTests
                 Assert.True(feat != null, $"Feature '{expectedName}' must exist upon reopening but was missing.");
                 Assert.Equal(FeatureKind.Extrusion, feat!.Kind);
 
-                var def = Assert.IsType<ExtrudeFeatureDefinitionData>(feat.Definition);
+                var def = Assert.IsType<ExtrudeFeatureModel>(feat.Model);
                 Assert.Equal(expectedDepth, def.Depth, precision: 6);
                 Assert.False(def.IsCut);
             }
@@ -672,7 +671,7 @@ public class ChallengerExtrudeStressTests
                 Assert.True(feat != null, $"Custom feature '{expectedName}' must be preserved upon reopen.");
                 Assert.Equal(expectedName, feat!.Name);
 
-                var def = Assert.IsType<ExtrudeFeatureDefinitionData>(feat.Definition);
+                var def = Assert.IsType<ExtrudeFeatureModel>(feat.Model);
                 Assert.Equal(0.005 * (i + 1), def.Depth, precision: 6);
             }
         }
@@ -705,7 +704,7 @@ public class ChallengerExtrudeStressTests
         Assert.Equal(entityIds[0], lastSet1Entity);
 
         // 3. Verify complete BossExtrudeBlock synthesis and MfcDocument parsing
-        var def = new ExtrudeFeatureDefinitionData { Depth = 0.025, EndCondition = 0, IsCut = false };
+        var def = new ExtrudeFeatureModel { Depth = 0.025, EndCondition = 0, IsCut = false };
         byte[] block = ExtrudeFeatureBuilder.BuildBossExtrudeBlock(def, "凸台-拉伸1", n);
 
         int expectedBlockLength = 3221 + 40 * (n - 4);
@@ -739,7 +738,7 @@ public class ChallengerExtrudeStressTests
         Assert.Equal(expectedCutTopoLength, topo.Length);
         Assert.Equal(177 + 52 * n, topo.Length);
 
-        var def = new ExtrudeFeatureDefinitionData { Depth = 0.005, EndCondition = 0, IsCut = true };
+        var def = new ExtrudeFeatureModel { Depth = 0.005, EndCondition = 0, IsCut = true };
         byte[] block = ExtrudeFeatureBuilder.BuildCutExtrudeBlock(def, "切除-拉伸1", n);
 
         int expectedBlockLength = 3092 + 52 * (n - 1);
@@ -780,7 +779,7 @@ public class ChallengerExtrudeStressTests
             var feat = reopened.Features.LastOrDefault(f => isCut ? f.Kind == FeatureKind.Cut : f.Kind == FeatureKind.Extrusion);
             Assert.NotNull(feat);
 
-            var def = Assert.IsType<ExtrudeFeatureDefinitionData>(feat.Definition);
+            var def = Assert.IsType<ExtrudeFeatureModel>(feat.Model);
             Assert.Equal(isCut, def.IsCut);
 
             // Verify IEEE 754 bit-exactness
@@ -811,7 +810,7 @@ public class ChallengerExtrudeStressTests
         using (var reopened = SwFile.Open(temp.FilePath, readOnly: true))
         {
             var feat = Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Extrusion));
-            var def = Assert.IsType<ExtrudeFeatureDefinitionData>(feat.Definition);
+            var def = Assert.IsType<ExtrudeFeatureModel>(feat.Model);
             Assert.Equal(endCondition, def.EndCondition);
             Assert.Equal(expectBothDirections, def.BothDirections);
             Assert.Equal(0.015, def.Depth);
@@ -834,7 +833,7 @@ public class ChallengerExtrudeStressTests
         using (var reopened = SwFile.Open(temp.FilePath, readOnly: true))
         {
             var feat = Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Cut));
-            var def = Assert.IsType<ExtrudeFeatureDefinitionData>(feat.Definition);
+            var def = Assert.IsType<ExtrudeFeatureModel>(feat.Model);
             Assert.Equal(0u, def.EndCondition);
             Assert.False(def.BothDirections);
             Assert.Equal(0.005, def.Depth);
@@ -911,7 +910,7 @@ public class ChallengerExtrudeStressTests
                 Assert.True(feat != null, $"Feature '{s.ExpectedName}' must exist upon reopen.");
                 Assert.Equal(s.IsCut ? FeatureKind.Cut : FeatureKind.Extrusion, feat!.Kind);
 
-                var def = Assert.IsType<ExtrudeFeatureDefinitionData>(feat.Definition);
+                var def = Assert.IsType<ExtrudeFeatureModel>(feat.Model);
                 Assert.Equal(s.Depth, def.Depth, precision: 6);
                 Assert.Equal(s.IsCut, def.IsCut);
             }

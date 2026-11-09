@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.Topology;
 using SldFile.Mfc;
 using Xunit;
 
@@ -133,8 +132,8 @@ public class TopologyPersistentFaceTests
         // Blind extrusion: the FaceRef is present but is not a terminating target.
         if (relativePath == "extrude_10mm")
         {
-            var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(
-                Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Definition);
+            var definition = Assert.IsType<ExtrudeFeatureModel>(
+                Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Model);
             Assert.Equal(0u, definition.EndCondition);
             Assert.Null(definition.EndConditionEntity);
             var target = TopologyDecoder.BuildEndConditionEntity(new FaceRefData { FaceCount = faceRef.FaceCount }, null, null);

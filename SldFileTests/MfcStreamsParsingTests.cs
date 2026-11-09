@@ -1,3 +1,4 @@
+using SldFile.Mfc;
 using SldFile;
 using SldFile.Binary;
 
@@ -119,7 +120,7 @@ public class MfcStreamsParsingTests
     public void LwData_PartFile_ShouldHaveTypeFlag()
     {
         using var file = SwFile.Open(TestFileProvider.CubePart, readOnly: true);
-        Assert.Equal(LwData.TypeFlagPart, file.LwData.TypeFlag);
+        Assert.Equal(LwDataModel.TypeFlagPart, file.LwData.TypeFlag);
         Assert.True(file.LwData.BodyTransformData.Length > 0);
     }
 
@@ -130,7 +131,7 @@ public class MfcStreamsParsingTests
     {
         var filePath = ResolveProviderPath(providerPropertyName);
         using var file = SwFile.Open(filePath, readOnly: true);
-        Assert.Equal(LwData.TypeFlagPart, file.LwData.TypeFlag);
+        Assert.Equal(LwDataModel.TypeFlagPart, file.LwData.TypeFlag);
     }
 
     // ── MatesList (Assembly only) ──────────────────────────────────
@@ -139,7 +140,7 @@ public class MfcStreamsParsingTests
     public void MatesList_AssemblyFile_ShouldHaveMates()
     {
         using var file = SwFile.Open(TestFileProvider.Assembly, readOnly: true);
-        Assert.Equal(MatesListData.ExpectedVersion, file.MatesList.StreamVersion);
+        Assert.Equal(MatesListModel.ExpectedVersion, file.MatesList.StreamVersion);
         Assert.True(file.MatesList.Mates.Count > 0);
     }
 

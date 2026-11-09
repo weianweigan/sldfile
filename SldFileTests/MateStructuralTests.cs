@@ -125,8 +125,8 @@ public class MateStructuralTests
             MfcTag("moMateDistance", 0x4D, 0x80),
             WChar("Distance1"));
 
-        var model = new MatesListData();
-        MatesListSchemaMapper.Map(stream, model);
+        var model = new MatesListModel();
+        MfcArchive.DeserializeInto(stream, model);
 
         var entry = Assert.Single(model.Mates);
         Assert.Equal("moMateDistanceM", entry.ClassName);
@@ -174,8 +174,8 @@ public class MateStructuralTests
             MfcTag("moMaterial_c"),
             WChar("Material <not specified>"));
 
-        var model = new MatesListData();
-        MatesListSchemaMapper.Map(stream, model);
+        var model = new MatesListModel();
+        MfcArchive.DeserializeInto(stream, model);
 
         Assert.Empty(model.Mates);
     }
@@ -188,8 +188,8 @@ public class MateStructuralTests
             WChar("Coincident9"));
         byte[] before = (byte[])stream.Clone();
 
-        var model = new MatesListData();
-        MatesListSchemaMapper.Map(stream, model);
+        var model = new MatesListModel();
+        MfcArchive.DeserializeInto(stream, model);
 
         Assert.Equal(before, stream);
         Assert.Single(model.Mates);

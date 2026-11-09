@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 using Xunit;
 
@@ -39,7 +38,7 @@ public class ExtrudeOptionAuthoringTests
         return temp;
     }
 
-    private static ExtrudeFeatureDefinitionData AuthorAndReopen(ExtrudeFeatureDefinitionData definition, out byte[] stream)
+    private static ExtrudeFeatureModel AuthorAndReopen(ExtrudeFeatureModel definition, out byte[] stream)
     {
         using var temp = CreateStrippedSketchPart();
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
@@ -52,7 +51,7 @@ public class ExtrudeOptionAuthoringTests
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         stream = (byte[])reopened.RawStreams[ResolvedStream].Clone();
         var feature = Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Extrusion));
-        return Assert.IsType<ExtrudeFeatureDefinitionData>(feature.Definition);
+        return Assert.IsType<ExtrudeFeatureModel>(feature.Model);
     }
 
     private static MfcElement SingleFeatureElement(MfcDocument doc) =>
@@ -66,7 +65,7 @@ public class ExtrudeOptionAuthoringTests
     [Fact]
     public void TwoDirectionAuthoring_RoundtripsBothDepths()
     {
-        var read = AuthorAndReopen(new ExtrudeFeatureDefinitionData
+        var read = AuthorAndReopen(new ExtrudeFeatureModel
         {
             Depth = 0.012,
             BothDirections = true,
@@ -83,7 +82,7 @@ public class ExtrudeOptionAuthoringTests
     [Fact]
     public void TwoDirectionAuthoring_EmitsIndexedSecondEndSpecAndD2Parameter()
     {
-        var read = AuthorAndReopen(new ExtrudeFeatureDefinitionData
+        var read = AuthorAndReopen(new ExtrudeFeatureModel
         {
             Depth = 0.010,
             BothDirections = true,
@@ -114,7 +113,7 @@ public class ExtrudeOptionAuthoringTests
     public void DraftAuthoring_RoundtripsEnableFlagAndAngle()
     {
         double angle = 7.0 * Math.PI / 180.0;
-        var read = AuthorAndReopen(new ExtrudeFeatureDefinitionData
+        var read = AuthorAndReopen(new ExtrudeFeatureModel
         {
             Depth = 0.010,
             DraftWhileExtruding = true,
@@ -131,7 +130,7 @@ public class ExtrudeOptionAuthoringTests
     public void DraftAuthoring_EmitsOwnedEnableFlagAndNamedAngleParameter()
     {
         double angle = 5.5 * Math.PI / 180.0;
-        var read = AuthorAndReopen(new ExtrudeFeatureDefinitionData
+        var read = AuthorAndReopen(new ExtrudeFeatureModel
         {
             Depth = 0.010,
             DraftWhileExtruding = true,
@@ -155,7 +154,7 @@ public class ExtrudeOptionAuthoringTests
     [Fact]
     public void StartOffsetAuthoring_RoundtripsTypeAndDistance()
     {
-        var read = AuthorAndReopen(new ExtrudeFeatureDefinitionData
+        var read = AuthorAndReopen(new ExtrudeFeatureModel
         {
             Depth = 0.010,
             FromType = 3,
@@ -171,7 +170,7 @@ public class ExtrudeOptionAuthoringTests
     [Fact]
     public void StartOffsetAuthoring_EmitsDiscriminatorAndSingleD19Parameter()
     {
-        var read = AuthorAndReopen(new ExtrudeFeatureDefinitionData
+        var read = AuthorAndReopen(new ExtrudeFeatureModel
         {
             Depth = 0.010,
             FromType = 3,
@@ -192,33 +191,33 @@ public class ExtrudeOptionAuthoringTests
 
     public static System.Collections.Generic.IEnumerable<object[]> UnsupportedOptionCombinations()
     {
-        yield return new object[] { new ExtrudeFeatureDefinitionData { Depth = .01, BothDirections = true, DepthDirection2 = .02, ReverseDirection = true }, "ReverseDirection" };
-        yield return new object[] { new ExtrudeFeatureDefinitionData { Depth = .01, BothDirections = true, DepthDirection2 = .02, EndCondition = 6 }, "EndCondition" };
-        yield return new object[] { new ExtrudeFeatureDefinitionData { Depth = .01, BothDirections = true, DepthDirection2 = .02, DraftWhileExtruding = true, DraftAngle = .1 }, "DraftWhileExtruding" };
-        yield return new object[] { new ExtrudeFeatureDefinitionData { Depth = .01, DraftWhileExtruding = true, DraftAngle = .1, IsCut = true }, "IsCut" };
-        yield return new object[] { new ExtrudeFeatureDefinitionData { Depth = .01, DraftWhileExtruding = true, DraftAngle = .1, ReverseDirection = true }, "ReverseDirection" };
-        yield return new object[] { new ExtrudeFeatureDefinitionData { Depth = .01, DraftWhileExtruding = true, DraftAngle = .1, EndCondition = 6 }, "EndCondition" };
-        yield return new object[] { new ExtrudeFeatureDefinitionData { Depth = .01, DraftWhileExtruding = true, DraftAngle = .1, DraftOutward = true }, "DraftOutward" };
-        yield return new object[] { new ExtrudeFeatureDefinitionData { Depth = .01, DraftWhileExtruding = true, DraftAngle = .1, DraftAngleDirection2 = .1 }, "DraftAngleDirection2" };
-        yield return new object[] { new ExtrudeFeatureDefinitionData { Depth = .01, FromType = 3, FromOffsetDistance = .001, IsCut = true }, "IsCut" };
-        yield return new object[] { new ExtrudeFeatureDefinitionData { Depth = .01, FromType = 3, FromOffsetDistance = .001, ReverseDirection = true }, "ReverseDirection" };
-        yield return new object[] { new ExtrudeFeatureDefinitionData { Depth = .01, FromType = 3, FromOffsetDistance = .001, FromOffsetReverse = true }, "FromOffsetReverse" };
-        yield return new object[] { new ExtrudeFeatureDefinitionData { Depth = .01, FromType = 3, FromOffsetDistance = .001, DraftWhileExtruding = true, DraftAngle = .1 }, "FromType" };
-        yield return new object[] { new ExtrudeFeatureDefinitionData { Depth = .01, FromType = 1, FromOffsetDistance = .001 }, "FromType" };
+        yield return new object[] { new ExtrudeFeatureModel { Depth = .01, BothDirections = true, DepthDirection2 = .02, ReverseDirection = true }, "ReverseDirection" };
+        yield return new object[] { new ExtrudeFeatureModel { Depth = .01, BothDirections = true, DepthDirection2 = .02, EndCondition = 6 }, "EndCondition" };
+        yield return new object[] { new ExtrudeFeatureModel { Depth = .01, BothDirections = true, DepthDirection2 = .02, DraftWhileExtruding = true, DraftAngle = .1 }, "DraftWhileExtruding" };
+        yield return new object[] { new ExtrudeFeatureModel { Depth = .01, DraftWhileExtruding = true, DraftAngle = .1, IsCut = true }, "IsCut" };
+        yield return new object[] { new ExtrudeFeatureModel { Depth = .01, DraftWhileExtruding = true, DraftAngle = .1, ReverseDirection = true }, "ReverseDirection" };
+        yield return new object[] { new ExtrudeFeatureModel { Depth = .01, DraftWhileExtruding = true, DraftAngle = .1, EndCondition = 6 }, "EndCondition" };
+        yield return new object[] { new ExtrudeFeatureModel { Depth = .01, DraftWhileExtruding = true, DraftAngle = .1, DraftOutward = true }, "DraftOutward" };
+        yield return new object[] { new ExtrudeFeatureModel { Depth = .01, DraftWhileExtruding = true, DraftAngle = .1, DraftAngleDirection2 = .1 }, "DraftAngleDirection2" };
+        yield return new object[] { new ExtrudeFeatureModel { Depth = .01, FromType = 3, FromOffsetDistance = .001, IsCut = true }, "IsCut" };
+        yield return new object[] { new ExtrudeFeatureModel { Depth = .01, FromType = 3, FromOffsetDistance = .001, ReverseDirection = true }, "ReverseDirection" };
+        yield return new object[] { new ExtrudeFeatureModel { Depth = .01, FromType = 3, FromOffsetDistance = .001, FromOffsetReverse = true }, "FromOffsetReverse" };
+        yield return new object[] { new ExtrudeFeatureModel { Depth = .01, FromType = 3, FromOffsetDistance = .001, DraftWhileExtruding = true, DraftAngle = .1 }, "FromType" };
+        yield return new object[] { new ExtrudeFeatureModel { Depth = .01, FromType = 1, FromOffsetDistance = .001 }, "FromType" };
         // Thin authoring now supports the measured OneDirection/CapEnds templates; only the
         // unparameterized variants remain rejected.
-        yield return new object[] { new ExtrudeFeatureDefinitionData { Depth = .01, IsThinFeature = true, ThinWallType = 1, WallThickness = .001 }, "ThinWallType" };
-        yield return new object[] { new ExtrudeFeatureDefinitionData { Depth = .01, IsThinFeature = true, ThinWallType = 3, WallThickness = .001, WallThicknessDirection2 = .002 }, "BothDirections" };
-        yield return new object[] { new ExtrudeFeatureDefinitionData { Depth = .01, CapEnds = true }, "CapEnds" };
-        yield return new object[] { new ExtrudeFeatureDefinitionData { Depth = .01, Merge = false }, "Merge" };
-        yield return new object[] { new ExtrudeFeatureDefinitionData { Depth = .01, DraftWhileExtrudingDirection2 = true, DraftAngleDirection2 = .1 }, "DraftWhileExtrudingDirection2" };
-        yield return new object[] { new ExtrudeFeatureDefinitionData { Depth = .01, BothDirections = true, DepthDirection2 = .005, DraftAngleDirection2 = .1 }, "DraftAngleDirection2" };
-        yield return new object[] { new ExtrudeFeatureDefinitionData { Depth = .01, DraftWhileExtrudingDirection2 = true, DraftAngleDirection2 = .1, DraftOutwardDirection2 = true }, "DraftWhileExtrudingDirection2" };
+        yield return new object[] { new ExtrudeFeatureModel { Depth = .01, IsThinFeature = true, ThinWallType = 1, WallThickness = .001 }, "ThinWallType" };
+        yield return new object[] { new ExtrudeFeatureModel { Depth = .01, IsThinFeature = true, ThinWallType = 3, WallThickness = .001, WallThicknessDirection2 = .002 }, "BothDirections" };
+        yield return new object[] { new ExtrudeFeatureModel { Depth = .01, CapEnds = true }, "CapEnds" };
+        yield return new object[] { new ExtrudeFeatureModel { Depth = .01, Merge = false }, "Merge" };
+        yield return new object[] { new ExtrudeFeatureModel { Depth = .01, DraftWhileExtrudingDirection2 = true, DraftAngleDirection2 = .1 }, "DraftWhileExtrudingDirection2" };
+        yield return new object[] { new ExtrudeFeatureModel { Depth = .01, BothDirections = true, DepthDirection2 = .005, DraftAngleDirection2 = .1 }, "DraftAngleDirection2" };
+        yield return new object[] { new ExtrudeFeatureModel { Depth = .01, DraftWhileExtrudingDirection2 = true, DraftAngleDirection2 = .1, DraftOutwardDirection2 = true }, "DraftWhileExtrudingDirection2" };
     }
 
     [Theory]
     [MemberData(nameof(UnsupportedOptionCombinations))]
-    public void UnsupportedOptionCombinationsAreRejectedWithoutModifyingTheStream(ExtrudeFeatureDefinitionData definition, string property)
+    public void UnsupportedOptionCombinationsAreRejectedWithoutModifyingTheStream(ExtrudeFeatureModel definition, string property)
     {
         using var temp = CreateStrippedSketchPart();
         using var sw = SwFile.Open(temp.FilePath, readOnly: false);
@@ -240,7 +239,7 @@ public class ExtrudeOptionAuthoringTests
         using var sw = SwFile.Open(temp.FilePath, readOnly: false);
         var part = Assert.IsType<SldPart>(sw);
         var stream = (byte[])part.RawStreams[ResolvedStream].Clone();
-        var folder = new SldFile.Binary.FeatureFolder
+        var folder = new SldFile.Mfc.FeatureFolder
         {
             ClassName = "moProfileFeature_c",
             DisplayName = "Sketch1",
@@ -248,19 +247,19 @@ public class ExtrudeOptionAuthoringTests
         };
         const string FeatureName = "凸台-拉伸1";
 
-        var twoDirections = new ExtrudeFeatureDefinitionData
+        var twoDirections = new ExtrudeFeatureModel
         {
             Depth = .01,
             BothDirections = true,
             DepthDirection2 = .005
         };
-        var draft = new ExtrudeFeatureDefinitionData
+        var draft = new ExtrudeFeatureModel
         {
             Depth = .01,
             DraftWhileExtruding = true,
             DraftAngle = .1
         };
-        var offset = new ExtrudeFeatureDefinitionData
+        var offset = new ExtrudeFeatureModel
         {
             Depth = .01,
             FromType = 3,
@@ -271,26 +270,26 @@ public class ExtrudeOptionAuthoringTests
         var unsupported = (byte[])stream.Clone();
         BitConverter.GetBytes((ushort)0x6E).CopyTo(unsupported, 0);
         var versionError = Assert.Throws<NotSupportedException>(
-            () => ExtrudeFeatureBuilder.BuildExtrusionStream(unsupported, new ExtrudeFeatureDefinitionData { Depth = .01 }, folder, unsupported.Length, FeatureName));
+            () => { ExtrudeFeatureBuilder.BuildExtrusionStream(unsupported, new ExtrudeFeatureModel { Depth = .01 }, folder, unsupported.Length, FeatureName); });
         Assert.Contains("0x6E", versionError.Message);
 
         // 0x71 archives allow the basic payload (used by the native cut tests) but not options.
         var compatible = (byte[])stream.Clone();
         BitConverter.GetBytes((ushort)0x71).CopyTo(compatible, 0);
         var optionError = Assert.Throws<NotSupportedException>(
-            () => ExtrudeFeatureBuilder.BuildExtrusionStream(compatible, twoDirections, folder, compatible.Length, FeatureName));
+            () => { ExtrudeFeatureBuilder.BuildExtrusionStream(compatible, twoDirections, folder, compatible.Length, FeatureName); });
         Assert.Contains("0x70", optionError.Message);
         Assert.Throws<NotSupportedException>(
-            () => ExtrudeFeatureBuilder.BuildExtrusionStream(compatible, draft, folder, compatible.Length, FeatureName));
+            () => { ExtrudeFeatureBuilder.BuildExtrusionStream(compatible, draft, folder, compatible.Length, FeatureName); });
         Assert.Throws<NotSupportedException>(
-            () => ExtrudeFeatureBuilder.BuildExtrusionStream(compatible, offset, folder, compatible.Length, FeatureName));
+            () => { ExtrudeFeatureBuilder.BuildExtrusionStream(compatible, offset, folder, compatible.Length, FeatureName); });
 
         // 0x71 basic authoring reaches the chain check and succeeds when the stream owns a chain.
         Assert.NotNull(ExtrudeFeatureBuilder.BuildExtrusionStream(compatible,
-            new ExtrudeFeatureDefinitionData { Depth = .01 }, folder, compatible.Length, FeatureName));
+            new ExtrudeFeatureModel { Depth = .01 }, folder, compatible.Length, FeatureName));
 
         // A folder range that does not contain the chain is rejected with a version-bearing message.
-        var noChainFolder = new SldFile.Binary.FeatureFolder
+        var noChainFolder = new SldFile.Mfc.FeatureFolder
         {
             ClassName = "moProfileFeature_c",
             DisplayName = "Sketch1",
@@ -298,7 +297,7 @@ public class ExtrudeOptionAuthoringTests
         };
         var chainError = Assert.Throws<NotSupportedException>(
             () => ExtrudeFeatureBuilder.BuildExtrusionStream(compatible,
-                new ExtrudeFeatureDefinitionData { Depth = .01 }, noChainFolder, compatible.Length, FeatureName));
+                new ExtrudeFeatureModel { Depth = .01 }, noChainFolder, compatible.Length, FeatureName));
         Assert.Contains("moSketchChain_c", chainError.Message);
         Assert.Contains("0x71", chainError.Message);
     }
@@ -311,7 +310,7 @@ public class ExtrudeOptionAuthoringTests
     [InlineData(double.PositiveInfinity)]
     public void DraftAuthoringRejectsInvalidAngles(double angle)
     {
-        var definition = new ExtrudeFeatureDefinitionData
+        var definition = new ExtrudeFeatureModel
         {
             Depth = .01,
             DraftWhileExtruding = true,
@@ -327,7 +326,7 @@ public class ExtrudeOptionAuthoringTests
     [InlineData(double.PositiveInfinity)]
     public void StartOffsetAuthoringRejectsInvalidDistances(double distance)
     {
-        var definition = new ExtrudeFeatureDefinitionData
+        var definition = new ExtrudeFeatureModel
         {
             Depth = .01,
             FromType = 3,

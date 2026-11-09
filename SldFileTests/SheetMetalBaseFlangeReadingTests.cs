@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using SldFile;
@@ -8,7 +8,7 @@ using Xunit;
 namespace SldFileTests;
 
 /// <summary>
-/// Evidence-backed reading tests for SheetMetalBaseFlangeDefinitionData.
+/// Evidence-backed reading tests for SheetMetalBaseFlangeModel.
 /// Only thickness, bend radius and depth have controlled stream evidence. The
 /// remaining manufacturing options must report unresolved through
 /// ParameterResolution instead of exposing a model default as a parsed value.
@@ -36,10 +36,10 @@ public class SheetMetalBaseFlangeReadingTests
         throw new FileNotFoundException($"Sample {folder}/{fileName} not found");
     }
 
-    private static SheetMetalBaseFlangeDefinitionData ReadDefinition(SwFile file)
+    private static SheetMetalBaseFlangeModel ReadDefinition(SwFile file)
     {
         var folder = file.ResolvedFeatures.Folders.Single(f => f.ClassName == "moSMBaseFlange_c");
-        return Assert.IsType<SheetMetalBaseFlangeDefinitionData>(folder.FeatureData);
+        return Assert.IsType<SheetMetalBaseFlangeModel>(folder.FeatureData);
     }
 
     [Theory]
@@ -196,7 +196,7 @@ public class SheetMetalBaseFlangeReadingTests
         first.CopyTo(raw, 2);
         second.CopyTo(raw, 2 + first.Length);
 
-        var definition = new SheetMetalBaseFlangeDefinitionData();
+        var definition = new SheetMetalBaseFlangeModel();
         SheetMetalBaseFlangeParser.Read(raw, 2, raw.Length, definition);
 
         Assert.Equal(0.0, definition.Depth);
@@ -211,7 +211,7 @@ public class SheetMetalBaseFlangeReadingTests
         raw[0] = 0x73;
         record.CopyTo(raw, 2);
 
-        var definition = new SheetMetalBaseFlangeDefinitionData();
+        var definition = new SheetMetalBaseFlangeModel();
         SheetMetalBaseFlangeParser.Read(raw, 2, raw.Length, definition);
 
         Assert.Equal(0.0125, definition.Depth);
@@ -228,7 +228,7 @@ public class SheetMetalBaseFlangeReadingTests
         BitConverter.GetBytes(version).CopyTo(raw, 0);
         record.CopyTo(raw, 2);
 
-        var definition = new SheetMetalBaseFlangeDefinitionData();
+        var definition = new SheetMetalBaseFlangeModel();
         SheetMetalBaseFlangeParser.Read(raw, 2, raw.Length, definition);
 
         Assert.Equal(0.0, definition.Depth);
@@ -247,7 +247,7 @@ public class SheetMetalBaseFlangeReadingTests
         raw[0] = 0x73;
         record.CopyTo(raw, 2);
 
-        var definition = new SheetMetalBaseFlangeDefinitionData();
+        var definition = new SheetMetalBaseFlangeModel();
         SheetMetalBaseFlangeParser.Read(raw, 2, raw.Length, definition);
 
         Assert.Equal(0.0, definition.Depth);
@@ -293,14 +293,14 @@ public class SheetMetalBaseFlangeReadingTests
         BitConverter.GetBytes(0.015).CopyTo(raw, valueOffset);
         WriteMfcTag(raw, tagOffset, tagName);
 
-        var definition = new SheetMetalBaseFlangeDefinitionData();
+        var definition = new SheetMetalBaseFlangeModel();
         SheetMetalBaseFlangeParser.Read(raw, 2, tagOffset, definition);
         Assert.Equal(0.015, definition.Depth);
         Assert.True(definition.ParameterResolution.Depth);
 
         // Break the 32-byte zero frame: the fallback must not guess a value.
         raw[valueOffset + 12] = 0x7F;
-        var rejected = new SheetMetalBaseFlangeDefinitionData();
+        var rejected = new SheetMetalBaseFlangeModel();
         SheetMetalBaseFlangeParser.Read(raw, 2, tagOffset, rejected);
         Assert.Equal(0.0, rejected.Depth);
         Assert.False(rejected.ParameterResolution.Depth);
@@ -308,7 +308,7 @@ public class SheetMetalBaseFlangeReadingTests
         // Without the flat-pattern template tag the layout is unknown.
         raw[valueOffset + 12] = 0;
         raw[tagOffset + 6] = (byte)'X';
-        var wrongTag = new SheetMetalBaseFlangeDefinitionData();
+        var wrongTag = new SheetMetalBaseFlangeModel();
         SheetMetalBaseFlangeParser.Read(raw, 2, tagOffset, wrongTag);
         Assert.Equal(0.0, wrongTag.Depth);
         Assert.False(wrongTag.ParameterResolution.Depth);

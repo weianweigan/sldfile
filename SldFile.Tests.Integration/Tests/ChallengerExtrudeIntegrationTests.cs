@@ -461,7 +461,7 @@ public class ChallengerExtrudeIntegrationTests
                 var part = Assert.IsType<SldPart>(swPart);
                 var original = (byte[])part.RawStreams[streamName].Clone();
                 var error = Assert.Throws<NotSupportedException>(() =>
-                    part.AddExtrude(new ExtrudeFeatureDefinitionData { Depth = 0.007, IsCut = true }));
+                    part.AddExtrude(new ExtrudeFeatureModel { Depth = 0.007, IsCut = true }));
                 Assert.Contains("moSketchChain_c", error.Message);
                 part.Save();
                 using (var reopened = SwFile.Open(tempPath, readOnly: true))
@@ -658,7 +658,7 @@ public class ChallengerExtrudeIntegrationTests
                 var part = Assert.IsType<SldPart>(swPart);
                 var original = (byte[])part.RawStreams[streamName].Clone();
                 var error = Assert.Throws<NotSupportedException>(() =>
-                    part.AddExtrude(new ExtrudeFeatureDefinitionData { Depth = 0.008, IsCut = true }));
+                    part.AddExtrude(new ExtrudeFeatureModel { Depth = 0.008, IsCut = true }));
                 Assert.Contains("moSketchChain_c", error.Message);
                 part.Save();
                 using (var reopened = SwFile.Open(tempPath, readOnly: true))
@@ -674,10 +674,10 @@ public class ChallengerExtrudeIntegrationTests
         }
     }
 
-    private static System.Collections.Generic.List<SldFile.Binary.FeatureFolder> FlattenFolders(System.Collections.Generic.IEnumerable<SldFile.Binary.FeatureFolder> folders)
+    private static System.Collections.Generic.List<SldFile.Mfc.FeatureFolder> FlattenFolders(System.Collections.Generic.IEnumerable<SldFile.Mfc.FeatureFolder> folders)
     {
-        var list = new System.Collections.Generic.List<SldFile.Binary.FeatureFolder>();
-        void Walk(System.Collections.Generic.IEnumerable<SldFile.Binary.FeatureFolder> current)
+        var list = new System.Collections.Generic.List<SldFile.Mfc.FeatureFolder>();
+        void Walk(System.Collections.Generic.IEnumerable<SldFile.Mfc.FeatureFolder> current)
         {
             foreach (var f in current)
             {

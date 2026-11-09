@@ -3,8 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using SldFile;
 using SldFile.Assembly;
-using SldFile.Drawing;
-using SldFile.Sketches;
+using SldFile.Mfc;
 using SldFileViewer.Models;
 
 namespace SldFileViewer.Services;
@@ -20,8 +19,10 @@ public interface ISwDocumentService : IDisposable
 
     IReadOnlyList<Configuration> GetConfigurations();
     IReadOnlyList<Feature> GetFeatures();
-    IReadOnlyList<SketchFeature> GetSketches(int configIndex = 0);
+    IReadOnlyList<SketchFeatureModel> GetSketches(int configIndex = 0);
     DisplayMesh? GetDisplayMesh();
+    // Returns the selected instance geometry in assembly coordinates (millimeters).
+    DisplayMesh? GetComponentDisplayMesh(AssemblyComponentNode component);
     IReadOnlyList<AssemblyComponentNode> GetAssemblyTree(string? configName = null);
     IReadOnlyList<BomItem> GetBom(string? configName = null);
     IReadOnlyList<CustomPropertyItem> GetCustomProperties(string? configName = null);

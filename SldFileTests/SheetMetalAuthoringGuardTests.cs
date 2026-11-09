@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using SldFile;
@@ -31,7 +31,7 @@ public class SheetMetalAuthoringGuardTests
         throw new FileNotFoundException("sm_l_profile/sm_l_d10.SLDPRT not found");
     }
 
-    private static SheetMetalBaseFlangeDefinitionData ValidDefinition() => new()
+    private static SheetMetalBaseFlangeModel ValidDefinition() => new()
     {
         Thickness = 0.0015,
         BendRadius = 0.002,
@@ -41,7 +41,7 @@ public class SheetMetalAuthoringGuardTests
 
     public static System.Collections.Generic.IEnumerable<object[]> UnsupportedAuthoringDefinitions()
     {
-        SheetMetalBaseFlangeDefinitionData Base() => ValidDefinition();
+        SheetMetalBaseFlangeModel Base() => ValidDefinition();
 
         var reverseThickness = Base(); reverseThickness.ReverseThickness = true;
         yield return new object[] { reverseThickness, "ReverseThickness" };
@@ -92,7 +92,7 @@ public class SheetMetalAuthoringGuardTests
     [Theory]
     [MemberData(nameof(UnsupportedAuthoringDefinitions))]
     public void UnsupportedOptionsAreRejectedWithoutModifyingTheStream(
-        SheetMetalBaseFlangeDefinitionData definition, string property)
+        SheetMetalBaseFlangeModel definition, string property)
     {
         using var temp = TestFileProvider.CreateTempCopy(SamplePath());
         const string streamPath = "Contents/Config-0-ResolvedFeatures";
@@ -136,7 +136,7 @@ public class SheetMetalAuthoringGuardTests
     {
         using var temp = TestFileProvider.CreateTempCopy(SamplePath());
         using var document = Assert.IsType<SldPart>(SwFile.Open(temp.FilePath, readOnly: false));
-        var definition = new SheetMetalBaseFlangeDefinitionData { Thickness = thickness, BendRadius = radius, Depth = depth };
+        var definition = new SheetMetalBaseFlangeModel { Thickness = thickness, BendRadius = radius, Depth = depth };
         Assert.Throws<ArgumentOutOfRangeException>(() => document.AddSheetMetalBaseFlange(definition));
     }
 

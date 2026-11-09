@@ -6,6 +6,7 @@ using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SldFile.Drawing.Vector;
+using SldFile;
 using SldFileViewer.Services;
 using SldFileViewer.Views.Controls;
 
@@ -14,6 +15,7 @@ namespace SldFileViewer.ViewModels;
 public partial class ImagePreviewViewModel : ObservableObject
 {
     private readonly ISwDocumentService _docService;
+    private readonly IExportService? _exportService;
     private readonly IDialogService? _dialogService;
 
     [ObservableProperty]
@@ -27,6 +29,12 @@ public partial class ImagePreviewViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _hasImage;
+
+    [ObservableProperty]
+    private bool _isDrawingSheet;
+
+    [ObservableProperty]
+    private int _currentSheetIndex;
 
     [ObservableProperty]
     private double _zoom = 1.0;
@@ -116,13 +124,19 @@ public partial class ImagePreviewViewModel : ObservableObject
     public event Action? RequestResetTo100;
     public event Action<double>? RequestZoomDelta;
 
-    public ImagePreviewViewModel(ISwDocumentService docService) : this(docService, null)
+    public ImagePreviewViewModel(ISwDocumentService docService) : this(docService, null, null)
     {
     }
 
     public ImagePreviewViewModel(ISwDocumentService docService, IDialogService? dialogService)
+        : this(docService, null, dialogService)
+    {
+    }
+
+    public ImagePreviewViewModel(ISwDocumentService docService, IExportService? exportService, IDialogService? dialogService)
     {
         _docService = docService;
+        _exportService = exportService;
         _dialogService = dialogService;
     }
 
@@ -224,9 +238,12 @@ public partial class ImagePreviewViewModel : ObservableObject
         ZoomText = $"{Math.Round(zoomRatio * 100):0}%";
     }
 
-    public void LoadImage(byte[]? imageBytes, string description = "", DrawingSheetVectorData? vectorData = null)
+    public void LoadImage(byte[]? imageBytes, string description = "", DrawingSheetVectorData? vectorData = null, int sheetIndex = -1)
     {
         VectorData = vectorData;
+        CurrentSheetIndex = sheetIndex;
+        IsDrawingSheet = _docService.CurrentFile is SldDrawing && sheetIndex >= 0;
+        OverlayMode = DrawingOverlayMode.SheetNotesOnly;
 
         if (imageBytes == null || imageBytes.Length == 0)
         {
@@ -260,14 +277,6 @@ public partial class ImagePreviewViewModel : ObservableObject
             if (VectorData != null && VectorData.HasVectorData)
             {
                 VectorData.CalculatePixelCoordinates(bmp.PixelWidth, bmp.PixelHeight);
-                if (VectorData.HasLines && VectorData.Lines.Count >= 20)
-                {
-                    OverlayMode = DrawingOverlayMode.PureVectorCad;
-                }
-                else
-                {
-                    OverlayMode = DrawingOverlayMode.SheetNotesOnly;
-                }
             }
 
             string hdTag = IsHighDefinition ? " [高清]" : "";
@@ -290,6 +299,32 @@ public partial class ImagePreviewViewModel : ObservableObject
             PixelHeight = 0;
             IsHighDefinition = false;
             ImageInfo = $"加载图像失败: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private void ExportSvg()
+    {
+        if (_exportService == null || _dialogService == null) return;
+
+        if (_docService.CurrentFile is not SldDrawing drawing)
+        {
+            _dialogService.ShowInformation("导出提示", "当前文档不是工程图，无法导出 SVG。");
+            return;
+        }
+
+        string defaultName = Path.GetFileNameWithoutExtension(_docService.CurrentFile.FilePath) + $"_Sheet{CurrentSheetIndex + 1}.svg";
+        if (_dialogService.ShowSaveFileDialog(defaultName, "SVG 矢量图形 (*.svg)|*.svg", out string savePath))
+        {
+            try
+            {
+                _exportService.ExportDrawingToSvg(drawing, savePath, CurrentSheetIndex);
+                _dialogService.ShowInformation("导出成功", $"工程图矢量 SVG 已成功导出至:\n{savePath}");
+            }
+            catch (Exception ex)
+            {
+                _dialogService.ShowError("导出失败", $"导出 SVG 出现异常: {ex.Message}");
+            }
         }
     }
 }

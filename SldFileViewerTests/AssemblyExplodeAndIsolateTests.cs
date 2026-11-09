@@ -3,8 +3,7 @@ using System.Collections.Generic;
 using System.Numerics;
 using System.Threading.Tasks;
 using SldFile;
-using SldFile.Drawing;
-using SldFile.Sketches;
+using SldFile.Mfc;
 using SldFileViewer.Models;
 using SldFileViewer.Services;
 using SldFileViewer.ViewModels;
@@ -37,7 +36,8 @@ public class AssemblyExplodeAndIsolateTests
         public DisplayMesh? GetDisplayMesh() => MockMesh;
         public IReadOnlyList<Configuration> GetConfigurations() => Array.Empty<Configuration>();
         public IReadOnlyList<Feature> GetFeatures() => Array.Empty<Feature>();
-        public IReadOnlyList<SketchFeature> GetSketches(int configIndex = 0) => Array.Empty<SketchFeature>();
+        public IReadOnlyList<SketchFeatureModel> GetSketches(int configIndex = 0) => Array.Empty<SketchFeatureModel>();
+        public DisplayMesh? GetComponentDisplayMesh(AssemblyComponentNode component) => null;
         public IReadOnlyList<AssemblyComponentNode> GetAssemblyTree(string? configName = null) => MockTree ?? Array.Empty<AssemblyComponentNode>();
         public IReadOnlyList<BomItem> GetBom(string? configName = null) => Array.Empty<BomItem>();
         public IReadOnlyList<CustomPropertyItem> GetCustomProperties(string? configName = null) => Array.Empty<CustomPropertyItem>();
@@ -145,6 +145,31 @@ public class AssemblyExplodeAndIsolateTests
         Assert.Null(vm.WpfGhostMesh);
         Assert.False(vm.IsExplodeModeEnabled);
         Assert.Equal(0.0, vm.ExplodePercent);
+    }
+
+    [Fact]
+    public void StitchedSameNameInstances_KeepExactMappingAndIsolation()
+    {
+        var (vm, service, first, second) = CreateAssemblyContext();
+        first.Name = second.Name = "Bolt";
+        first.InstanceName = "Bolt";
+        second.InstanceName = "Bolt-2";
+        var parts = new List<DisplayMeshPart>(service.MockMesh!.Parts);
+        for (int i = 0; i < parts.Count; i++)
+        {
+            var component = i == 0 ? first : second;
+            parts[i].Id = $"stitched:{component.ComponentId}:{i}";
+            parts[i].AppearanceName = "Bolt";
+            parts[i].SurfaceReferences = new[] { new DisplaySurfaceReference { Identity = component.InstanceName } };
+        }
+        vm.LoadMesh();
+        vm.HighlightComponent(second);
+        Assert.NotNull(vm.WpfComponentHighlightMesh);
+        Assert.Equal(3, vm.WpfComponentHighlightMesh!.Positions.Count);
+        Assert.All(vm.WpfComponentHighlightMesh.Positions, p => Assert.True(p.X < 0));
+        vm.IsolateComponentCommand.Execute(second);
+        Assert.Equal(3, vm.WpfMesh!.TriangleIndices.Count);
+        Assert.Equal(3, vm.WpfGhostMesh!.TriangleIndices.Count);
     }
 
     [Fact]

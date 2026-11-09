@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using SldFile.Mfc;
 
 namespace SldFile.Binary;

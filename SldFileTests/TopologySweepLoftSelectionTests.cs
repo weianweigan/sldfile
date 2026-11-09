@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using SldFile;
-using SldFile.Binary.Topology;
 using SldFile.Mfc;
 using Xunit;
 

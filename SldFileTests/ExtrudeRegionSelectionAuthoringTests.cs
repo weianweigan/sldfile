@@ -3,10 +3,13 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
-using SldFile.Binary.Topology;
 using SldFile.Mfc;
-using SldFile.Sketches;
+using SldFile.Mfc;
+using SketchFeature = SldFile.Mfc.SketchFeatureModel;
+using SketchPoint = SldFile.Mfc.SketchPointModel;
+using SketchSegment = SldFile.Mfc.SketchSegmentModel;
+using SketchRelation = SldFile.Mfc.SketchRelationModel;
+using SketchDimension = SldFile.Mfc.SketchDimensionModel;
 using Xunit;
 
 namespace SldFileTests;
@@ -62,9 +65,9 @@ public class ExtrudeRegionSelectionAuthoringTests
         return temp;
     }
 
-    private static ExtrudeFeatureDefinitionData Definition(uint[] edges, uint loopCount = 0)
+    private static ExtrudeFeatureModel Definition(uint[] edges, uint loopCount = 0)
     {
-        return new ExtrudeFeatureDefinitionData
+        return new ExtrudeFeatureModel
         {
             Depth = 0.010,
             SketchSelectionMode = SketchSelectionMode.ExplicitSelection,
@@ -111,7 +114,7 @@ public class ExtrudeRegionSelectionAuthoringTests
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         var feature = Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Extrusion));
         Assert.Equal("ExplicitRegion", feature.Name);
-        var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<ExtrudeFeatureModel>(feature.Model);
         Assert.Equal(SketchSelectionMode.ExplicitSelection, definition.SketchSelectionMode);
         Assert.Equal(0.010, definition.Depth, 12);
         Assert.Empty(definition.SelectedContours);
@@ -203,8 +206,8 @@ public class ExtrudeRegionSelectionAuthoringTests
 
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         Assert.Equal(before, reopened.RawStreams[ResolvedStream]);
-        var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(
-            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Definition);
+        var definition = Assert.IsType<ExtrudeFeatureModel>(
+            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Model);
         Assert.Equal(SketchSelectionMode.ExplicitSelection, definition.SketchSelectionMode);
         Assert.Equal(LShapeEdges, Assert.Single(definition.SelectedRegions).EdgeIds.OrderBy(x => x));
     }
@@ -225,7 +228,7 @@ public class ExtrudeRegionSelectionAuthoringTests
     public void RegionSelection_RejectsMultipleRegionsHolesAndMixedSelections()
     {
         using var temp = CreateStrippedRegionBase(LShapeSample, out _, out _);
-        AssertRegionAddRejected(temp, new ExtrudeFeatureDefinitionData
+        AssertRegionAddRejected(temp, new ExtrudeFeatureModel
         {
             Depth = 0.010,
             SketchSelectionMode = SketchSelectionMode.ExplicitSelection,
@@ -238,7 +241,7 @@ public class ExtrudeRegionSelectionAuthoringTests
 
         AssertRegionAddRejected(temp, Definition(LShapeEdges, loopCount: 2), "holes");
 
-        AssertRegionAddRejected(temp, new ExtrudeFeatureDefinitionData
+        AssertRegionAddRejected(temp, new ExtrudeFeatureModel
         {
             Depth = 0.010,
             SketchSelectionMode = SketchSelectionMode.ExplicitSelection,
@@ -251,14 +254,14 @@ public class ExtrudeRegionSelectionAuthoringTests
     public void RegionSelection_RejectsUnsupportedOptionsDepthAndNonControlledBase()
     {
         using var temp = CreateStrippedRegionBase(LShapeSample, out _, out _);
-        AssertRegionAddRejected(temp, new ExtrudeFeatureDefinitionData
+        AssertRegionAddRejected(temp, new ExtrudeFeatureModel
         {
             Depth = 0.020,
             SketchSelectionMode = SketchSelectionMode.ExplicitSelection,
             SelectedRegions = new[] { new SketchRegionReference { EdgeIds = LShapeEdges } }
         }, "template depth");
 
-        AssertRegionAddRejected(temp, new ExtrudeFeatureDefinitionData
+        AssertRegionAddRejected(temp, new ExtrudeFeatureModel
         {
             Depth = 0.010, BothDirections = true, DepthDirection2 = 0.005,
             SketchSelectionMode = SketchSelectionMode.ExplicitSelection,
@@ -355,7 +358,7 @@ public class ExtrudeRegionSelectionAuthoringTests
     }
 
     private static void AssertRegionAddRejected(
-        TempTestFile temp, ExtrudeFeatureDefinitionData definition, string expectedMessage)
+        TempTestFile temp, ExtrudeFeatureModel definition, string expectedMessage)
     {
         byte[] before = ReadStream(temp.FilePath);
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))

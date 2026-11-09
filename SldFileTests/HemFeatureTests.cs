@@ -1,10 +1,10 @@
+using SldFile.Mfc;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using Xunit;
 
 namespace SldFileTests;
@@ -37,11 +37,11 @@ public class HemFeatureTests
         throw new FileNotFoundException($"SheetMetalFormingOptions/{fileName} not found");
     }
 
-    private static HemFeatureDefinitionData ReadDefinition(string fileName)
+    private static HemFeatureModel ReadDefinition(string fileName)
     {
         using var file = SwFile.Open(SamplePath(fileName), readOnly: true);
         var folder = Assert.Single(file.ResolvedFeatures.Folders, f => f.ClassName == "moHem_c");
-        return Assert.IsType<HemFeatureDefinitionData>(folder.FeatureData);
+        return Assert.IsType<HemFeatureModel>(folder.FeatureData);
     }
 
     public static IEnumerable<object[]> NativeSamples()
@@ -59,7 +59,7 @@ public class HemFeatureTests
         using var file = SwFile.Open(SamplePath(fileName), readOnly: true);
         var folder = Assert.Single(file.ResolvedFeatures.Folders, f => f.ClassName == "moHem_c");
         Assert.Equal(0x67u, folder.Header.TypeId);
-        var definition = Assert.IsType<HemFeatureDefinitionData>(folder.FeatureData);
+        var definition = Assert.IsType<HemFeatureModel>(folder.FeatureData);
 
         Assert.Equal(type, definition.Type ?? -1);
         Assert.Equal(0.005, definition.Length!.Value, 12);
@@ -98,7 +98,7 @@ public class HemFeatureTests
         var part = Assert.IsType<SldPart>(file);
         var feature = Assert.Single(part.Features, f => f.Name == featureName);
         Assert.Equal(FeatureKind.Hem, feature.Kind);
-        Assert.IsType<HemFeatureDefinitionData>(feature.Definition);
+        Assert.IsType<HemFeatureModel>(feature.Model);
     }
 
     [Fact]
@@ -207,7 +207,7 @@ public class HemFeatureTests
         Assert.Equal((byte[])original.RawStreams[ResolvedStream].Clone(), authored);
 
         using var parsedFile = SwFile.Open(temp.FilePath, readOnly: true);
-        var parsed = Assert.IsType<HemFeatureDefinitionData>(
+        var parsed = Assert.IsType<HemFeatureModel>(
             parsedFile.ResolvedFeatures.Folders.Single(f => f.ClassName == "moHem_c").FeatureData);
         Assert.Equal(type, parsed.Type ?? -1);
         Assert.Equal(length, parsed.Length!.Value, 12);
@@ -240,7 +240,7 @@ public class HemFeatureTests
         Assert.Equal((byte[])original.RawStreams[ResolvedStream].Clone(), authored);
 
         using var parsedFile = SwFile.Open(temp.FilePath, readOnly: true);
-        var parsed = Assert.IsType<HemFeatureDefinitionData>(
+        var parsed = Assert.IsType<HemFeatureModel>(
             parsedFile.ResolvedFeatures.Folders.Single(f => f.ClassName == "moHem_c").FeatureData);
         Assert.Equal(length, parsed.Length!.Value, 12);
         Assert.Equal(gap, parsed.GapDistance!.Value, 12);
@@ -321,7 +321,7 @@ public class HemFeatureTests
             using var file = SwFile.Open(SamplePath(fileName), readOnly: true);
             byte[] raw = (byte[])file.RawStreams[ResolvedStream].Clone();
             var doc = SldFile.Mfc.MfcDocument.Parse(raw);
-            ResolvedFeaturesSchemaMapper.Map(doc, new ResolvedFeaturesData());
+            ResolvedFeaturesModel.Map(doc, new ResolvedFeaturesModel());
             Assert.Equal(raw, doc.SourceData);
         }
     }
@@ -340,7 +340,7 @@ public class HemFeatureTests
         return temp;
     }
 
-    private static HemFeatureDefinitionData Definition(int type)
+    private static HemFeatureModel Definition(int type)
         => new()
         {
             Type = type,
@@ -352,8 +352,8 @@ public class HemFeatureTests
             EdgeCount = 1
         };
 
-    private static HemFeatureDefinitionData AuthorAndReopen(
-        string baseFile, HemFeatureDefinitionData definition, out string featureName)
+    private static HemFeatureModel AuthorAndReopen(
+        string baseFile, HemFeatureModel definition, out string featureName)
     {
         using var temp = CreateStrippedBase(baseFile);
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
@@ -367,7 +367,7 @@ public class HemFeatureTests
 
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         var folder = Assert.Single(reopened.ResolvedFeatures.Folders, f => f.ClassName == "moHem_c");
-        return Assert.IsType<HemFeatureDefinitionData>(folder.FeatureData);
+        return Assert.IsType<HemFeatureModel>(folder.FeatureData);
     }
 
     [Theory]
@@ -430,7 +430,7 @@ public class HemFeatureTests
 
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         Assert.Equal(before, reopened.RawStreams[ResolvedStream]);
-        var definition = Assert.IsType<HemFeatureDefinitionData>(
+        var definition = Assert.IsType<HemFeatureModel>(
             reopened.ResolvedFeatures.Folders.Single(f => f.ClassName == "moHem_c").FeatureData);
         Assert.Equal(0, definition.Type ?? -1);
         Assert.Equal(0.0005, definition.GapDistance!.Value, 12);
@@ -438,7 +438,7 @@ public class HemFeatureTests
 
     public static IEnumerable<object[]> UnsupportedDefinitions()
     {
-        HemFeatureDefinitionData Base() => Definition(0);
+        HemFeatureModel Base() => Definition(0);
 
         var teardrop = Base(); teardrop.Type = 2;
         yield return new object[] { teardrop, "Type" };
@@ -471,7 +471,7 @@ public class HemFeatureTests
     [Theory]
     [MemberData(nameof(UnsupportedDefinitions))]
     public void UnsupportedFieldsAreRejectedWithoutModifyingStream(
-        HemFeatureDefinitionData definition, string property)
+        HemFeatureModel definition, string property)
     {
         using var temp = CreateStrippedBase("sheetmetal_hem_open.SLDPRT");
         byte[] before;

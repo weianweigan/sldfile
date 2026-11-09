@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace SldFile.Mfc;
 
@@ -16,6 +16,8 @@ internal sealed class MfcDocument
                          List<int> endMarkerPositions)
     {
         SourceData = sourceData;
+        for (int i = 0; i < allElements.Count; i++)
+            allElements[i].Document = this;
         AllElements = allElements.AsReadOnly();
     }
 

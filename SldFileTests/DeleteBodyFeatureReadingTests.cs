@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 
 namespace SldFileTests;
@@ -24,7 +23,7 @@ public class DeleteBodyFeatureReadingTests
         using var file = SwFile.Open(Resolve(name), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f => f.Name == "DeleteBody"));
         Assert.Equal(FeatureKind.DeleteBody, feature.Kind);
-        var definition = Assert.IsType<DeleteBodyFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<DeleteBodyFeatureModel>(feature.Model);
 
         Assert.Equal("moDeleteBody_c", definition.ClassName);
         Assert.Equal(0x57u, definition.SerializedTypeId);
@@ -45,8 +44,8 @@ public class DeleteBodyFeatureReadingTests
     public void DeleteBodyParser_RejectsUnknownLayout()
     {
         byte[] stream = BuildDeleteBodyStream(new byte[64]);
-        var model = new ResolvedFeaturesData();
-        ResolvedFeaturesSchemaMapper.Map(MfcDocument.Parse(stream), model);
+        var model = new ResolvedFeaturesModel();
+        ResolvedFeaturesModel.Map(MfcDocument.Parse(stream), model);
 
         var folder = Assert.Single(model.Folders);
         Assert.Equal("moDeleteBody_c", folder.ClassName);
@@ -65,7 +64,7 @@ public class DeleteBodyFeatureReadingTests
         byte[] before = (byte[])stream.Clone();
         var element = MfcDocument.Parse(stream).AllElements.First(e => e.ClassName == "moDeleteBody_c");
 
-        Assert.NotNull(DeleteBodyFeatureParser.Parse(element));
+        Assert.NotNull(DeleteBodyFeatureModel.Parse(element));
         Assert.Equal(before, stream);
     }
 

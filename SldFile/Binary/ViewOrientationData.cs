@@ -1,4 +1,4 @@
-namespace SldFile.Binary;
+﻿namespace SldFile.Binary;
 
 /// <summary>
 /// View Orientation Data stream: view orientation settings.

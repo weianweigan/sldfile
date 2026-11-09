@@ -6,7 +6,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using SldFile;
-using SldFile.Sketches;
+using SldFile.Mfc;
 using SldFileViewer.Models;
 using SldFileViewer.ViewModels;
 
@@ -135,7 +135,7 @@ public partial class SketchCanvasView : UserControl
 
                 SketchCanvas.Children.Add(line);
             }
-            else if (seg.Kind == SketchSegmentKind.Arc || seg.Kind == SketchSegmentKind.Line)
+            else if (seg.Kind == SketchSegmentKind.Arc)
             {
                 if (seg.Center != null && seg.Radius.HasValue)
                 {
@@ -144,10 +144,74 @@ public partial class SketchCanvasView : UserControl
                     double rScreen = seg.Radius.Value * scale;
                     if (rScreen < 0.1 || double.IsNaN(rScreen) || double.IsInfinity(rScreen)) continue;
 
-                    if (seg.Start != null && seg.End != null)
+                    // 判断是否为闭合整圆 (Full Circle)
+                    bool isClosedCircle = seg.IsCircle ||
+                                          (seg.Start == null || seg.End == null) ||
+                                          (seg.Start != null && seg.End != null && Math.Sqrt(Math.Pow(seg.Start.WorldX - seg.End.WorldX, 2) + Math.Pow(seg.Start.WorldY - seg.End.WorldY, 2)) < 1e-5);
+
+                    if (isClosedCircle)
                     {
+                        // 绘制完整圆 (Full Circle)
+                        var ellipseGeo = new EllipseGeometry(centerScreen, rScreen, rScreen);
+                        var circlePath = new Path
+                        {
+                            Data = ellipseGeo,
+                            Stroke = pen.Brush,
+                            StrokeThickness = pen.Thickness,
+                            StrokeDashArray = seg.IsConstruction ? new DoubleCollection { 4, 2 } : null,
+                            ToolTip = $"整圆 #{seg.Id} (半径: {seg.Radius.Value * 1000:0.##} mm, 直径: {seg.Radius.Value * 2000:0.##} mm)"
+                        };
+                        circlePath.MouseEnter += (s, e) => circlePath.StrokeThickness = pen.Thickness + 1.5;
+                        circlePath.MouseLeave += (s, e) => circlePath.StrokeThickness = pen.Thickness;
+                        circlePath.MouseDown += (s, e) => { vm.SelectedSegment = seg; e.Handled = true; };
+                        SketchCanvas.Children.Add(circlePath);
+
+                        // 绘制圆心十字中心标记 (Center Mark)
+                        if (vm.ShowPoints && rScreen >= 4.0)
+                        {
+                            double cmSize = Math.Min(6.0, Math.Max(3.0, rScreen * 0.15));
+                            var crossGeo = new GeometryGroup();
+                            crossGeo.Children.Add(new LineGeometry(new Point(centerScreen.X - cmSize, centerScreen.Y), new Point(centerScreen.X + cmSize, centerScreen.Y)));
+                            crossGeo.Children.Add(new LineGeometry(new Point(centerScreen.X, centerScreen.Y - cmSize), new Point(centerScreen.X, centerScreen.Y + cmSize)));
+                            var crossPath = new Path
+                            {
+                                Data = crossGeo,
+                                Stroke = pen.Brush,
+                                StrokeThickness = 1.0,
+                                IsHitTestVisible = false
+                            };
+                            SketchCanvas.Children.Add(crossPath);
+                        }
+                    }
+                    else if (seg.Start != null && seg.End != null)
+                    {
+                        // 局部圆弧 (Arc)
                         Point pStart = SketchCanvas.WorldToScreen(seg.Start.WorldX, seg.Start.WorldY);
                         Point pEnd = SketchCanvas.WorldToScreen(seg.End.WorldX, seg.End.WorldY);
+
+                        // 精确计算圆弧扫描角度与方向
+                        double aStart = Math.Atan2(seg.Start.WorldY - seg.Center.WorldY, seg.Start.WorldX - seg.Center.WorldX);
+                        double aEnd = Math.Atan2(seg.End.WorldY - seg.Center.WorldY, seg.End.WorldX - seg.Center.WorldX);
+
+                        // SW 默认 Direction: +1 为逆时针 (CCW), -1 为顺时针 (CW)
+                        int dir = seg.Direction != 0 ? seg.Direction : 1;
+                        double sweepAngle;
+                        if (dir >= 0)
+                        {
+                            sweepAngle = aEnd - aStart;
+                            while (sweepAngle < 0) sweepAngle += 2 * Math.PI;
+                            while (sweepAngle >= 2 * Math.PI) sweepAngle -= 2 * Math.PI;
+                        }
+                        else
+                        {
+                            sweepAngle = aStart - aEnd;
+                            while (sweepAngle < 0) sweepAngle += 2 * Math.PI;
+                            while (sweepAngle >= 2 * Math.PI) sweepAngle -= 2 * Math.PI;
+                        }
+
+                        bool isLargeArc = sweepAngle > Math.PI;
+                        // 因为屏幕坐标系 Y 轴向下，世界坐标系逆时针 (CCW, dir >= 0) 在屏幕上对应顺时针 (Clockwise)
+                        SweepDirection sweepDir = (dir >= 0) ? SweepDirection.Clockwise : SweepDirection.Counterclockwise;
 
                         var pathGeo = new PathGeometry();
                         var fig = new PathFigure { StartPoint = pStart, IsClosed = false };
@@ -155,8 +219,8 @@ public partial class SketchCanvasView : UserControl
                         {
                             Point = pEnd,
                             Size = new Size(rScreen, rScreen),
-                            SweepDirection = SweepDirection.Clockwise,
-                            IsLargeArc = false
+                            SweepDirection = sweepDir,
+                            IsLargeArc = isLargeArc
                         });
                         pathGeo.Figures.Add(fig);
 
@@ -166,27 +230,12 @@ public partial class SketchCanvasView : UserControl
                             Stroke = pen.Brush,
                             StrokeThickness = pen.Thickness,
                             StrokeDashArray = seg.IsConstruction ? new DoubleCollection { 4, 2 } : null,
-                            ToolTip = $"圆弧 #{seg.Id} (半径: {seg.Radius.Value * 1000:0.##} mm)"
+                            ToolTip = $"圆弧 #{seg.Id} (半径: {seg.Radius.Value * 1000:0.##} mm, 夹角: {sweepAngle * 180.0 / Math.PI:0.#}°)"
                         };
+                        arcPath.MouseEnter += (s, e) => arcPath.StrokeThickness = pen.Thickness + 1.5;
+                        arcPath.MouseLeave += (s, e) => arcPath.StrokeThickness = pen.Thickness;
                         arcPath.MouseDown += (s, e) => { vm.SelectedSegment = seg; e.Handled = true; };
                         SketchCanvas.Children.Add(arcPath);
-                    }
-                    else
-                    {
-                        // Full Circle
-                        var ellipse = new Ellipse
-                        {
-                            Width = rScreen * 2,
-                            Height = rScreen * 2,
-                            Stroke = pen.Brush,
-                            StrokeThickness = pen.Thickness,
-                            StrokeDashArray = seg.IsConstruction ? new DoubleCollection { 4, 2 } : null,
-                            ToolTip = $"圆 #{seg.Id} (半径: {seg.Radius.Value * 1000:0.##} mm)"
-                        };
-                        Canvas.SetLeft(ellipse, centerScreen.X - rScreen);
-                        Canvas.SetTop(ellipse, centerScreen.Y - rScreen);
-                        ellipse.MouseDown += (s, e) => { vm.SelectedSegment = seg; e.Handled = true; };
-                        SketchCanvas.Children.Add(ellipse);
                     }
                 }
             }
@@ -294,7 +343,7 @@ public partial class SketchCanvasView : UserControl
                 placedPositions.Add(badgePos);
 
                 var badge = CreateConstraintBadge(rel.Kind, constraintBg);
-                string entityNames = string.Join(", ", rel.GetEntities().Select(e => e is SketchSegment s ? $"线段 #{s.Id}" : e is SketchPoint p ? $"点 #{p.Id}" : e.ToString()));
+                string entityNames = string.Join(", ", rel.GetEntities().Select(e => e is SketchSegmentModel s ? $"线段 #{s.Id}" : e is SketchPointModel p ? $"点 #{p.Id}" : e.ToString()));
                 badge.ToolTip = string.IsNullOrEmpty(entityNames)
                     ? $"约束: {rel.Kind} (代码: {rel.TypeCode})"
                     : $"约束: {rel.Kind} [{entityNames}]";
@@ -306,41 +355,208 @@ public partial class SketchCanvasView : UserControl
             }
         }
 
-        // 4. Draw Dimensions
+        // 4. Draw Dimensions (Engineering CAD Style with Extension Lines & Arrowheads)
         if (vm.ShowDimensions)
         {
-            int dimIndex = 0;
+            int unattachedIndex = 0;
             foreach (var dim in vm.Dimensions)
             {
-                var seg = vm.Segments.ElementAtOrDefault(dimIndex % Math.Max(vm.Segments.Count, 1));
-                Point dimPos;
-                if (seg?.Start != null && seg.End != null)
+                if (dim.HasAttachment)
                 {
-                    Point p1 = SketchCanvas.WorldToScreen(seg.Start.WorldX, seg.Start.WorldY);
-                    Point p2 = SketchCanvas.WorldToScreen(seg.End.WorldX, seg.End.WorldY);
-                    dimPos = new Point((p1.X + p2.X) / 2.0, (p1.Y + p2.Y) / 2.0 + 12);
+                    if ((dim.DimensionTypeEnum == SketchDimensionType.Radius || dim.DimensionTypeEnum == SketchDimensionType.Diameter) && dim.Center != null && dim.Radius.HasValue)
+                    {
+                        Point centerScreen = SketchCanvas.WorldToScreen(dim.Center.Value.X, dim.Center.Value.Y);
+                        double scale = SketchCanvas.CalculateBaseScale() * SketchCanvas.Zoom;
+                        double rScreen = dim.Radius.Value * scale;
+                        if (rScreen > 1.0 && !double.IsNaN(rScreen) && !double.IsInfinity(rScreen))
+                        {
+                            bool isDia = dim.DimensionTypeEnum == SketchDimensionType.Diameter;
+                            DrawRadialDimension(SketchCanvas, centerScreen, rScreen, Math.PI / 4.0, dim.DisplayText, dimBrush, isDia);
+                        }
+                    }
+                    else if (dim.DimensionTypeEnum == SketchDimensionType.Linear)
+                    {
+                        Point p1Screen = SketchCanvas.WorldToScreen(dim.P1.X, dim.P1.Y);
+                        Point p2Screen = SketchCanvas.WorldToScreen(dim.P2.X, dim.P2.Y);
+                        DrawLinearDimension(SketchCanvas, p1Screen, p2Screen, dim.DisplayText, dim.OffsetPixels, dimBrush);
+                    }
                 }
                 else
                 {
-                    dimPos = new Point(50, 80 + dimIndex * 20);
+                    // Unattached / Global dimension callout badge
+                    Point dimPos = new Point(30, 70 + unattachedIndex * 26);
+                    var textBlock = new TextBlock
+                    {
+                        Text = dim.DisplayText,
+                        Foreground = dimBrush,
+                        FontSize = 11,
+                        FontWeight = FontWeights.SemiBold
+                    };
+                    var border = new Border
+                    {
+                        Child = textBlock,
+                        Background = new SolidColorBrush(Color.FromArgb(200, 24, 28, 36)),
+                        BorderBrush = new SolidColorBrush(Color.FromArgb(80, 80, 160, 240)),
+                        BorderThickness = new Thickness(0.8),
+                        CornerRadius = new CornerRadius(3),
+                        Padding = new Thickness(6, 2, 6, 2)
+                    };
+                    Canvas.SetLeft(border, dimPos.X);
+                    Canvas.SetTop(border, dimPos.Y);
+                    SketchCanvas.Children.Add(border);
+                    unattachedIndex++;
                 }
-
-                var textBlock = new TextBlock
-                {
-                    Text = dim.DisplayText,
-                    Foreground = dimBrush,
-                    FontSize = 11,
-                    FontWeight = FontWeights.SemiBold,
-                    Background = new SolidColorBrush(Color.FromArgb(160, 20, 22, 26)),
-                    Padding = new Thickness(3, 1, 3, 1)
-                };
-
-                Canvas.SetLeft(textBlock, dimPos.X);
-                Canvas.SetTop(textBlock, dimPos.Y);
-                SketchCanvas.Children.Add(textBlock);
-                dimIndex++;
             }
         }
+    }
+
+    private void DrawLinearDimension(Canvas canvas, Point p1, Point p2, string text, double offsetPixels, Brush brush)
+    {
+        double dx = p2.X - p1.X;
+        double dy = p2.Y - p1.Y;
+        double len = Math.Sqrt(dx * dx + dy * dy);
+        if (len < 1.0) return;
+
+        double ux = dx / len;
+        double uy = dy / len;
+        double nx = -uy;
+        double ny = ux;
+
+        Point d1 = new Point(p1.X + nx * offsetPixels, p1.Y + ny * offsetPixels);
+        Point d2 = new Point(p2.X + nx * offsetPixels, p2.Y + ny * offsetPixels);
+
+        double sign = Math.Sign(offsetPixels);
+        if (sign == 0) sign = 1;
+
+        // 1. Extension lines (引线 / 界线)
+        Point ext1Start = new Point(p1.X + nx * sign * 2.0, p1.Y + ny * sign * 2.0);
+        Point ext1End = new Point(d1.X + nx * sign * 4.0, d1.Y + ny * sign * 4.0);
+        Point ext2Start = new Point(p2.X + nx * sign * 2.0, p2.Y + ny * sign * 2.0);
+        Point ext2End = new Point(d2.X + nx * sign * 4.0, d2.Y + ny * sign * 4.0);
+
+        canvas.Children.Add(new Line { X1 = ext1Start.X, Y1 = ext1Start.Y, X2 = ext1End.X, Y2 = ext1End.Y, Stroke = brush, StrokeThickness = 1.0 });
+        canvas.Children.Add(new Line { X1 = ext2Start.X, Y1 = ext2Start.Y, X2 = ext2End.X, Y2 = ext2End.Y, Stroke = brush, StrokeThickness = 1.0 });
+
+        // 2. Measure text
+        var textBlock = new TextBlock
+        {
+            Text = text,
+            Foreground = brush,
+            FontSize = 11,
+            FontWeight = FontWeights.SemiBold,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        var border = new Border
+        {
+            Child = textBlock,
+            Background = new SolidColorBrush(Color.FromArgb(220, 24, 28, 36)),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(90, 80, 160, 240)),
+            BorderThickness = new Thickness(0.8),
+            CornerRadius = new CornerRadius(3),
+            Padding = new Thickness(5, 1, 5, 1)
+        };
+        border.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        Size textSize = border.DesiredSize;
+
+        Point mid = new Point((d1.X + d2.X) / 2.0, (d1.Y + d2.Y) / 2.0);
+
+        // 3. Dimension line
+        double halfText = textSize.Width / 2.0 + 3.0;
+        if (len > halfText * 2.0 + 20.0)
+        {
+            Point line1End = new Point(mid.X - ux * halfText, mid.Y - uy * halfText);
+            Point line2Start = new Point(mid.X + ux * halfText, mid.Y + uy * halfText);
+
+            canvas.Children.Add(new Line { X1 = d1.X, Y1 = d1.Y, X2 = line1End.X, Y2 = line1End.Y, Stroke = brush, StrokeThickness = 1.0 });
+            canvas.Children.Add(new Line { X1 = line2Start.X, Y1 = line2Start.Y, X2 = d2.X, Y2 = d2.Y, Stroke = brush, StrokeThickness = 1.0 });
+
+            Canvas.SetLeft(border, mid.X - textSize.Width / 2.0);
+            Canvas.SetTop(border, mid.Y - textSize.Height / 2.0);
+        }
+        else
+        {
+            canvas.Children.Add(new Line { X1 = d1.X, Y1 = d1.Y, X2 = d2.X, Y2 = d2.Y, Stroke = brush, StrokeThickness = 1.0 });
+
+            Canvas.SetLeft(border, mid.X - textSize.Width / 2.0);
+            Canvas.SetTop(border, mid.Y + ny * sign * 14.0 - textSize.Height / 2.0);
+        }
+
+        // 4. Arrowheads (尺寸箭头)
+        double arrowLen = 8.0;
+        double arrowWidth = 3.0;
+        bool insideArrows = len > arrowLen * 3.0;
+
+        DrawArrowhead(canvas, d1, insideArrows ? new Vector(ux, uy) : new Vector(-ux, -uy), arrowLen, arrowWidth, brush);
+        DrawArrowhead(canvas, d2, insideArrows ? new Vector(-ux, -uy) : new Vector(ux, uy), arrowLen, arrowWidth, brush);
+
+        canvas.Children.Add(border);
+    }
+
+    private void DrawRadialDimension(Canvas canvas, Point center, double radius, double angleRad, string text, Brush brush, bool isDiameter = false)
+    {
+        double cos = Math.Cos(angleRad);
+        double sin = Math.Sin(angleRad);
+
+        Point arcPt = new Point(center.X + radius * cos, center.Y + radius * sin);
+        Point elbowPt = new Point(center.X + (radius + 24.0) * cos, center.Y + (radius + 24.0) * sin);
+        double shoulderLen = cos >= 0 ? 30.0 : -30.0;
+        Point shoulderPt = new Point(elbowPt.X + shoulderLen, elbowPt.Y);
+
+        if (isDiameter)
+        {
+            // 对侧穿心线与双向箭头
+            Point oppArcPt = new Point(center.X - radius * cos, center.Y - radius * sin);
+            canvas.Children.Add(new Line { X1 = oppArcPt.X, Y1 = oppArcPt.Y, X2 = arcPt.X, Y2 = arcPt.Y, Stroke = brush, StrokeThickness = 0.8 });
+            DrawArrowhead(canvas, oppArcPt, new Vector(-cos, -sin), 8.0, 3.0, brush);
+        }
+
+        canvas.Children.Add(new Line { X1 = arcPt.X, Y1 = arcPt.Y, X2 = elbowPt.X, Y2 = elbowPt.Y, Stroke = brush, StrokeThickness = 1.0 });
+        canvas.Children.Add(new Line { X1 = elbowPt.X, Y1 = elbowPt.Y, X2 = shoulderPt.X, Y2 = shoulderPt.Y, Stroke = brush, StrokeThickness = 1.0 });
+
+        Vector dir = new Vector(cos, sin);
+        DrawArrowhead(canvas, arcPt, dir, 8.0, 3.0, brush);
+
+        var textBlock = new TextBlock
+        {
+            Text = text,
+            Foreground = brush,
+            FontSize = 11,
+            FontWeight = FontWeights.SemiBold
+        };
+        var border = new Border
+        {
+            Child = textBlock,
+            Background = new SolidColorBrush(Color.FromArgb(220, 24, 28, 36)),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(90, 80, 160, 240)),
+            BorderThickness = new Thickness(0.8),
+            CornerRadius = new CornerRadius(3),
+            Padding = new Thickness(4, 1, 4, 1)
+        };
+        border.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        double tx = cos >= 0 ? elbowPt.X + 2 : shoulderPt.X + 2;
+        Canvas.SetLeft(border, tx);
+        Canvas.SetTop(border, elbowPt.Y - border.DesiredSize.Height - 2);
+
+        canvas.Children.Add(border);
+    }
+
+    private static void DrawArrowhead(Canvas canvas, Point tip, Vector dir, double length, double halfWidth, Brush brush)
+    {
+        Point baseCenter = new Point(tip.X + dir.X * length, tip.Y + dir.Y * length);
+        Vector normal = new Vector(-dir.Y, dir.X);
+
+        Point wing1 = new Point(baseCenter.X + normal.X * halfWidth, baseCenter.Y + normal.Y * halfWidth);
+        Point wing2 = new Point(baseCenter.X - normal.X * halfWidth, baseCenter.Y - normal.Y * halfWidth);
+
+        var polygon = new Polygon
+        {
+            Points = new PointCollection { tip, wing1, wing2 },
+            Fill = brush,
+            Stroke = brush,
+            StrokeThickness = 0.5
+        };
+        canvas.Children.Add(polygon);
     }
 
     private FrameworkElement CreateConstraintBadge(SketchRelationKind kind, Brush bg)

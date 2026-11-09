@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using SldFile;
 using SldFileViewer.Models;
 using SldFileViewer.Services;
 
@@ -22,9 +23,19 @@ public partial class CustomPropsViewModel : ObservableObject
     [ObservableProperty]
     private string _filterText = string.Empty;
 
+    [ObservableProperty]
+    private bool _hasMassProperties;
+
+    [ObservableProperty]
+    private string _massPropertiesSummary = string.Empty;
+
+    [ObservableProperty]
+    private bool _hasCutList;
+
     public ObservableCollection<string> Configurations { get; } = new();
     public ObservableCollection<CustomPropertyItem> Properties { get; } = new();
     public ObservableCollection<CustomPropertyItem> FilteredProperties { get; } = new();
+    public ObservableCollection<CutListItem> CutListItems { get; } = new();
 
     public CustomPropsViewModel(ISwDocumentService docService, IDialogService dialogService)
     {
@@ -61,11 +72,47 @@ public partial class CustomPropsViewModel : ObservableObject
             Properties.Add(item);
         }
 
+        UpdateMassPropertiesAndCutList();
         ApplyFilter();
     }
 
-    partial void OnSelectedConfigurationChanged(string value) => ApplyFilter();
+    partial void OnSelectedConfigurationChanged(string value)
+    {
+        UpdateMassPropertiesAndCutList();
+        ApplyFilter();
+    }
+
     partial void OnFilterTextChanged(string value) => ApplyFilter();
+
+    private void UpdateMassPropertiesAndCutList()
+    {
+        HasMassProperties = false;
+        MassPropertiesSummary = string.Empty;
+        HasCutList = false;
+        CutListItems.Clear();
+
+        var configs = _docService.GetConfigurations();
+        var cfg = configs.FirstOrDefault(c => string.Equals(c.Name, SelectedConfiguration, StringComparison.OrdinalIgnoreCase))
+               ?? configs.FirstOrDefault();
+
+        if (cfg?.MassProperties != null)
+        {
+            var mp = cfg.MassProperties;
+            HasMassProperties = true;
+            MassPropertiesSummary = $"质量: {mp.Mass:F4} kg  |  体积: {mp.Volume * 1e6:F2} cm³  |  表面积: {mp.SurfaceArea * 1e4:F2} cm²\n" +
+                                   $"质心 (X, Y, Z): ({mp.CenterOfGravity.X:F4}, {mp.CenterOfGravity.Y:F4}, {mp.CenterOfGravity.Z:F4}) m\n" +
+                                   $"主惯性矩 (Ixx, Iyy, Izz): ({mp.MomentsOfInertia.X:E3}, {mp.MomentsOfInertia.Y:E3}, {mp.MomentsOfInertia.Z:E3}) kg·m²";
+        }
+
+        if (cfg?.CutListItems != null && cfg.CutListItems.Count > 0)
+        {
+            HasCutList = true;
+            foreach (var item in cfg.CutListItems)
+            {
+                CutListItems.Add(item);
+            }
+        }
+    }
 
     private void ApplyFilter()
     {

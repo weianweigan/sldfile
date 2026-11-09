@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 using Xunit;
 
@@ -35,13 +34,13 @@ public class FilletChamferEdgeSelectionTests
     public void FilletSamplesExposeSinglePersistentEdge(string folder, string sample, uint persistentId)
     {
         using var file = SwFile.Open(SamplePath(folder, sample), readOnly: true);
-        var definitions = file.Features.Select(f => f.Definition).OfType<FeatureDefinitionData>().ToArray();
-        var definition = definitions.FirstOrDefault(d => d is FilletFeatureDefinitionData or VariableFilletFeatureDefinitionData);
+        var definitions = file.Features.Select(f => f.Model).OfType<MfcFeatureModelBase>().ToArray();
+        var definition = definitions.FirstOrDefault(d => d is FilletFeatureModel or VariableFilletFeatureModel);
         Assert.NotNull(definition);
         var edges = definition switch
         {
-            FilletFeatureDefinitionData f => f.Edges,
-            VariableFilletFeatureDefinitionData v => v.Edges,
+            FilletFeatureModel f => f.Edges,
+            VariableFilletFeatureModel v => v.Edges,
             _ => null
         };
         var edge = Assert.Single(edges!);
@@ -61,8 +60,8 @@ public class FilletChamferEdgeSelectionTests
     public void ChamferSamplesExposeSinglePersistentEdge(string sample)
     {
         using var file = SwFile.Open(SamplePath("ChamferOptions", sample), readOnly: true);
-        var definition = Assert.IsType<ChamferFeatureDefinitionData>(
-            Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Chamfer)).Definition);
+        var definition = Assert.IsType<ChamferFeatureModel>(
+            Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Chamfer)).Model);
         var edge = Assert.Single(definition.Edges!);
         Assert.Equal(SelectionEntityType.Edge, edge.EntityType);
         Assert.Equal(4u, edge.EntityId);

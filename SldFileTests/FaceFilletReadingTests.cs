@@ -3,8 +3,6 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
-using SldFile.Binary.Topology;
 using SldFile.Mfc;
 using Xunit;
 
@@ -26,12 +24,12 @@ public class FaceFilletReadingTests
             : Path.Combine(AppContext.BaseDirectory, "TestFiles", "Features2026", name + ".SLDPRT");
     }
 
-    private static FilletFeatureDefinitionData ReadDefinition(string sample)
+    private static FilletFeatureModel ReadDefinition(string sample)
     {
         using var file = SwFile.Open(SamplePath(sample), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Fillet));
         Assert.Equal("Fillet_c", feature.TypeName);
-        return Assert.IsType<FilletFeatureDefinitionData>(feature.Definition);
+        return Assert.IsType<FilletFeatureModel>(feature.Model);
     }
 
     [Theory]
@@ -65,12 +63,12 @@ public class FaceFilletReadingTests
 
         foreach (string name in new[]
                  {
-                     nameof(FilletFeatureDefinitionData.Type),
-                     nameof(FilletFeatureDefinitionData.DefaultRadius),
-                     nameof(FilletFeatureDefinitionData.FaceReferences)
+                     nameof(FilletFeatureModel.Type),
+                     nameof(FilletFeatureModel.DefaultRadius),
+                     nameof(FilletFeatureModel.FaceReferences)
                  })
             Assert.True(definition.IsResolved(name), name);
-        Assert.False(definition.IsResolved(nameof(FilletFeatureDefinitionData.Edges)));
+        Assert.False(definition.IsResolved(nameof(FilletFeatureModel.Edges)));
     }
 
     [Theory]
@@ -82,8 +80,8 @@ public class FaceFilletReadingTests
         Assert.Null(definition.Type);
         Assert.Null(definition.FaceReferences);
         Assert.Single(definition.Edges!);
-        Assert.True(definition.IsResolved(nameof(FilletFeatureDefinitionData.Edges)));
-        Assert.False(definition.IsResolved(nameof(FilletFeatureDefinitionData.FaceReferences)));
+        Assert.True(definition.IsResolved(nameof(FilletFeatureModel.Edges)));
+        Assert.False(definition.IsResolved(nameof(FilletFeatureModel.FaceReferences)));
     }
 
     [Fact]

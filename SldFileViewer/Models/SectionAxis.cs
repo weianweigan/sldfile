@@ -1,4 +1,4 @@
-﻿namespace SldFileViewer.Models;
+namespace SldFileViewer.Models;
 
 /// <summary>
 /// 3D 剖视图剖切轴向定义

@@ -437,6 +437,8 @@ public void LoadMesh(int configIndex = 0)
 
 {
 
+ClearComponentHighlight();
+
 CurrentConfigIndex = configIndex;
 
 _flattenedComponents = null;
@@ -729,10 +731,10 @@ public void ZoomToFit()
     RequestZoomToFit?.Invoke();
 }
 
-[RelayCommand]
+[RelayCommand(CanExecute = nameof(CanZoomToComponent))]
 public void ZoomToComponent()
 {
-    RequestZoomToComponent?.Invoke();
+    if (CanZoomToComponent()) RequestZoomToComponent?.Invoke();
 }
 
 [RelayCommand]
@@ -758,16 +760,10 @@ public void SetDisplayStyle(ModelDisplayStyle style)
 public void HighlightComponent(AssemblyComponentNode? comp)
 {
     SelectedAssemblyComponent = comp;
-    if (comp == null)
-    {
-        HighlightedComponentName = null;
-        WpfComponentHighlightMesh = null;
-        return;
-    }
-
-    HighlightedComponentName = string.IsNullOrWhiteSpace(comp.InstanceName)
-        ? comp.Name
-        : $"{comp.Name} ({comp.InstanceName})";
+    WpfComponentHighlightMesh = null;
+    HighlightedComponentName = comp == null ? null : string.IsNullOrWhiteSpace(comp.InstanceName)
+        ? comp.Name : $"{comp.Name} ({comp.InstanceName})";
+    if (comp == null || Mesh == null) return;
 
     if (Mesh == null || Mesh.Positions.Count == 0)
     {
@@ -775,7 +771,7 @@ public void HighlightComponent(AssemblyComponentNode? comp)
         return;
     }
 
-    var (center, min, max, matched) = FindComponentBounds(comp);
+    var (_, _, _, matched) = FindComponentBounds(comp);
     var (_, compOffsets) = CalculateExplodeOffsets();
     var compOffset = System.Numerics.Vector3.Zero;
     if (compOffsets.TryGetValue(comp, out var cOff))
@@ -787,7 +783,19 @@ public void HighlightComponent(AssemblyComponentNode? comp)
     var meshCenter = GetMeshCenter();
 
     // 1. 若找到了匹配的表面面片，把这些面片提取到高亮网格（包含爆炸平移）
-    if (matched.Count > 0)
+    var componentMesh = matched.Any(p => p.Id?.StartsWith("stitched:", StringComparison.Ordinal) == true)
+        ? null : _docService.GetComponentDisplayMesh(comp);
+    if (componentMesh != null && componentMesh.VertexCount > 0)
+    {
+        foreach (var p in componentMesh.Positions)
+        {
+            var centered = p - meshCenter + compOffset;
+            geo.Positions.Add(new Point3D(centered.X, centered.Y, centered.Z));
+        }
+        foreach (var index in componentMesh.TriangleIndices)
+            geo.TriangleIndices.Add(index);
+    }
+    else if (matched.Count > 0)
     {
         foreach (var part in matched)
         {
@@ -820,26 +828,32 @@ public void HighlightComponent(AssemblyComponentNode? comp)
     }
     else
     {
-        // 2. 若未按名称直接匹配到 Part，使用包围盒线框与光标标记
-        min += compOffset;
-        max += compOffset;
-        double thick = Math.Max(ComputeScaleFactor() * 1.5, 0.5);
-        var boxMesh = MeshGeometryHelper.CreateBoundingBoxWireframe(
-            new Point3D(min.X, min.Y, min.Z),
-            new Point3D(max.X, max.Y, max.Z),
-            thick);
-        if (boxMesh != null)
-        {
-            AppendMesh(geo, boxMesh);
-        }
+        // Preserve the existing behavior for unresolved references: no guessed geometry.
+        return;
     }
 
     geo.Freeze();
-    WpfComponentHighlightMesh = geo.Positions.Count > 0 ? geo : null;
+    WpfComponentHighlightMesh = geo.TriangleIndices.Count > 0 ? geo : null;
 }
+
+partial void OnMeshChanged(DisplayMesh? value)
+{
+    _cachedPartMap = null;
+    _cachedCompCenters = null;
+    ClearComponentHighlight();
+}
+
+partial void OnWpfComponentHighlightMeshChanged(MeshGeometry3D? value)
+{
+    ZoomToComponentCommand.NotifyCanExecuteChanged();
+}
+
+private bool CanZoomToComponent() => SelectedAssemblyComponent != null && WpfComponentHighlightMesh != null;
 
 public void HighlightFeature(Feature? feature)
 {
+    SelectedAssemblyComponent = null;
+    ZoomToComponentCommand.NotifyCanExecuteChanged();
     if (feature == null || Mesh == null || Mesh.Positions.Count == 0)
     {
         HighlightedComponentName = null;
@@ -970,6 +984,12 @@ public (System.Numerics.Vector3 Center, System.Numerics.Vector3 Min, System.Nume
     System.Numerics.Vector3 center = (min + max) * 0.5f;
     return (center, min, max, matched);
 }
+public bool TryGetComponentBounds(out Rect3D bounds)
+{
+    bounds = WpfComponentHighlightMesh?.Bounds ?? Rect3D.Empty;
+    return SelectedAssemblyComponent != null && !bounds.IsEmpty;
+}
+
 private System.Numerics.Vector3 GetMeshCenter() =>
     Mesh != null ? (Mesh.Min + Mesh.Max) * 0.5f : System.Numerics.Vector3.Zero;
 
@@ -1123,6 +1143,7 @@ BuildSectionPlaneMeshes(size, axisDir, offset);
         // 阶段 1: 属性名称匹配 (单测与部分模型)
         for (int pIdx = 0; pIdx < partCount; pIdx++)
         {
+            if (map.ContainsKey(pIdx)) continue;
             var part = Mesh.Parts[pIdx];
             foreach (var comp in comps)
             {
@@ -1305,7 +1326,6 @@ BuildSectionPlaneMeshes(size, axisDir, offset);
     {
         if (node == target) return true;
         if (!string.IsNullOrEmpty(node.ComponentId) && string.Equals(node.ComponentId, target.ComponentId, StringComparison.OrdinalIgnoreCase)) return true;
-        if (!string.IsNullOrEmpty(node.Name) && string.Equals(node.Name, target.Name, StringComparison.OrdinalIgnoreCase)) return true;
 
         bool CheckDescendants(AssemblyComponentNode current)
         {
@@ -1314,7 +1334,6 @@ BuildSectionPlaneMeshes(size, axisDir, offset);
             {
                 if (c == node ||
                     (!string.IsNullOrEmpty(c.ComponentId) && string.Equals(c.ComponentId, node.ComponentId, StringComparison.OrdinalIgnoreCase)) ||
-                    (!string.IsNullOrEmpty(c.Name) && string.Equals(c.Name, node.Name, StringComparison.OrdinalIgnoreCase)) ||
                     CheckDescendants(c))
                 {
                     return true;
@@ -2363,6 +2382,24 @@ _dialogService.ShowError("导出失败", ex.Message);
 }
 
 [RelayCommand]
+private void ExportStep()
+{
+    if (_docService.CurrentFile == null) return;
+    if (_dialogService.ShowSaveFileDialog(GetDefaultFileName(".step"), "STEP AP214 标准 CAD 交换模型 (*.step;*.stp)|*.step;*.stp", out var savePath))
+    {
+        try
+        {
+            _exportService.ExportStep(_docService.CurrentFile, savePath);
+            _dialogService.ShowInformation("导出成功", $"STEP AP214 高精度模型已成功导出至:\n{savePath}");
+        }
+        catch (Exception ex)
+        {
+            _dialogService.ShowError("导出失败", ex.Message);
+        }
+    }
+}
+
+[RelayCommand]
 
 private void ExportStl()
 
@@ -2459,6 +2496,8 @@ catch (Exception ex)
 _dialogService.ShowError("导出失败", ex.Message);
 
 }
+
+
 
 }
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using SldFile.Mfc;
@@ -310,6 +310,14 @@ internal static class MateStructureDecoder
                 element, data, tags, windowEnd, displayName, headerStart);
             if (measured != null)
                 return measured;
+        }
+
+        if (element.ClassName == "moMateProfileCenter")
+        {
+            var pc = TryDecodeProfileCenter2026(
+                element, data, tags, windowEnd, displayName, headerStart);
+            if (pc != null)
+                return pc;
         }
 
         // Controlled 2026 mate header (188-byte record, seven measured classes):
@@ -771,26 +779,8 @@ internal static class MateStructureDecoder
         };
     }
 
-    private static bool TryReadPathD1Record(byte[] data, int pos, int end, out double value)
-    {
-        value = 0;
-        int limit = Math.Min(end, data.Length);
-        if (pos < 0 || pos + 40 > limit) return false;
-        int cursor = pos + 2;
-        if (MfcPrimitives.ReadWChar(data, ref cursor, limit) != "D1" || cursor != pos + 10) return false;
-        if (BitConverter.ToDouble(data, cursor) != 2.0) return false;
-        if (BitConverter.ToUInt32(data, cursor + 8) != uint.MaxValue) return false;
-        if (BitConverter.ToUInt32(data, cursor + 12) != 0) return false;
-        int empty = cursor + 16;
-        if (!MfcPrimitives.IsWCharPrefix(data, empty)) return false;
-        int emptyCursor = empty;
-        if (MfcPrimitives.ReadWChar(data, ref emptyCursor, limit) != string.Empty) return false;
-        if (emptyCursor + 10 > limit) return false;
-        double v = BitConverter.ToDouble(data, emptyCursor + 2);
-        if (double.IsNaN(v) || double.IsInfinity(v) || v < 0 || v > 1000) return false;
-        value = v;
-        return true;
-    }
+    private static bool TryReadPathD1Record(byte[] data, int pos, int end, out double value) =>
+        MfcParameterReader.TryReadMateNamedRecord(data, pos, end, "D1", out value, allowZero: true, maxValue: 1000.0);
 
     /// <summary>
     /// Measured Width/RackPinion layouts (2026 tutorial assemblies resaved by
@@ -957,6 +947,49 @@ internal static class MateStructureDecoder
         return null;
     }
 
+    private static MateStructureData? TryDecodeProfileCenter2026(
+        MfcElement element,
+        byte[] data,
+        List<WindowTag> tags,
+        int windowEnd,
+        string displayName,
+        int headerStart)
+    {
+        var strings = CollectWCharEntries(data, element.TagOffset, windowEnd);
+        var faceRefs = new List<string>();
+        foreach (var s in strings)
+        {
+            if (s.Value.Contains("@") && !s.Value.StartsWith("mo", StringComparison.Ordinal))
+                faceRefs.Add(s.Value);
+        }
+        var entities = new List<MateEntityReferenceStructure>();
+        foreach (var f in faceRefs.Take(2))
+        {
+            entities.Add(new MateEntityReferenceStructure
+            {
+                Kind = MateReferenceEntityKind.Plane,
+                ComponentInstanceName = f,
+                SelectionName = f
+            });
+        }
+
+        double? distance = ReadFirstD1(data, element.TagOffset, windowEnd, isAngle: false, allowZero: true);
+        if (!distance.HasValue)
+        {
+            distance = ReadNamedParameter(data, element.TagOffset, windowEnd, "D1");
+        }
+
+        return new MateStructureData
+        {
+            ClassName = element.ClassName,
+            DisplayName = displayName,
+            Layout = MateStructureLayout.PlaneReference2026,
+            MateTypeId = 23u,
+            Distance = distance,
+            EntityReferences = entities.AsReadOnly()
+        };
+    }
+
     private static int FindMeasuredHeaderStart(byte[] data, int hint, int windowEnd)
     {
         int limit = Math.Min(windowEnd, data.Length);
@@ -1014,6 +1047,7 @@ internal static class MateStructureDecoder
         "moMatePath_c" => 15u,
         "moMateScrew_c" => 17u,
         "moMateUniversalJoint_c" => 19u,
+        "moMateProfileCenter" => 23u,
         _ => null
     };
 
@@ -1401,29 +1435,10 @@ internal static class MateStructureDecoder
         return true;
     }
 
-    private static List<WCharEntry> CollectWCharEntries(byte[] data, int start, int end)
-    {
-        var result = new List<WCharEntry>();
-        int limit = Math.Min(end, data.Length);
-        for (int i = Math.Max(0, start); i + 4 <= limit; i++)
-        {
-            if (!MfcPrimitives.IsWCharPrefix(data, i)) continue;
-            int cursor = i;
-            string? value = MfcPrimitives.ReadWChar(data, ref cursor, limit);
-            if (value == null || value.Length > MaxStringLength) continue;
-            if (!string.IsNullOrEmpty(value))
-            {
-                result.Add(new WCharEntry
-                {
-                    Offset = i,
-                    EndOffset = cursor,
-                    Value = value
-                });
-            }
-            i = Math.Max(i, cursor - 1);
-        }
-        return result;
-    }
+    private static List<WCharEntry> CollectWCharEntries(byte[] data, int start, int end) =>
+        MfcPrimitives.ScanWCharFields(data, start, end, MaxStringLength)
+            .Select(f => new WCharEntry { Offset = f.Offset, EndOffset = f.EndOffset, Value = f.Value })
+            .ToList();
 
     /// <summary>
     /// Strict D1 parameter record measured in Distance (moLengthParameter_c) and
@@ -1449,51 +1464,14 @@ internal static class MateStructureDecoder
     /// Scans for a strict named parameter record (D1/D2 layout measured on the
     /// Distance/Angle/Gear specimens). Exactly one valid record is required.
     /// </summary>
-    private static double? ReadNamedParameter(byte[] data, int start, int end, string name)
-    {
-        int limit = Math.Min(end, data.Length);
-        double? result = null;
-        int count = 0;
-        for (int i = Math.Max(0, start); i + 6 <= limit; i++)
-        {
-            if (data[i] != 0x06 || data[i + 1] != 0x80 || !MfcPrimitives.IsWCharPrefix(data, i + 2))
-                continue;
-            int cursor = i + 2;
-            string? found = MfcPrimitives.ReadWChar(data, ref cursor, limit);
-            if (!string.Equals(found, name, StringComparison.Ordinal)) continue;
-            if (!TryReadNamedRecord(data, i, limit, name, out double value) ||
-                value <= 0 || value > 1000)
-                return null;
-            if (count > 0) return null;
-            result = value;
-            count++;
-        }
-        return count == 1 ? result : null;
-    }
+    private static double? ReadNamedParameter(byte[] data, int start, int end, string name) =>
+        MfcParameterReader.ReadUniqueMateNamedParameter(data, start, end, name, maxValue: 1000.0);
 
     internal static bool TryReadD1Record(byte[] data, int pos, int end, out double value) =>
-        TryReadNamedRecord(data, pos, end, "D1", out value);
+        MfcParameterReader.TryReadMateNamedRecord(data, pos, end, "D1", out value);
 
-    internal static bool TryReadNamedRecord(byte[] data, int pos, int end, string name, out double value)
-    {
-        value = 0;
-        if (pos < 0 || pos + 40 > end) return false;
-        int cursor = pos + 2;
-        if (MfcPrimitives.ReadWChar(data, ref cursor, end) != name || cursor != pos + 10) return false;
-        if (BitConverter.ToDouble(data, cursor) != 2.0) return false;
-        if (BitConverter.ToUInt32(data, cursor + 8) != uint.MaxValue) return false;
-        if (BitConverter.ToUInt32(data, cursor + 12) != 0) return false;
-        int empty = cursor + 16;
-        if (!MfcPrimitives.IsWCharPrefix(data, empty)) return false;
-        int emptyCursor = empty;
-        if (MfcPrimitives.ReadWChar(data, ref emptyCursor, end) != string.Empty) return false;
-        if (emptyCursor + 2 > end || BitConverter.ToUInt16(data, emptyCursor) != 0) return false;
-        if (emptyCursor + 10 > end) return false;
-        double v = BitConverter.ToDouble(data, emptyCursor + 2);
-        if (double.IsNaN(v) || double.IsInfinity(v) || v <= 0 || v > 1000) return false;
-        value = v;
-        return true;
-    }
+    internal static bool TryReadNamedRecord(byte[] data, int pos, int end, string name, out double value) =>
+        MfcParameterReader.TryReadMateNamedRecord(data, pos, end, name, out value);
 
     private static bool IsDeferredFaceReference(string value) =>
         value.StartsWith("moEndFaceSurfIdRep_c,", StringComparison.Ordinal);

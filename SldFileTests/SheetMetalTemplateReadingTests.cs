@@ -1,4 +1,4 @@
-using SldFile;
+﻿using SldFile;
 using SldFile.Binary;
 using Xunit;
 
@@ -14,7 +14,7 @@ public class SheetMetalTemplateReadingTests
     public void ReadsDimensionsFromOwningTemplateDespiteEarlierFillet(string name, double thickness, double radius)
     {
         using var part = SwFile.Open(Path.Combine(AppContext.BaseDirectory, "TestFiles", "Features2026", name), true);
-        var definition = Assert.IsType<SheetMetalBaseFlangeDefinitionData>(
+        var definition = Assert.IsType<SheetMetalBaseFlangeModel>(
             Assert.Single(part.ResolvedFeatures.Folders.Where(f => f.ClassName == "moSMBaseFlange_c")).FeatureData);
         Assert.Equal(thickness, definition.Thickness);
         Assert.Equal(radius, definition.BendRadius);
@@ -25,7 +25,7 @@ public class SheetMetalTemplateReadingTests
     [Fact]
     public void UnknownOrTruncatedTemplateDoesNotInventManufacturingDimensions()
     {
-        var definition = new SheetMetalBaseFlangeDefinitionData();
+        var definition = new SheetMetalBaseFlangeModel();
         SheetMetalTemplateParser.Read(new byte[] { 0x73, 0, 0, 0 }, 0, 4, definition);
         Assert.Equal(0, definition.Thickness);
         Assert.Equal(0, definition.BendRadius);
@@ -50,7 +50,7 @@ public class SheetMetalTemplateReadingTests
         ambiguous[0] = 0x73;
         first.CopyTo(ambiguous, 2);
         second.CopyTo(ambiguous, 2 + first.Length);
-        var definition = new SheetMetalBaseFlangeDefinitionData();
+        var definition = new SheetMetalBaseFlangeModel();
         SheetMetalTemplateParser.Read(ambiguous, 2, ambiguous.Length, definition);
         Assert.Equal(0, definition.BendRadius);
         Assert.Equal(0.001, definition.Thickness);

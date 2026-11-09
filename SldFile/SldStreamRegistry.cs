@@ -1,3 +1,4 @@
+﻿using SldFile.Mfc;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -12,11 +13,7 @@ internal sealed class SldStreamRegistry
     private static readonly SummaryStreamReader _summaryReader = new();
     private static readonly DocumentSummaryStreamReader _documentSummaryReader = new();
     private static readonly SolidWorksInformationStreamReader _solidWorksInfoReader = new();
-    private static readonly ModelStampsStreamReader _modelStampsReader = new();
-    private static readonly Header2StreamReader _header2Reader = new();
     private static readonly ConfigPropertiesStreamReader _configPropertiesReader = new();
-    private static readonly ZlbStreamReader _zlbReader = new();
-    private static readonly ResolvedFeaturesStreamReader _resolvedFeaturesReader = new();
 
     public void LoadFromStreams(Dictionary<string, byte[]> streams, SwFile model)
     {
@@ -33,8 +30,8 @@ internal sealed class SldStreamRegistry
         LoadN("ISolidWorksInformation", data => _solidWorksInfoReader.ParseBytes(data, model.SolidWorksInformation));
 
         // ── Fixed-name binary streams ─────────────────────────────────
-        if (S("Header2") is byte[] h2) _header2Reader.Parse(h2, model.Header2);
-        if (S("ModelStamps") is byte[] ms) _modelStampsReader.Parse(ms, model.ModelStamps);
+        if (S("Header2") is byte[] h2) MfcArchive.DeserializeInto(h2, model.Header2);
+        if (S("ModelStamps") is byte[] ms) ModelStampsStreamHandler.Parse(ms, model.ModelStamps);
 
         // ── Nested trivial streams ────────────────────────────────────
         LoadN("_DL_VERSION_5000/DLUpdateStamp",
@@ -45,22 +42,21 @@ internal sealed class SldStreamRegistry
             data => { var m = VisualStatesDisplayPaneData.Parse(data); model.VisualStatesDisplayPane.DisplayValue = m.DisplayValue; model.VisualStatesDisplayPane.ZeroPad = m.ZeroPad; model.VisualStatesDisplayPane.RawData = data; });
         LoadN("ThirdPty/CMMotionLoadMapU",
             data => { var m = CmMotionLoadMapUData.Parse(data); model.CmMotionLoadMapU.Version = m.Version; model.CmMotionLoadMapU.FieldCount = m.FieldCount; model.CmMotionLoadMapU.GuidOrId = m.GuidOrId; model.CmMotionLoadMapU.RefValue = m.RefValue; model.CmMotionLoadMapU.StringLen = m.StringLen; model.CmMotionLoadMapU.Name = m.Name; model.CmMotionLoadMapU.RawData = data; });
-        LoadN("SheetPreviews/SheetNames",
-            data => { var m = SheetNamesData.Parse(data); model.SheetNames.NamesBuilder = m.NamesBuilder; model.SheetNames.RawData = data; model.SheetNames.Freeze(); });
+        LoadN("SheetPreviews/SheetNames", data => MfcArchive.DeserializeInto(data, model.SheetNames));
 
         // ── MFC streams in nested storages ────────────────────────────
-        LoadN("Contents/DisplayLists", data => DisplayListsStreamHandler.Parse(data, model.DisplayLists));
+        LoadN("Contents/DisplayLists", data => MfcArchive.DeserializeInto(data, model.DisplayLists));
         LoadN("ThirdPtyStore/VisualStates", data => model.VisualStatesRawData = data);
-        LoadN("Contents/CMgrHdr2", data => CmgrHdr2StreamHandler.Parse(data, model.CmgrHdr2));
-        LoadN("_MO_VERSION_5000/Biography", data => BiographyStreamHandler.Parse(data, model.Biography));
-        LoadN("_MO_VERSION_19000/Biography", data => BiographyStreamHandler.Parse(data, model.Biography));
-        LoadN("_MO_VERSION_5000/History", data => HistoryStreamHandler.Parse(data, model.History));
-        LoadN("_MO_VERSION_19000/History", data => HistoryStreamHandler.Parse(data, model.History));
-        LoadN("Contents/Config-0-LWDATA", data => LwDataStreamHandler.Parse(data, model.LwData));
-        LoadN("Contents/CMgr", data => CmgrStreamHandler.Parse(data, model.Cmgr));
-        LoadN("Contents/Config-0-MatesList", data => MatesListStreamHandler.Parse(data, model.MatesList));
-        LoadN("Contents/Definition", data => DefinitionStreamHandler.Parse(data, model.Definition));
-        LoadN("Contents/Config-0", data => Config0StreamHandler.Parse(data, model.Config0));
+        LoadN("Contents/CMgrHdr2", data => MfcArchive.DeserializeInto(data, model.CmgrHdr2));
+        LoadN("_MO_VERSION_5000/Biography", data => MfcArchive.DeserializeInto(data, model.Biography));
+        LoadN("_MO_VERSION_19000/Biography", data => MfcArchive.DeserializeInto(data, model.Biography));
+        LoadN("_MO_VERSION_5000/History", data => MfcArchive.DeserializeInto(data, model.History));
+        LoadN("_MO_VERSION_19000/History", data => MfcArchive.DeserializeInto(data, model.History));
+        LoadN("Contents/Config-0-LWDATA", data => MfcArchive.DeserializeInto(data, model.LwData));
+        LoadN("Contents/CMgr", data => MfcArchive.DeserializeInto(data, model.Cmgr));
+        LoadN("Contents/Config-0-MatesList", data => MfcArchive.DeserializeInto(data, model.MatesList));
+        LoadN("Contents/Definition", data => MfcArchive.DeserializeInto(data, model.Definition));
+        LoadN("Contents/Config-0", data => MfcArchive.DeserializeInto(data, model.Config0));
 
         // ── Content streams ───────────────────────────────────────────
         if (S("Preview") is byte[] p) model.PreviewImage = p;
@@ -104,7 +100,7 @@ internal sealed class SldStreamRegistry
             else if (name.EndsWith("__ZLB"))
             {
                 var zlbData = new ZlbData();
-                _zlbReader.Read(data, zlbData);
+                ZlbStreamHandler.Parse(data, zlbData);
                 model.ZlbContents[name] = zlbData;
 
                 // Parse known binary MFC ZLB streams
@@ -121,7 +117,7 @@ internal sealed class SldStreamRegistry
             else if (name.EndsWith("-ResolvedFeatures"))
             {
                 model.ResolvedFeaturesStreamPath = name;
-                _resolvedFeaturesReader.Parse(data, model.ResolvedFeatures);
+                MfcArchive.DeserializeInto(data, model.ResolvedFeatures);
             }
         }
     }
@@ -132,11 +128,11 @@ internal sealed class SldStreamRegistry
     {
         if (streamPath.EndsWith("Contents/DisplayLists__ZLB"))
         {
-            DisplayListsStreamHandler.Parse(data, model.DisplayLists);
+            MfcArchive.DeserializeInto(data, model.DisplayLists);
         }
         else if (streamPath.EndsWith("Contents/User Units Table__ZLB"))
         {
-            UserUnitsTableStreamHandler.Parse(data, model.UserUnitsTable);
+            MfcArchive.DeserializeInto(data, model.UserUnitsTable);
         }
         else if (streamPath.EndsWith("Contents/View Orientation Data__ZLB"))
         {

@@ -77,6 +77,34 @@ internal sealed class MetadataStore
             names.TryGetValue(index, out var displayName);
             var configuration = new Configuration(index, path, displayName);
             new PropertySource(_streams[path], IsXml(path)).ReadCustom(configuration.CustomProperties);
+            string propKey = "SW-MassProp-Config-" + index;
+            object? rawMass = null;
+            if (_streams.TryGetValue(SwOle, out var swOleBytes))
+                rawMass = new PropertySource(swOleBytes, false).GetNamed(propKey);
+            if (rawMass == null && _streams.TryGetValue(SwXml, out var swXmlBytes))
+                rawMass = new PropertySource(swXmlBytes, true).GetNamed(propKey);
+
+            if (rawMass is string massStr && MassProperties.TryParse(massStr, out var massProps))
+            {
+                configuration.MassProperties = massProps;
+            }
+
+            string cutlistPath1 = $"docProps/Config-{index}-Cutlist-Properties.xml";
+            string cutlistPath2 = $"Config-{index}-Cutlist-Properties";
+            byte[]? cutlistBytes = null;
+            if (_streams.TryGetValue(cutlistPath1, out var cb1)) cutlistBytes = cb1;
+            else if (_streams.TryGetValue(cutlistPath2, out var cb2)) cutlistBytes = cb2;
+            else
+            {
+                var matchKey = _streams.Keys.FirstOrDefault(k => k.IndexOf($"Config-{index}-Cutlist-Properties", StringComparison.OrdinalIgnoreCase) >= 0);
+                if (matchKey != null) cutlistBytes = _streams[matchKey];
+            }
+
+            if (cutlistBytes != null && cutlistBytes.Length > 0)
+            {
+                configuration.CutListItems = CutListReader.Read(cutlistBytes);
+            }
+
             configurations.Add(configuration);
         }
         return configurations.OrderBy(c => c.Index).ToList().AsReadOnly();

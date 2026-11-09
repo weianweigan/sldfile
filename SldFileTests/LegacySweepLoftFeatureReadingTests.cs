@@ -24,10 +24,10 @@ public class LegacySweepLoftFeatureReadingTests
     {
         using var file = SwFile.Open(Sample(sample), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f =>
-            f.Name == featureName && f.Definition is SweepFeatureDefinitionData));
+            f.Name == featureName && f.Model is SweepFeatureModel));
         Assert.Equal(FeatureKind.Sweep, feature.Kind);
 
-        var definition = Assert.IsType<SweepFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<SweepFeatureModel>(feature.Model);
         Assert.Equal("moSweep_c", definition.ClassName);
         Assert.Equal(typeId, definition.SerializedTypeId);
         Assert.Equal(merge, definition.Merge);
@@ -50,8 +50,8 @@ public class LegacySweepLoftFeatureReadingTests
     {
         using var file = SwFile.Open(Sample("tutorial_dimxpert_spring_twist8_probe"), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f =>
-            f.Name == "Sweep1" && f.Definition is SweepFeatureDefinitionData));
-        var definition = Assert.IsType<SweepFeatureDefinitionData>(feature.Definition);
+            f.Name == "Sweep1" && f.Model is SweepFeatureModel));
+        var definition = Assert.IsType<SweepFeatureModel>(feature.Model);
         Assert.Equal(8, definition.TwistControlType);
         Assert.True(definition.Resolution.TwistControlType);
         Assert.True(definition.Merge);
@@ -78,8 +78,8 @@ public class LegacySweepLoftFeatureReadingTests
         var tampered = SldFile.Mfc.MfcDocument.Parse(raw);
         var tamperedElement = tampered.AllElements.Single(e =>
             e.TagByte == 0x01 && e.ClassName == "moSweep_c");
-        var definition = Assert.IsType<SweepFeatureDefinitionData>(
-            SldFile.Binary.FeatureData.LegacySweepLoftFeatureParsers.ParseSweep(
+        var definition = Assert.IsType<SweepFeatureModel>(
+            SweepFeatureModel.ParseLegacySweep(
                 tampered, tamperedElement.ClassName, 0x123u,
                 tamperedElement.TagOffset, raw.Length));
 

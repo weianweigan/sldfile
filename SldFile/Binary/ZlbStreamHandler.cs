@@ -1,41 +1,29 @@
-using System;
+﻿using System;
 using System.IO;
 using System.IO.Compression;
 using System.Text;
-using OpenMcdf;
 
 namespace SldFile.Binary;
 
-internal sealed class ZlbStreamReader : IBinaryStreamReader<ZlbData>
+/// <summary>
+/// Stream handler for __ZLB compressed streams.
+/// Symmetrically reads and writes the 24-byte prefix and Deflate compressed content.
+/// </summary>
+internal static class ZlbStreamHandler
 {
     private const int PrefixLength = 24;
 
-    public string StreamName => "*__ZLB";
+    public static void Parse(byte[] data, ZlbData model) => Decompress(data, model);
 
-    public void Parse(byte[] data, ZlbData model) => Read(data, model);
-
-    /// <summary>
-    /// Reads and decompresses a __ZLB stream from a byte array.
-    /// </summary>
-    public void Read(byte[] data, ZlbData model)
+    public static void Decompress(byte[] data, ZlbData model)
     {
-        ReadInternal(data, model);
-    }
+        if (data == null || data.Length == 0)
+        {
+            model.Prefix = Array.Empty<byte>();
+            model.XmlContent = string.Empty;
+            return;
+        }
 
-    /// <summary>
-    /// Reads and decompresses a __ZLB stream.
-    /// XML vs binary classification is determined by inspecting the decompressed
-    /// content (checks for <c>&lt;?xml</c> header), not by the stream path.
-    /// </summary>
-    public void Read(CfbStream stream, ZlbData model)
-    {
-        var data = new byte[stream.Length];
-        stream.Read(data, 0, (int)stream.Length);
-        ReadInternal(data, model);
-    }
-
-    private void ReadInternal(byte[] data, ZlbData model)
-    {
         if (data.Length <= PrefixLength)
         {
             model.Prefix = data;
@@ -62,9 +50,60 @@ internal sealed class ZlbStreamReader : IBinaryStreamReader<ZlbData>
         if (zlibIndex != -1 && zlibIndex != PrefixLength && TryDecompress(data, zlibIndex, model))
             return;
 
-        // No valid zlib data found — store all bytes as prefix
+        // No valid zlib data found 鈥?store all bytes as prefix
         model.Prefix = data;
         model.XmlContent = string.Empty;
+    }
+
+    public static byte[] Serialize(ZlbData model) => Compress(model);
+
+    public static byte[] Compress(ZlbData model)
+    {
+        byte[] payload = model.IsXml
+            ? Encoding.UTF8.GetBytes(model.XmlContent)
+            : (model.RawData ?? Array.Empty<byte>());
+
+        if (payload.Length == 0 && (model.Prefix == null || model.Prefix.Length <= PrefixLength))
+            return model.Prefix ?? Array.Empty<byte>();
+
+        // Compress payload using Deflate with zlib header
+        using var compressedMs = new MemoryStream();
+        // Zlib header (deflate, default compression)
+        compressedMs.WriteByte(0x78);
+        compressedMs.WriteByte(0x9C);
+
+        using (var ds = new DeflateStream(compressedMs, CompressionLevel.Optimal, leaveOpen: true))
+        {
+            ds.Write(payload, 0, payload.Length);
+        }
+
+        // Adler32 checksum
+        uint adler = CalculateAdler32(payload);
+        compressedMs.WriteByte((byte)((adler >> 24) & 0xFF));
+        compressedMs.WriteByte((byte)((adler >> 16) & 0xFF));
+        compressedMs.WriteByte((byte)((adler >> 8) & 0xFF));
+        compressedMs.WriteByte((byte)(adler & 0xFF));
+
+        byte[] compressedData = compressedMs.ToArray();
+
+        // Build 24-byte prefix
+        byte[] prefix = new byte[PrefixLength];
+        if (model.Prefix != null && model.Prefix.Length >= 16)
+        {
+            Array.Copy(model.Prefix, 0, prefix, 0, 16);
+        }
+        else
+        {
+            Array.Copy(ZlbData.ExpectedGuid, 0, prefix, 0, 16);
+        }
+
+        BitConverter.GetBytes((uint)payload.Length).CopyTo(prefix, 16);
+        BitConverter.GetBytes((uint)compressedData.Length).CopyTo(prefix, 20);
+
+        var result = new byte[PrefixLength + compressedData.Length];
+        Array.Copy(prefix, 0, result, 0, PrefixLength);
+        Array.Copy(compressedData, 0, result, PrefixLength, compressedData.Length);
+        return result;
     }
 
     private static bool TryDecompress(byte[] data, int zlibOffset, ZlbData model)
@@ -103,5 +142,17 @@ internal sealed class ZlbStreamReader : IBinaryStreamReader<ZlbData>
         {
             return false;
         }
+    }
+
+    private static uint CalculateAdler32(byte[] data)
+    {
+        uint a = 1, b = 0;
+        const uint mod = 65521;
+        for (int i = 0; i < data.Length; i++)
+        {
+            a = (a + data[i]) % mod;
+            b = (b + a) % mod;
+        }
+        return (b << 16) | a;
     }
 }
