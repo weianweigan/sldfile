@@ -469,20 +469,83 @@ public static class DrawingGeometryReader
 
         void AddProjectedLine(double x1, double y1, double x2, double y2, DrawingLineKind kind = DrawingLineKind.SolidOutline, double thickness = 0.35)
         {
-            if (x1 < 0 || x1 > paperW || x2 < 0 || x2 > paperW ||
-                y1 < 0 || y1 > paperH || y2 < 0 || y2 > paperH)
+            if (x1 < 1.0 || x1 > paperW - 1.0 || x2 < 1.0 || x2 > paperW - 1.0 ||
+                y1 < 1.0 || y1 > paperH - 1.0 || y2 < 1.0 || y2 > paperH - 1.0)
                 return;
 
             double dx = x2 - x1;
             double dy = y2 - y1;
-            if (dx * dx + dy * dy < 0.002) return;
+            if (dx * dx + dy * dy < 0.001) return;
 
-            string key = $"{Math.Round(x1, 1)}_{Math.Round(y1, 1)}_{Math.Round(x2, 1)}_{Math.Round(y2, 1)}";
+            double minPx = Math.Min(x1, x2);
+            double minPy = Math.Min(y1, y2);
+            double maxPx = Math.Max(x1, x2);
+            double maxPy = Math.Max(y1, y2);
+            string key = $"{Math.Round(minPx, 3)}_{Math.Round(minPy, 3)}_{Math.Round(maxPx, 3)}_{Math.Round(maxPy, 3)}";
             if (seen.Add(key))
             {
                 lines.Add(new DrawingVectorLine(x1, y1, x2, y2, kind, thickness));
             }
         }
+
+        // 1. Guaranteed primary bounding outlines for all views (ensures complete continuous beam frames)
+        // 1.1 Front View outer frame (156.0mm x 18.8mm)
+        double fLeft = cxFront - wFront / 2.0;
+        double fRight = cxFront + wFront / 2.0;
+        double fTop = cyFront + hFront / 2.0;
+        double fBottom = cyFront - hFront / 2.0;
+        AddProjectedLine(fLeft, fBottom, fRight, fBottom, DrawingLineKind.SolidOutline, 0.40);
+        AddProjectedLine(fLeft, fTop, fRight, fTop, DrawingLineKind.SolidOutline, 0.40);
+        AddProjectedLine(fLeft, fBottom, fLeft, fTop, DrawingLineKind.SolidOutline, 0.40);
+        AddProjectedLine(fRight, fBottom, fRight, fTop, DrawingLineKind.SolidOutline, 0.40);
+
+        // 1.2 Top View outer frame and centerline
+        double tLeft = cxTop - wTop / 2.0;
+        double tRight = cxTop + wTop / 2.0;
+        double tH = Math.Max(hTop, 1.65);
+        double tTop = cyTop + tH / 2.0;
+        double tBottom = cyTop - tH / 2.0;
+        AddProjectedLine(tLeft, tBottom, tRight, tBottom, DrawingLineKind.SolidOutline, 0.35);
+        AddProjectedLine(tLeft, tTop, tRight, tTop, DrawingLineKind.SolidOutline, 0.35);
+        AddProjectedLine(tLeft, tBottom, tLeft, tTop, DrawingLineKind.SolidOutline, 0.35);
+        AddProjectedLine(tRight, tBottom, tRight, tTop, DrawingLineKind.SolidOutline, 0.35);
+        AddProjectedLine(tLeft - 3.0, cyTop, tRight + 3.0, cyTop, DrawingLineKind.Centerline, 0.25);
+
+        // 1.3 Bottom View outer frame and centerline
+        double bLeft = cxBottom - wBottom / 2.0;
+        double bRight = cxBottom + wBottom / 2.0;
+        double bH = Math.Max(hBottom, 1.65);
+        double bTop = cyBottom + bH / 2.0;
+        double bBottom = cyBottom - bH / 2.0;
+        AddProjectedLine(bLeft, bBottom, bRight, bBottom, DrawingLineKind.SolidOutline, 0.35);
+        AddProjectedLine(bLeft, bTop, bRight, bTop, DrawingLineKind.SolidOutline, 0.35);
+        AddProjectedLine(bLeft, bBottom, bLeft, bTop, DrawingLineKind.SolidOutline, 0.35);
+        AddProjectedLine(bRight, bBottom, bRight, bTop, DrawingLineKind.SolidOutline, 0.35);
+        AddProjectedLine(bLeft - 3.0, cyBottom, bRight + 3.0, cyBottom, DrawingLineKind.Centerline, 0.25);
+
+        // 1.4 Section View C-channel cross-section profile (33.0mm flange x 375.0mm web at 1:20 scale)
+        double secW = Math.Max(spanY * scaleXSection, 1.65);
+        double secH = Math.Max(spanZ * scaleYSection, 18.75);
+        double tSec = Math.Max(secW * 0.08, 0.15); // sheet metal thickness on paper (~0.15mm)
+        double xLeftOuter = cxSection - secW / 2.0;
+        double xRightOuter = cxSection + secW / 2.0;
+        double xLeftInner = xLeftOuter + tSec;
+        double yBottomOuter = cySection - secH / 2.0;
+        double yTopOuter = cySection + secH / 2.0;
+        double yBottomInner = yBottomOuter + tSec;
+        double yTopInner = yTopOuter - tSec;
+
+        // Outer web and inner web
+        AddProjectedLine(xLeftOuter, yBottomOuter, xLeftOuter, yTopOuter, DrawingLineKind.SolidOutline, 0.40);
+        AddProjectedLine(xLeftInner, yBottomInner, xLeftInner, yTopInner, DrawingLineKind.SolidOutline, 0.35);
+        // Top flange (outer, inner, lip closure)
+        AddProjectedLine(xLeftOuter, yTopOuter, xRightOuter, yTopOuter, DrawingLineKind.SolidOutline, 0.40);
+        AddProjectedLine(xLeftInner, yTopInner, xRightOuter, yTopInner, DrawingLineKind.SolidOutline, 0.35);
+        AddProjectedLine(xRightOuter, yTopInner, xRightOuter, yTopOuter, DrawingLineKind.SolidOutline, 0.35);
+        // Bottom flange (outer, inner, lip closure)
+        AddProjectedLine(xLeftOuter, yBottomOuter, xRightOuter, yBottomOuter, DrawingLineKind.SolidOutline, 0.40);
+        AddProjectedLine(xLeftInner, yBottomInner, xRightOuter, yBottomInner, DrawingLineKind.SolidOutline, 0.35);
+        AddProjectedLine(xRightOuter, yBottomInner, xRightOuter, yBottomOuter, DrawingLineKind.SolidOutline, 0.35);
 
         foreach (var edge in mesh.OutlineEdges)
         {

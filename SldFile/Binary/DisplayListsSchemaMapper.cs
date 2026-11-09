@@ -185,29 +185,27 @@ internal static class DisplayListsSchemaMapper
                             double y2 = BitConverter.ToDouble(data, coordOff + 32);
                             double z2 = BitConverter.ToDouble(data, coordOff + 40);
 
-                            if (!double.IsNaN(x1) && !double.IsInfinity(x1) &&
-                                !double.IsNaN(y1) && !double.IsInfinity(y1) &&
-                                !double.IsNaN(x2) && !double.IsInfinity(x2) &&
-                                !double.IsNaN(y2) && !double.IsInfinity(y2))
+                            bool IsValidNormal(double v) => !double.IsNaN(v) && !double.IsInfinity(v) && Math.Abs(v) >= 1e-4;
+                            if (IsValidNormal(x1) && IsValidNormal(y1) &&
+                                IsValidNormal(x2) && IsValidNormal(y2))
                             {
                                 double x1mm = x1 * 1000.0;
                                 double y1mm = y1 * 1000.0;
                                 double x2mm = x2 * 1000.0;
                                 double y2mm = y2 * 1000.0;
 
-                                if (x1mm >= -50.0 && x1mm <= maxAllowedW && y1mm >= -50.0 && y1mm <= maxAllowedH &&
-                                    x2mm >= -50.0 && x2mm <= maxAllowedW && y2mm >= -50.0 && y2mm <= maxAllowedH)
+                                // Physical paper coordinate boundaries (exclude origin / edge-clamped spurious artifacts)
+                                if (x1mm >= 1.0 && x1mm <= paperWidthMm - 1.0 &&
+                                    y1mm >= 1.0 && y1mm <= paperHeightMm - 1.0 &&
+                                    x2mm >= 1.0 && x2mm <= paperWidthMm - 1.0 &&
+                                    y2mm >= 1.0 && y2mm <= paperHeightMm - 1.0)
                                 {
-                                    x1mm = Math.Max(0.0, Math.Min(paperWidthMm, x1mm));
-                                    x2mm = Math.Max(0.0, Math.Min(paperWidthMm, x2mm));
-                                    y1mm = Math.Max(0.0, Math.Min(paperHeightMm, y1mm));
-                                    y2mm = Math.Max(0.0, Math.Min(paperHeightMm, y2mm));
-
                                     double dx = x2mm - x1mm;
                                     double dy = y2mm - y1mm;
                                     double len = Math.Sqrt(dx * dx + dy * dy);
 
-                                    if (len > 0.05)
+                                    // Filter out spurious diagonals or sub-pixel noise
+                                    if (len >= 0.2 && len <= Math.Max(paperWidthMm, paperHeightMm))
                                     {
                                         DrawingLineKind kind = DrawingLineKind.SolidOutline;
                                         double thickness = 0.35;

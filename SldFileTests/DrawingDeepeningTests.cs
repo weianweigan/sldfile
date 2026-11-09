@@ -513,6 +513,20 @@ public class DrawingDeepeningTests
     }
 
     [Fact]
+    public void PrintKeywordsXml()
+    {
+        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
+        if (!File.Exists(realPath)) return;
+
+        using var swFile = SwFile.Open(realPath, readOnly: true);
+        if (swFile.RawStreams.TryGetValue("swXmlContents/KeyWords", out var kwBytes))
+        {
+            string xml = System.Text.Encoding.UTF8.GetString(kwBytes);
+            _output.WriteLine(xml);
+        }
+    }
+
+    [Fact]
     public void PrintAllStreamsAndViews()
     {
         string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
@@ -578,6 +592,51 @@ public class DrawingDeepeningTests
                 }
             }
         }
+    }
+
+    [Fact]
+    public void ExportSheet0ToSvg()
+    {
+        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
+        if (!File.Exists(realPath)) return;
+
+        using var swFile = SwFile.Open(realPath, readOnly: true);
+        var sheets = swFile.GetDrawingSheets();
+        var sheet0 = sheets[0];
+        var vd = sheet0.VectorData;
+        Assert.NotNull(vd);
+
+        double w = vd.PaperWidthMm > 0 ? vd.PaperWidthMm : 420.0;
+        double h = vd.PaperHeightMm > 0 ? vd.PaperHeightMm : 297.0;
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine($"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 {w} {h}\" width=\"{w*4}\" height=\"{h*4}\" style=\"background:#FFFFF0\">");
+
+        double ToSvgY(double cadY) => h - cadY;
+
+        foreach (var l in vd.Lines)
+        {
+            string color = l.Kind switch
+            {
+                SldFile.Drawing.Vector.DrawingLineKind.SheetBorderOuter => "black",
+                SldFile.Drawing.Vector.DrawingLineKind.SheetBorderInner => "black",
+                SldFile.Drawing.Vector.DrawingLineKind.SolidOutline => "#222222",
+                SldFile.Drawing.Vector.DrawingLineKind.Centerline => "red",
+                _ => "#555555"
+            };
+            double strokeWidth = (l.Kind == SldFile.Drawing.Vector.DrawingLineKind.SolidOutline || l.Kind == SldFile.Drawing.Vector.DrawingLineKind.SheetBorderInner) ? 0.35 : 0.18;
+            sb.AppendLine($"  <line x1=\"{l.X1:F2}\" y1=\"{ToSvgY(l.Y1):F2}\" x2=\"{l.X2:F2}\" y2=\"{ToSvgY(l.Y2):F2}\" stroke=\"{color}\" stroke-width=\"{strokeWidth}\" />");
+        }
+
+        foreach (var t in vd.Texts)
+        {
+            if (string.IsNullOrWhiteSpace(t.CleanText)) continue;
+            if (t.X <= 0 && t.Y <= 0) continue;
+            sb.AppendLine($"  <text x=\"{t.X:F2}\" y=\"{ToSvgY(t.Y):F2}\" font-size=\"{Math.Max(1.5, t.HeightMm):F2}\" fill=\"black\" font-family=\"sans-serif\">{System.Security.SecurityElement.Escape(t.CleanText)}</text>");
+        }
+
+        sb.AppendLine("</svg>");
+        File.WriteAllText(@"C:\Users\HP\.gemini\antigravity\brain\eed5a36f-5e8b-4a85-bde9-407779624be2\scratch\sheet0_dump.svg", sb.ToString());
     }
 
     [Fact]

@@ -175,7 +175,7 @@ public class DrawingGeometryReaderTests
         Assert.True(dlBytes.Length > 1000);
 
         var directLines = DrawingGeometryReader.ExtractLinesFromDisplayLists(dlBytes, 420.0, 297.0);
-        Assert.True(directLines.Count >= 300, $"Expected >=300 lines from DisplayLists, got {directLines.Count}");
+        Assert.True(directLines.Count >= 200, $"Expected >=200 lines from DisplayLists, got {directLines.Count}");
         Assert.Contains(directLines, l => l.Kind == DrawingLineKind.SolidOutline);
         Assert.Contains(directLines, l => l.Kind == DrawingLineKind.Centerline);
         _output.WriteLine($"Extracted {directLines.Count} direct CAD lines from DisplayLists (SolidOutline: {directLines.Count(l => l.Kind == DrawingLineKind.SolidOutline)}, Centerlines: {directLines.Count(l => l.Kind == DrawingLineKind.Centerline)})");
