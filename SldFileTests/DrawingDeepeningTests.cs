@@ -17,6 +17,233 @@ public class DrawingDeepeningTests
     }
 
     [Fact]
+    public void DumpMfcViewHierarchies()
+    {
+        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
+        if (!File.Exists(realPath)) return;
+
+        using var swFile = SwFile.Open(realPath, readOnly: true);
+        if (!swFile.RawStreams.TryGetValue("Contents/Definition", out var defBytes)) return;
+
+        var doc = SldFile.Mfc.MfcDocument.Parse(defBytes);
+        var viewClasses = new[] { "moAbsoluteView", "moUnfoldedView", "moDetailView", "moView_c" };
+
+        foreach (var vc in viewClasses)
+        {
+            var views = doc.FindAll(vc);
+            foreach (var v in views)
+            {
+                _output.WriteLine($"==================================================================");
+                _output.WriteLine($"VIEW: [{v.ClassName}] TagOff=0x{v.TagOffset:X}, Len={v.DataLength}, Index={v.Index}");
+                // Print all direct and indirect children
+                var children = doc.AllElements.Where(e => e.Parent == v).ToList();
+                _output.WriteLine($"  Direct Children ({children.Count}):");
+                foreach (var c in children)
+                {
+                    _output.WriteLine($"    [{c.ClassName}] TagOff=0x{c.TagOffset:X}, Len={c.DataLength}");
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public void InspectUnfoldedViewRange()
+    {
+        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
+        if (!File.Exists(realPath)) return;
+
+        using var swFile = SwFile.Open(realPath, readOnly: true);
+        if (!swFile.RawStreams.TryGetValue("Contents/Definition", out var defBytes)) return;
+
+        var doc = SldFile.Mfc.MfcDocument.Parse(defBytes);
+        var inRange = doc.AllElements
+            .Where(e => e.TagOffset >= 0x358E9 && e.TagOffset < 0x60853)
+            .ToList();
+        
+        _output.WriteLine($"Elements in UnfoldedView range: {inRange.Count}");
+        foreach (var e in inRange)
+        {
+            _output.WriteLine($"  [{e.ClassName}] TagOff=0x{e.TagOffset:X}, Len={e.DataLength}, Parent=[{e.Parent?.ClassName}]");
+        }
+    }
+
+    [Fact]
+    public void DumpKeyWordsXml()
+    {
+        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
+        if (!File.Exists(realPath)) return;
+
+        using var swFile = SwFile.Open(realPath, readOnly: true);
+        if (!swFile.RawStreams.TryGetValue("swXmlContents/KeyWords", out var kwBytes)) return;
+
+        string xml = System.Text.Encoding.UTF8.GetString(kwBytes);
+        int idx = xml.IndexOf('<');
+        if (idx >= 0) xml = xml.Substring(idx);
+        _output.WriteLine(xml);
+    }
+
+    [Fact]
+    public void DumpViewDetailedFields()
+    {
+        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
+        if (!File.Exists(realPath)) return;
+
+        using var swFile = SwFile.Open(realPath, readOnly: true);
+        if (!swFile.RawStreams.TryGetValue("Contents/Definition", out var defBytes)) return;
+
+        var doc = SldFile.Mfc.MfcDocument.Parse(defBytes);
+        var viewClasses = new[] { "moAbsoluteView", "moUnfoldedView", "moDetailView", "moView_c" };
+
+        foreach (var vc in viewClasses)
+        {
+            var views = doc.FindAll(vc);
+            foreach (var v in views)
+            {
+                _output.WriteLine($"=== View: [{v.ClassName}] TagOff=0x{v.TagOffset:X}, Len={v.DataLength} ===");
+                byte[] vBytes = new byte[v.DataLength];
+                Array.Copy(defBytes, v.TagOffset, vBytes, 0, v.DataLength);
+
+                for (int off = 0; off <= v.DataLength - 8; off += 4)
+                {
+                    double d = BitConverter.ToDouble(vBytes, off);
+                    if (!double.IsNaN(d) && !double.IsInfinity(d) && Math.Abs(d) >= 1e-4 && Math.Abs(d) <= 1000.0)
+                    {
+                        _output.WriteLine($"    +0x{off:X2} (rel): double = {d}");
+                    }
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public void DumpViewProperties()
+    {
+        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
+        if (!File.Exists(realPath)) return;
+
+        using var swFile = SwFile.Open(realPath, readOnly: true);
+        if (!swFile.RawStreams.TryGetValue("Contents/Definition", out var defBytes)) return;
+
+        var doc = SldFile.Mfc.MfcDocument.Parse(defBytes);
+        var viewClasses = new[] { "moAbsoluteView", "moUnfoldedView", "moDetailView", "moView_c" };
+
+        foreach (var vc in viewClasses)
+        {
+            var views = doc.FindAll(vc);
+            foreach (var v in views)
+            {
+                _output.WriteLine($"=== View: [{v.ClassName}] TagOff=0x{v.TagOffset:X}, Len={v.DataLength} ===");
+                var reader = v.CreateReader();
+                // Find all WChars in this element
+                while (reader.Remaining > 3)
+                {
+                    if (reader.IsWCharPrefix)
+                    {
+                        int off = reader.Offset;
+                        string s = reader.ReadWChar() ?? "";
+                        if (!string.IsNullOrEmpty(s))
+                            _output.WriteLine($"    WChar @ +0x{off:X}: '{s}'");
+                    }
+                    else
+                    {
+                        reader.Skip(1);
+                    }
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public void ListAllMfcClassesInDefinition()
+    {
+        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
+        if (!File.Exists(realPath)) return;
+
+        using var swFile = SwFile.Open(realPath, readOnly: true);
+        if (!swFile.RawStreams.TryGetValue("Contents/Definition", out var defBytes)) return;
+
+        var doc = SldFile.Mfc.MfcDocument.Parse(defBytes);
+        var classCounts = doc.AllElements
+            .GroupBy(e => string.IsNullOrEmpty(e.ClassName) ? "<anonymous>" : e.ClassName)
+            .OrderByDescending(g => g.Count())
+            .ToList();
+
+        _output.WriteLine($"Total MFC elements: {doc.AllElements.Count}");
+        foreach (var g in classCounts)
+        {
+            _output.WriteLine($"  {g.Key,-35} : {g.Count()} elements");
+        }
+    }
+
+    [Fact]
+    public void PrintAllStreamsAndViews()
+    {
+        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
+        if (!File.Exists(realPath)) return;
+
+        using var swFile = SwFile.Open(realPath, readOnly: true);
+        _output.WriteLine($"Streams count: {swFile.RawStreams.Count}");
+        foreach (var kvp in swFile.RawStreams.OrderBy(k => k.Key))
+        {
+            _output.WriteLine($"  {kvp.Key,-40} : {kvp.Value.Length,8:N0} bytes");
+        }
+    }
+
+    [Fact]
+    public void InspectElementsBetweenViews()
+    {
+        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
+        if (!File.Exists(realPath)) return;
+
+        using var swFile = SwFile.Open(realPath, readOnly: true);
+        if (!swFile.RawStreams.TryGetValue("Contents/Definition", out var defBytes)) return;
+
+        var doc = SldFile.Mfc.MfcDocument.Parse(defBytes);
+        var inRange = doc.AllElements
+            .Where(e => e.TagOffset >= 0x2649B && e.TagOffset < 0x358E9)
+            .ToList();
+        
+        _output.WriteLine($"Elements in range: {inRange.Count}");
+        foreach (var e in inRange)
+        {
+            _output.WriteLine($"  [{e.ClassName}] TagOff=0x{e.TagOffset:X}, Len={e.DataLength}, Parent=[{e.Parent?.ClassName}]");
+        }
+    }
+
+    [Fact]
+    public void InspectViewTransformsAndGeometryInDefinition()
+    {
+        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
+        if (!File.Exists(realPath)) return;
+
+        using var swFile = SwFile.Open(realPath, readOnly: true);
+        if (!swFile.RawStreams.TryGetValue("Contents/Definition", out var defBytes)) return;
+
+        var doc = SldFile.Mfc.MfcDocument.Parse(defBytes);
+        var viewClasses = new[] { "moAbsoluteView", "moUnfoldedView", "moDetailView", "moView_c" };
+
+        foreach (var vc in viewClasses)
+        {
+            var views = doc.FindAll(vc);
+            foreach (var v in views)
+            {
+                _output.WriteLine($"=== View: [{v.ClassName}] TagOff=0x{v.TagOffset:X}, Len={v.DataLength} ===");
+                byte[] vBytes = new byte[v.DataLength];
+                Array.Copy(defBytes, v.TagOffset, vBytes, 0, v.DataLength);
+
+                for (int off = 0; off <= v.DataLength - 8; off += 4)
+                {
+                    double d = BitConverter.ToDouble(vBytes, off);
+                    if (!double.IsNaN(d) && !double.IsInfinity(d) && Math.Abs(d) > 1e-4 && Math.Abs(d) < 10.0)
+                    {
+                        _output.WriteLine($"    +0x{off:X2}: double={d:F6}");
+                    }
+                }
+            }
+        }
+    }
+
+    [Fact]
     public void Drawing_RealDrawingFile_D8001507933_VerifiesMfcViewsAndHighDefPreview()
     {
         string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
@@ -46,6 +273,17 @@ public class DrawingDeepeningTests
         var sheet0 = sheets[0];
         Assert.Equal("图纸1", sheet0.Name);
         Assert.True(sheet0.Views.Count >= 4);
+
+        // 4. Verify MFC view deserialization details
+        Assert.Contains(sheet0.Views, v => v.MfcClassName == "moAbsoluteView");
+        Assert.Contains(sheet0.Views, v => v.MfcClassName == "moUnfoldedView");
+        Assert.Contains(sheet0.Views, v => v.MfcClassName == "moDetailView");
+
+        // 5. Verify Technical Notes and Title Block
+        Assert.NotEmpty(sheet0.TechnicalNotes);
+        Assert.Contains(sheet0.TechnicalNotes, n => n.Contains("锐边倒角去毛刺"));
+        Assert.NotEmpty(sheet0.TitleBlockProperties);
+        Assert.Contains(sheet0.TitleBlockProperties.Keys, k => k.Contains("比例"));
     }
 
     [Fact]

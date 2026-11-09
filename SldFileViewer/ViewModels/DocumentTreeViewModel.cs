@@ -331,11 +331,44 @@ public void RequestComponentAction(AssemblyComponentNode comp, ComponentTreeActi
         for (int i = 0; i < sheets.Count; i++)
         {
             var s = sheets[i];
-            var sheetNode = CreateNode(s.Name, TreeNodeKind.DrawingSheet, s, $"索引: {i}");
+            var sheetNode = CreateNode(s.Name, TreeNodeKind.DrawingSheet, s, $"索引: {i} · {s.Views.Count} 个视图");
+            sheetNode.IsExpanded = true;
+
+            // 1. MFC Drawing Views (反序列化出的工程图主视图、展开图、局部放大图等)
+            var viewsFolder = CreateNode("视图列表 (Drawing Views)", TreeNodeKind.FeatureFolder, null, $"{s.Views.Count} 个工程图视图");
+            viewsFolder.IsExpanded = true;
             foreach (var view in s.Views)
             {
-                sheetNode.Children.Add(CreateNode(view.Name, TreeNodeKind.FeatureGeneric, view, view.ReferencedConfiguration));
+                string desc = !string.IsNullOrEmpty(view.ViewType)
+                    ? $"{view.ViewType}" + (!string.IsNullOrEmpty(view.Scale) ? $" ({view.Scale})" : "") + (!string.IsNullOrEmpty(view.ReferencedConfiguration) ? $" · {view.ReferencedConfiguration}" : "")
+                    : view.ReferencedConfiguration;
+                viewsFolder.Children.Add(CreateNode(view.Name, TreeNodeKind.FeatureGeneric, view, desc));
             }
+            sheetNode.Children.Add(viewsFolder);
+
+            // 2. Technical Notes (技术要求规范)
+            if (s.TechnicalNotes.Count > 0)
+            {
+                var notesFolder = CreateNode("技术要求 (Technical Notes)", TreeNodeKind.FeatureFolder, null, $"{s.TechnicalNotes.Count} 条制造技术要求");
+                notesFolder.IsExpanded = true;
+                for (int n = 0; n < s.TechnicalNotes.Count; n++)
+                {
+                    notesFolder.Children.Add(CreateNode(s.TechnicalNotes[n], TreeNodeKind.CustomProperties, s.TechnicalNotes[n], "规范条款"));
+                }
+                sheetNode.Children.Add(notesFolder);
+            }
+
+            // 3. Title Block & Tolerance Properties (标题栏信息与公差表)
+            if (s.TitleBlockProperties.Count > 0)
+            {
+                var titleFolder = CreateNode("标题栏与图纸属性 (Title Block)", TreeNodeKind.FeatureFolder, null, $"{s.TitleBlockProperties.Count} 项属性");
+                foreach (var kvp in s.TitleBlockProperties)
+                {
+                    titleFolder.Children.Add(CreateNode(kvp.Key, TreeNodeKind.CustomProperties, kvp.Value, kvp.Value));
+                }
+                sheetNode.Children.Add(titleFolder);
+            }
+
             sheetsFolder.Children.Add(sheetNode);
         }
         rootNode.Children.Add(sheetsFolder);

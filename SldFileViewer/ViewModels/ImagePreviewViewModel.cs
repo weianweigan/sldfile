@@ -63,7 +63,8 @@ public partial class ImagePreviewViewModel : ObservableObject
     public bool IsRasterImageVisible =>
         OverlayMode != DrawingOverlayMode.PureVectorCad ||
         VectorData == null ||
-        !VectorData.HasLines;
+        !VectorData.HasLines ||
+        VectorData.Lines.Count < 2000;
 
     public bool IsVectorOverlayEnabled
     {

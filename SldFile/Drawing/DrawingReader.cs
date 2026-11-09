@@ -78,6 +78,35 @@ internal static class DrawingReader
                             }
                         }
 
+                        // Enhance view information with MFC deserialization from Definition stream
+                        if (definitionStream != null && definitionStream.Length > 0)
+                        {
+                            var mfcViews = DrawingMfcViewReader.ReadViewsFromDefinition(definitionStream);
+                            foreach (var mv in mfcViews)
+                            {
+                                var existing = views.FirstOrDefault(v => v.Name.Equals(mv.Name, StringComparison.OrdinalIgnoreCase));
+                                if (existing != null)
+                                {
+                                    existing.MfcClassName = mv.MfcClassName;
+                                    existing.ViewType = mv.ViewType;
+                                    existing.Scale = mv.Scale;
+                                    existing.TagOffset = mv.TagOffset;
+                                    if (string.IsNullOrEmpty(existing.ReferencedConfiguration) && !string.IsNullOrEmpty(mv.ReferencedConfiguration))
+                                    {
+                                        existing.ReferencedConfiguration = mv.ReferencedConfiguration;
+                                    }
+                                }
+                                else if (!mv.Name.StartsWith("*"))
+                                {
+                                    views.Add(mv);
+                                }
+                            }
+                        }
+
+                        // Extract technical notes and title block metadata
+                        var technicalNotes = DrawingMfcViewReader.ExtractTechnicalNotes(keywordsXml);
+                        var titleBlockProps = DrawingMfcViewReader.ExtractTitleBlockProperties(keywordsXml);
+
                         sheets.Add(new DrawingSheetInfo
                         {
                             Name = sheetName,
@@ -85,6 +114,8 @@ internal static class DrawingReader
                             PreviewPng = preview,
                             HighResPreview = highRes,
                             VectorData = vectorData,
+                            TechnicalNotes = technicalNotes.AsReadOnly(),
+                            TitleBlockProperties = titleBlockProps,
                             Views = views.AsReadOnly()
                         });
 

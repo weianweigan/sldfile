@@ -212,8 +212,9 @@ public sealed class DrawingVectorCanvas : FrameworkElement
 
         bool isPureVector = (OverlayMode == DrawingOverlayMode.PureVectorCad);
 
-        // 0. In pure vector CAD mode, draw the solid drawing paper background
-        if (isPureVector)
+        // 0. Only when vector lines provide complete model coverage (>= 2000 lines) can we draw solid paper background.
+        // Otherwise, raster preview must remain visible underneath to preserve model geometry (beams, sections, bends, holes).
+        if (isPureVector && VectorData.HasLines && VectorData.Lines.Count >= 2000)
         {
             double pWidth = (ActualWidth > 0) ? ActualWidth : (Width > 0 ? Width : 1420);
             double pHeight = (ActualHeight > 0) ? ActualHeight : (Height > 0 ? Height : 710);

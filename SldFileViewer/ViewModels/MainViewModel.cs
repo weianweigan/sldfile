@@ -387,7 +387,26 @@ public partial class MainViewModel : ObservableObject
             case TreeNodeKind.FeaturePlane:
             case TreeNodeKind.FeatureOrigin:
             case TreeNodeKind.FeatureGeneric:
-                if (node.Tag is Feature f)
+                if (node.Tag is DrawingViewInfo view)
+                {
+                    FeatureDetail.LoadGeneric(view.Name, $"工程图视图 ({view.ViewType})",
+                        $"配置: {view.ReferencedConfiguration}\n比例: {view.Scale}\nMFC类: {view.MfcClassName}\n模型路径: {view.ReferencedModelPath}");
+                    var sheets = _docService.GetDrawingSheets();
+                    var firstSheet = sheets.FirstOrDefault();
+                    if (firstSheet != null)
+                    {
+                        var viewImg = _docService.GetBestSheetPreviewImage(firstSheet.SheetIndex) ?? firstSheet.BestPreview;
+                        if (viewImg != null)
+                        {
+                            ImagePreview.LoadImage(viewImg, $"工程图视图: {view.Name} ({view.ViewType})", firstSheet.VectorData);
+                            CurrentView = ImagePreview;
+                            break;
+                        }
+                    }
+                    CurrentView = FeatureDetail;
+                    break;
+                }
+                else if (node.Tag is Feature f)
                 {
                     FeatureDetail.LoadFeature(f);
                     if (MeshViewer.HasMesh)
