@@ -43,6 +43,13 @@ internal sealed class DisplayListsData
     /// <summary>Whether part tessellation data (uoTempPartTessData_c) is present.</summary>
     public bool HasPartTessData { get; internal set; }
 
+    /// <summary>Layer names extracted from uiLayerMgr_c (Drawings).</summary>
+    public IReadOnlyList<string> Layers { get; internal set; } = Array.Empty<string>();
+
+    /// <summary>2D CAD vector line primitives extracted from DisplayLists stream via MFC deserialization.</summary>
+    public IReadOnlyList<Drawing.Vector.DrawingVectorLine> CadLines { get; internal set; }
+        = Array.Empty<Drawing.Vector.DrawingVectorLine>();
+
     internal byte[]? RawData;
 }
 

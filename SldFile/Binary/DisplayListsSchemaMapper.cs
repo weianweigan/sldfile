@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using SldFile.Drawing.Vector;
 using SldFile.Mfc;
 
 namespace SldFile.Binary;
@@ -117,6 +119,130 @@ internal static class DisplayListsSchemaMapper
         // Assembly/Part-specific
         model.HasAssemblyData = doc.FindFirst("uoTempAssemblySHDData_c") != null;
         model.HasPartTessData = doc.FindFirst("uoTempPartTessData_c") != null;
+
+        // Parse uiLayerMgr_c — extract layer names (Drawings)
+        var layers = new List<string>();
+        if (doc.FindFirst("uiLayerMgr_c") is { } layerMgr)
+        {
+            var lr = layerMgr.CreateReader();
+            while (lr.Remaining > 4)
+            {
+                if (lr.IsWCharPrefix)
+                {
+                    var s = lr.ReadWChar();
+                    if (s is { Length: > 0 } && !s.StartsWith("<objID=") && s != "CONTINUOUS" && s != "新宋体")
+                    {
+                        layers.Add(s);
+                    }
+                }
+                else lr.Skip(1);
+            }
+        }
+        model.Layers = layers.AsReadOnly();
+
+        // Parse 2D Drawing CAD vector lines from DisplayLists stream via MFC deserialization
+        model.CadLines = ExtractCadLines(data, doc);
+    }
+
+    /// <summary>
+    /// Deserializes 2D CAD vector line geometry from SolidWorks Contents/DisplayLists stream via MFC deserialization.
+    /// Uses MfcReader to scan serialized inline records and extract sub-millimeter CAD wireframes.
+    /// </summary>
+    public static List<DrawingVectorLine> ExtractCadLines(
+        byte[] data,
+        MfcDocument? doc = null,
+        double paperWidthMm = 420.0,
+        double paperHeightMm = 297.0)
+    {
+        var lines = new List<DrawingVectorLine>();
+        if (data == null || data.Length < 96) return lines;
+
+        doc ??= MfcDocument.Parse(data);
+        var layerMgr = doc.FindFirst("uiLayerMgr_c");
+        int startOffset = layerMgr != null ? layerMgr.TagOffset : 0;
+
+        double maxAllowedW = Math.Max(paperWidthMm * 2.0, 1500.0);
+        double maxAllowedH = Math.Max(paperHeightMm * 2.0, 1500.0);
+
+        var reader = new MfcReader(data, startOffset);
+        while (reader.Remaining >= 16)
+        {
+            if (reader.IsWCharPrefix)
+            {
+                string? styleName = reader.ReadWChar();
+                if (styleName is { Length: >= 3 and <= 32 } &&
+                    reader.Remaining >= 8 + 48)
+                {
+                    if (styleName.All(c => char.IsLetterOrDigit(c) || c == '_' || c == '-' || c >= 0x4e00))
+                    {
+                        int coordOff = reader.Offset + 8;
+                        if (coordOff + 48 <= data.Length)
+                        {
+                            double x1 = BitConverter.ToDouble(data, coordOff);
+                            double y1 = BitConverter.ToDouble(data, coordOff + 8);
+                            double z1 = BitConverter.ToDouble(data, coordOff + 16);
+                            double x2 = BitConverter.ToDouble(data, coordOff + 24);
+                            double y2 = BitConverter.ToDouble(data, coordOff + 32);
+                            double z2 = BitConverter.ToDouble(data, coordOff + 40);
+
+                            if (!double.IsNaN(x1) && !double.IsInfinity(x1) &&
+                                !double.IsNaN(y1) && !double.IsInfinity(y1) &&
+                                !double.IsNaN(x2) && !double.IsInfinity(x2) &&
+                                !double.IsNaN(y2) && !double.IsInfinity(y2))
+                            {
+                                double x1mm = x1 * 1000.0;
+                                double y1mm = y1 * 1000.0;
+                                double x2mm = x2 * 1000.0;
+                                double y2mm = y2 * 1000.0;
+
+                                if (x1mm >= -50.0 && x1mm <= maxAllowedW && y1mm >= -50.0 && y1mm <= maxAllowedH &&
+                                    x2mm >= -50.0 && x2mm <= maxAllowedW && y2mm >= -50.0 && y2mm <= maxAllowedH)
+                                {
+                                    x1mm = Math.Max(0.0, Math.Min(paperWidthMm, x1mm));
+                                    x2mm = Math.Max(0.0, Math.Min(paperWidthMm, x2mm));
+                                    y1mm = Math.Max(0.0, Math.Min(paperHeightMm, y1mm));
+                                    y2mm = Math.Max(0.0, Math.Min(paperHeightMm, y2mm));
+
+                                    double dx = x2mm - x1mm;
+                                    double dy = y2mm - y1mm;
+                                    double len = Math.Sqrt(dx * dx + dy * dy);
+
+                                    if (len > 0.05)
+                                    {
+                                        DrawingLineKind kind = DrawingLineKind.SolidOutline;
+                                        double thickness = 0.35;
+
+                                        if (styleName.Contains("CENTER", StringComparison.OrdinalIgnoreCase) ||
+                                            styleName.Contains("中心"))
+                                        {
+                                            kind = DrawingLineKind.Centerline;
+                                            thickness = 0.20;
+                                        }
+                                        else if (styleName.Contains("HIDDEN", StringComparison.OrdinalIgnoreCase) ||
+                                                 styleName.Contains("虚线"))
+                                        {
+                                            kind = DrawingLineKind.HiddenLine;
+                                            thickness = 0.20;
+                                        }
+                                        else if (styleName.Contains("CHAIN", StringComparison.OrdinalIgnoreCase) ||
+                                                 styleName.Contains("折弯"))
+                                        {
+                                            kind = DrawingLineKind.ThinLine;
+                                            thickness = 0.25;
+                                        }
+
+                                        lines.Add(new DrawingVectorLine(x1mm, y1mm, x2mm, y2mm, kind, thickness));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            reader.Skip(1);
+        }
+
+        return lines;
     }
 
     private static void ExtractWChars(MfcElement element, List<string> result)

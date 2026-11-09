@@ -38,6 +38,15 @@ internal sealed class DefinitionData
     /// <summary>Unit system class names observed in the stream (Drawing only).</summary>
     public IReadOnlyList<string> UnitSystemClasses { get; internal set; } = Array.Empty<string>();
 
+    /// <summary>Drawing sheets discovered in the Definition stream via MFC deserialization.</summary>
+    public IReadOnlyList<DrawingSheetDefinition> Sheets { get; internal set; } = Array.Empty<DrawingSheetDefinition>();
+
+    /// <summary>Drawing views discovered in the Definition stream via MFC deserialization.</summary>
+    public IReadOnlyList<DrawingViewDefinition> Views { get; internal set; } = Array.Empty<DrawingViewDefinition>();
+
+    /// <summary>Drawing text notes discovered in the Definition stream via MFC deserialization.</summary>
+    public IReadOnlyList<DrawingNoteDefinition> Notes { get; internal set; } = Array.Empty<DrawingNoteDefinition>();
+
     internal byte[]? RawData;
     internal List<string> UnitSystemClassesBuilder { get; set; } = new();
 
@@ -45,4 +54,41 @@ internal sealed class DefinitionData
     {
         UnitSystemClasses = UnitSystemClassesBuilder.AsReadOnly();
     }
+}
+
+/// <summary>
+/// A drawing sheet definition deserialized from the Definition stream (moDrSheet).
+/// </summary>
+internal sealed class DrawingSheetDefinition
+{
+    public string Name { get; set; } = string.Empty;
+    public string TemplateName { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// A drawing view definition deserialized from the Definition stream (moAbsoluteView, moUnfoldedView, moDetailView, moView_c).
+/// </summary>
+internal sealed class DrawingViewDefinition
+{
+    public string Name { get; set; } = string.Empty;
+    public string ClassName { get; set; } = string.Empty;
+    public int TagOffset { get; set; }
+    public double CenterXMm { get; set; }
+    public double CenterYMm { get; set; }
+    public double WidthMm { get; set; }
+    public double HeightMm { get; set; }
+}
+
+/// <summary>
+/// A drawing note / text annotation deserialized from the Definition stream.
+/// </summary>
+internal sealed class DrawingNoteDefinition
+{
+    public string Text { get; set; } = string.Empty;
+    public double XMm { get; set; }
+    public double YMm { get; set; }
+    public double ZMm { get; set; }
+    public string Font { get; set; } = "SimSun";
+    public double HeightMm { get; set; } = 2.5;
+    public double AngleRad { get; set; }
 }

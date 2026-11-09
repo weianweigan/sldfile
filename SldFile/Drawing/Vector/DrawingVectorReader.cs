@@ -299,94 +299,12 @@ public static class DrawingVectorReader
 
     private static IReadOnlyList<DrawingVectorText> ParseTextsFromDefinition(byte[] buf)
     {
-        var list = new List<DrawingVectorText>();
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-
-        int maxLen = buf.Length;
-        for (int i = 0; i < maxLen - 30; i++)
-        {
-            // Find MFC wide string marker: 0xFF, 0xFE, 0xFF
-            if (buf[i] == 0xFF && buf[i + 1] == 0xFE && buf[i + 2] == 0xFF)
-            {
-                int charLen = buf[i + 3];
-                if (charLen <= 0 || charLen > 120) continue;
-
-                int textStart = i + 4;
-                int byteLen = charLen * 2;
-                int textEnd = textStart + byteLen;
-
-                if (textEnd + 24 > maxLen) continue;
-
-                string text;
-                try
-                {
-                    text = Encoding.Unicode.GetString(buf, textStart, byteLen).Trim();
-                }
-                catch
-                {
-                    continue;
-                }
-
-                if (string.IsNullOrEmpty(text) || text.EndsWith("_c", StringComparison.Ordinal) || ExcludedKeywords.Contains(text))
-                    continue;
-
-                // Read (X, Y, Z) doubles immediately following the text
-                double x = BitConverter.ToDouble(buf, textEnd);
-                double y = BitConverter.ToDouble(buf, textEnd + 8);
-                double z = BitConverter.ToDouble(buf, textEnd + 16);
-
-                // Coordinates should be in reasonable sheet range (in meters: -0.1 to 2.5m)
-                if (x >= -0.1 && x <= 2.5 && y >= -0.1 && y <= 2.5 && Math.Abs(z) < 0.25)
-                {
-                    // Convert meters to millimeters
-                    double xMm = x * 1000.0;
-                    double yMm = y * 1000.0;
-                    double zMm = z * 1000.0;
-
-                    // Parse following font and height if present
-                    string fontName = "SimSun";
-                    double heightMm = 2.5;
-                    double angleRad = 0.0;
-
-                    int postStart = textEnd + 24;
-                    int postLen = Math.Min(80, maxLen - postStart);
-                    for (int j = 0; j < postLen - 12; j++)
-                    {
-                        if (buf[postStart + j] == 0xFF && buf[postStart + j + 1] == 0xFE && buf[postStart + j + 2] == 0xFF)
-                        {
-                            int flen = buf[postStart + j + 3];
-                            if (flen > 0 && flen <= 30 && postStart + j + 4 + flen * 2 + 16 <= maxLen)
-                            {
-                                try
-                                {
-                                    string fname = Encoding.Unicode.GetString(buf, postStart + j + 4, flen * 2);
-                                    if (!string.IsNullOrWhiteSpace(fname) && !fname.EndsWith("_c", StringComparison.Ordinal))
-                                    {
-                                        fontName = fname.Trim();
-                                        int fEnd = postStart + j + 4 + flen * 2;
-                                        double h = BitConverter.ToDouble(buf, fEnd);
-                                        double a = BitConverter.ToDouble(buf, fEnd + 8);
-                                        if (h > 0.0005 && h < 0.05) heightMm = h * 1000.0;
-                                        if (Math.Abs(a) < 7.0) angleRad = a;
-                                    }
-                                }
-                                catch { }
-                                break;
-                            }
-                        }
-                    }
-
-                    // Dedup by text and approximate position
-                    string key = $"{text}_{Math.Round(xMm, 1)}_{Math.Round(yMm, 1)}";
-                    if (seen.Add(key))
-                    {
-                        list.Add(new DrawingVectorText(text, xMm, yMm, zMm, fontName, heightMm, angleRad));
-                    }
-                }
-            }
-        }
-
-        // Sort by Y descending (top to bottom), then X ascending (left to right)
-        return list.OrderByDescending(t => t.Y).ThenBy(t => t.X).ToList().AsReadOnly();
+        var notes = SldFile.Binary.DefinitionSchemaMapper.ExtractNotes(buf);
+        return notes
+            .Select(n => new DrawingVectorText(n.Text, n.XMm, n.YMm, n.ZMm, n.Font, n.HeightMm, n.AngleRad))
+            .OrderByDescending(t => t.Y)
+            .ThenBy(t => t.X)
+            .ToList()
+            .AsReadOnly();
     }
 }
