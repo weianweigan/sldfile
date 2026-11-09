@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 using Xunit;
 
@@ -21,11 +20,11 @@ public class HoleWizardCounterSinkTests
     private static string SamplePath(string name) =>
         Path.Combine(AppContext.BaseDirectory, "TestFiles", "Features2026", "HoleWizardOptions", name + ".SLDPRT");
 
-    private static HoleWizardFeatureDefinitionData Read(string name)
+    private static HoleWizardFeatureModel Read(string name)
     {
         using var file = SwFile.Open(SamplePath(name), readOnly: true);
-        return Assert.IsType<HoleWizardFeatureDefinitionData>(
-            Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.HoleWizard)).Definition);
+        return Assert.IsType<HoleWizardFeatureModel>(
+            Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.HoleWizard)).Model);
     }
 
     [Theory]
@@ -62,14 +61,14 @@ public class HoleWizardCounterSinkTests
         Assert.Equal(0.010014305598872397, point.Y, 12);
         foreach (string name in new[]
         {
-            nameof(HoleWizardFeatureDefinitionData.Type),
-            nameof(HoleWizardFeatureDefinitionData.Standard),
-            nameof(HoleWizardFeatureDefinitionData.FastenerType),
-            nameof(HoleWizardFeatureDefinitionData.FastenerSize),
-            nameof(HoleWizardFeatureDefinitionData.ThruHoleDiameter),
-            nameof(HoleWizardFeatureDefinitionData.CounterSinkDiameter),
-            nameof(HoleWizardFeatureDefinitionData.CounterSinkAngle),
-            nameof(HoleWizardFeatureDefinitionData.SketchPointLocations)
+            nameof(HoleWizardFeatureModel.Type),
+            nameof(HoleWizardFeatureModel.Standard),
+            nameof(HoleWizardFeatureModel.FastenerType),
+            nameof(HoleWizardFeatureModel.FastenerSize),
+            nameof(HoleWizardFeatureModel.ThruHoleDiameter),
+            nameof(HoleWizardFeatureModel.CounterSinkDiameter),
+            nameof(HoleWizardFeatureModel.CounterSinkAngle),
+            nameof(HoleWizardFeatureModel.SketchPointLocations)
         })
             Assert.True(d.IsResolved(name), name);
     }
@@ -170,7 +169,7 @@ public class HoleWizardCounterSinkTests
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
         {
             var part = Assert.IsType<SldPart>(sw);
-            var feature = part.AddHoleWizard(new HoleWizardFeatureDefinitionData
+            var feature = part.AddHoleWizard(new HoleWizardFeatureModel
             {
                 Type = 44,
                 FastenerSize = size,
@@ -186,8 +185,8 @@ public class HoleWizardCounterSinkTests
         var doc = MfcDocument.Parse((byte[])stream.Clone());
         var holeElement = Assert.Single(doc.AllElements.Where(e => e.ClassName == "moHoleWzd_c"));
         Assert.Equal(nativeBlock, stream.AsSpan(holeElement.TagOffset).ToArray());
-        var read = Assert.IsType<HoleWizardFeatureDefinitionData>(
-            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.HoleWizard)).Definition);
+        var read = Assert.IsType<HoleWizardFeatureModel>(
+            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.HoleWizard)).Model);
         Assert.Equal(size, read.FastenerSize);
         Assert.Equal(csDiameter, read.CounterSinkDiameter!.Value, 12);
     }
@@ -196,15 +195,15 @@ public class HoleWizardCounterSinkTests
     public void CounterSinkAuthoring_RejectsMismatchedFieldsNamesAndBases()
     {
         using var temp = TestFileProvider.CreateTempCopy(SamplePath("hole_countersink_iso_m6_11_90"));
-        Reject(temp, new HoleWizardFeatureDefinitionData { Type = 44, FastenerSize = "M6",
+        Reject(temp, new HoleWizardFeatureModel { Type = 44, FastenerSize = "M6",
             ThruHoleDiameter = 0.006, CounterSinkDiameter = 0.015 });
-        Reject(temp, new HoleWizardFeatureDefinitionData { Type = 44, FastenerSize = "M8",
+        Reject(temp, new HoleWizardFeatureModel { Type = 44, FastenerSize = "M8",
             ThruHoleDiameter = 0.008, CounterSinkDiameter = 0.015 });
-        Reject(temp, new HoleWizardFeatureDefinitionData { Type = 44, FastenerSize = "M6",
+        Reject(temp, new HoleWizardFeatureModel { Type = 44, FastenerSize = "M6",
             ThruHoleDiameter = 0.006, CounterSinkDiameter = 0.011, CounterSinkAngle = Math.PI / 3 });
-        Reject(temp, new HoleWizardFeatureDefinitionData { Type = 44, FastenerSize = "M6",
+        Reject(temp, new HoleWizardFeatureModel { Type = 44, FastenerSize = "M6",
             ThruHoleDiameter = 0.006, CounterSinkDiameter = 0.011, Standard = "ANSI" });
-        Reject(temp, new HoleWizardFeatureDefinitionData { Type = 44, FastenerSize = "M6",
+        Reject(temp, new HoleWizardFeatureModel { Type = 44, FastenerSize = "M6",
             ThruHoleDiameter = 0.006, CounterSinkDiameter = 0.011 }, "Custom");
 
         using var legacy = TestFileProvider.CreateTempCopy(SamplePath("hole_simple_d5_throughall"));
@@ -212,11 +211,11 @@ public class HoleWizardCounterSinkTests
         {
             var part = Assert.IsType<SldPart>(sw);
             Assert.Throws<NotSupportedException>(() => part.AddHoleWizard(
-                new HoleWizardFeatureDefinitionData { Type = 44, FastenerSize = "M6",
+                new HoleWizardFeatureModel { Type = 44, FastenerSize = "M6",
                     ThruHoleDiameter = 0.006, CounterSinkDiameter = 0.011 }));
         }
 
-        static void Reject(TempTestFile source, HoleWizardFeatureDefinitionData definition, string? name = null)
+        static void Reject(TempTestFile source, HoleWizardFeatureModel definition, string? name = null)
         {
             string copy = source.FilePath + "." + Guid.NewGuid().ToString("N") + ".SLDPRT";
             File.Copy(source.FilePath, copy, true);

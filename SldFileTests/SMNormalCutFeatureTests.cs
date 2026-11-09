@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using SldFile;
@@ -44,7 +44,7 @@ public class SMNormalCutFeatureTests
         var folder = Assert.Single(file.ResolvedFeatures.Folders,
             f => f.ClassName == "moSMNormalCut_c");
         Assert.Equal(0x87u, folder.Header.TypeId);
-        var data = Assert.IsType<NormalCutFeatureDefinitionData>(folder.FeatureData);
+        var data = Assert.IsType<NormalCutFeatureModel>(folder.FeatureData);
         Assert.Equal(0x87u, data.TypeId);
         // Only one native sample exists; no field slot is claimed.
         Assert.Null(data.AutoPropagation);

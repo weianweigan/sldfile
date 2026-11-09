@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 using Xunit;
 
@@ -53,14 +52,14 @@ public class FilletAuthoringTests
         return temp;
     }
 
-    private static FilletFeatureDefinitionData AuthorAndParse(
+    private static FilletFeatureModel AuthorAndParse(
         double radius, out byte[] stream, out string featureName)
     {
         using var temp = CreateStrippedFilletBase();
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
         {
             var part = Assert.IsType<SldPart>(sw);
-            var feature = part.AddFillet(new FilletFeatureDefinitionData { DefaultRadius = radius });
+            var feature = part.AddFillet(new FilletFeatureModel { DefaultRadius = radius });
             featureName = feature.Name;
             part.Save();
         }
@@ -84,7 +83,7 @@ public class FilletAuthoringTests
         var read = AuthorAndParse(radius, out _, out string featureName);
 
         Assert.Equal(radius, read.DefaultRadius!.Value, 12);
-        Assert.True(read.IsResolved(nameof(FilletFeatureDefinitionData.DefaultRadius)));
+        Assert.True(read.IsResolved(nameof(FilletFeatureModel.DefaultRadius)));
         Assert.Null(read.Type);
         var edge = Assert.Single(read.Edges!);
         Assert.Equal(SelectionEntityType.Edge, edge.EntityType);
@@ -149,7 +148,7 @@ public class FilletAuthoringTests
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
         {
             var part = Assert.IsType<SldPart>(sw);
-            var feature = part.AddFillet(new FilletFeatureDefinitionData { DefaultRadius = 0.0025 }, "Profile Fillet");
+            var feature = part.AddFillet(new FilletFeatureModel { DefaultRadius = 0.0025 }, "Profile Fillet");
             Assert.Equal("Profile Fillet", feature.Name);
             part.Save();
         }
@@ -168,7 +167,7 @@ public class FilletAuthoringTests
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
         {
             var part = Assert.IsType<SldPart>(sw);
-            part.AddFillet(new FilletFeatureDefinitionData { DefaultRadius = 0.0045 });
+            part.AddFillet(new FilletFeatureModel { DefaultRadius = 0.0045 });
             part.Save();
         }
 
@@ -200,7 +199,7 @@ public class FilletAuthoringTests
         using var sw = SwFile.Open(temp.FilePath, readOnly: false);
         var part = Assert.IsType<SldPart>(sw);
         Assert.Throws<ArgumentOutOfRangeException>(
-            () => part.AddFillet(new FilletFeatureDefinitionData { DefaultRadius = radius }));
+            () => part.AddFillet(new FilletFeatureModel { DefaultRadius = radius }));
     }
 
     [Fact]
@@ -210,23 +209,23 @@ public class FilletAuthoringTests
         using var sw = SwFile.Open(temp.FilePath, readOnly: false);
         var part = Assert.IsType<SldPart>(sw);
         Assert.Throws<ArgumentOutOfRangeException>(
-            () => part.AddFillet(new FilletFeatureDefinitionData()));
+            () => part.AddFillet(new FilletFeatureModel()));
     }
 
     public static IEnumerable<object[]> UnsupportedFields()
     {
-        yield return new object[] { new FilletFeatureDefinitionData { DefaultRadius = .002, Type = 1 }, "Type" };
-        yield return new object[] { new FilletFeatureDefinitionData { DefaultRadius = .002, IsMultipleRadius = true }, "IsMultipleRadius" };
-        yield return new object[] { new FilletFeatureDefinitionData { DefaultRadius = .002, RoundCorners = true }, "RoundCorners" };
-        yield return new object[] { new FilletFeatureDefinitionData { DefaultRadius = .002, CurvatureContinuous = true }, "CurvatureContinuous" };
-        yield return new object[] { new FilletFeatureDefinitionData { DefaultRadius = .002, DefaultDistance = .001 }, "DefaultDistance" };
-        yield return new object[] { new FilletFeatureDefinitionData { DefaultRadius = .002, Edges = new[] { new FeatureReferenceData { EntityId = 1 } } }, "Edges" };
-        yield return new object[] { new FilletFeatureDefinitionData { DefaultRadius = .002, HelpPoint = new FeatureReferenceData() }, "HelpPoint" };
+        yield return new object[] { new FilletFeatureModel { DefaultRadius = .002, Type = 1 }, "Type" };
+        yield return new object[] { new FilletFeatureModel { DefaultRadius = .002, IsMultipleRadius = true }, "IsMultipleRadius" };
+        yield return new object[] { new FilletFeatureModel { DefaultRadius = .002, RoundCorners = true }, "RoundCorners" };
+        yield return new object[] { new FilletFeatureModel { DefaultRadius = .002, CurvatureContinuous = true }, "CurvatureContinuous" };
+        yield return new object[] { new FilletFeatureModel { DefaultRadius = .002, DefaultDistance = .001 }, "DefaultDistance" };
+        yield return new object[] { new FilletFeatureModel { DefaultRadius = .002, Edges = new[] { new FeatureReferenceData { EntityId = 1 } } }, "Edges" };
+        yield return new object[] { new FilletFeatureModel { DefaultRadius = .002, HelpPoint = new FeatureReferenceData() }, "HelpPoint" };
     }
 
     [Theory]
     [MemberData(nameof(UnsupportedFields))]
-    public void FilletAuthoringRejectsUnverifiedFieldsWithoutModifyingStream(FilletFeatureDefinitionData definition, string property)
+    public void FilletAuthoringRejectsUnverifiedFieldsWithoutModifyingStream(FilletFeatureModel definition, string property)
     {
         using var temp = CreateStrippedFilletBase();
         using var sw = SwFile.Open(temp.FilePath, readOnly: false);
@@ -244,7 +243,7 @@ public class FilletAuthoringTests
     [Fact]
     public void FilletAuthoringRejectsPerItemRadii()
     {
-        var definition = new FilletFeatureDefinitionData { DefaultRadius = .002 };
+        var definition = new FilletFeatureModel { DefaultRadius = .002 };
         definition.SetRadius(1, .003);
         Assert.Throws<NotSupportedException>(() => FilletFeatureBuilder.ValidateDefinition(definition));
     }
@@ -259,7 +258,7 @@ public class FilletAuthoringTests
         var original = (byte[])part.RawStreams[ResolvedStream].Clone();
 
         var error = Assert.Throws<NotSupportedException>(
-            () => part.AddFillet(new FilletFeatureDefinitionData { DefaultRadius = .002 }));
+            () => part.AddFillet(new FilletFeatureModel { DefaultRadius = .002 }));
         Assert.Contains("controlled fillet_2mm base body", error.Message);
 
         part.Save();
@@ -277,7 +276,7 @@ public class FilletAuthoringTests
         var original = (byte[])part.RawStreams[ResolvedStream].Clone();
 
         var error = Assert.Throws<NotSupportedException>(
-            () => part.AddFillet(new FilletFeatureDefinitionData { DefaultRadius = .002 }));
+            () => part.AddFillet(new FilletFeatureModel { DefaultRadius = .002 }));
         Assert.Contains("existing", error.Message);
         Assert.Equal(original, part.RawStreams[ResolvedStream]);
     }
@@ -299,7 +298,7 @@ public class FilletAuthoringTests
         using var sw2 = SwFile.Open(temp.FilePath, readOnly: false);
         var part = Assert.IsType<SldPart>(sw2);
         var error = Assert.Throws<NotSupportedException>(
-            () => part.AddFillet(new FilletFeatureDefinitionData { DefaultRadius = .002 }));
+            () => part.AddFillet(new FilletFeatureModel { DefaultRadius = .002 }));
         Assert.Contains($"0x{version:X2}", error.Message);
     }
 
@@ -379,9 +378,9 @@ public class FilletAuthoringTests
         Assert.Equal("圆角1", feature.Name);
         Assert.Equal("Fillet_c", feature.TypeName);
         Assert.Equal(0x51, feature.Id);
-        var definition = Assert.IsType<FilletFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<FilletFeatureModel>(feature.Model);
         Assert.Equal(0.002, definition.DefaultRadius!.Value, 12);
-        Assert.True(definition.IsResolved(nameof(FilletFeatureDefinitionData.DefaultRadius)));
+        Assert.True(definition.IsResolved(nameof(FilletFeatureModel.DefaultRadius)));
         Assert.Null(definition.Type);
         var edge = Assert.Single(definition.Edges!);
         Assert.Equal(SelectionEntityType.Edge, edge.EntityType);
@@ -398,16 +397,16 @@ public class FilletAuthoringTests
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
         {
             var part = Assert.IsType<SldPart>(sw);
-            part.AddFillet(new FilletFeatureDefinitionData { DefaultRadius = 0.003 });
+            part.AddFillet(new FilletFeatureModel { DefaultRadius = 0.003 });
             part.Save();
         }
 
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         var feature = Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Fillet));
         Assert.Equal("圆角1", feature.Name);
-        var definition = Assert.IsType<FilletFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<FilletFeatureModel>(feature.Model);
         Assert.Equal(0.003, definition.DefaultRadius!.Value, 12);
-        Assert.True(definition.IsResolved(nameof(FilletFeatureDefinitionData.DefaultRadius)));
+        Assert.True(definition.IsResolved(nameof(FilletFeatureModel.DefaultRadius)));
     }
 
     [Fact]
@@ -429,7 +428,7 @@ public class FilletAuthoringTests
 
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         var feature = Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Fillet));
-        Assert.Null(feature.Definition);
+        Assert.Null(feature.Model);
     }
 
     private static void AssertFilletAddRejected(TempTestFile temp, string expectedMessage)
@@ -442,7 +441,7 @@ public class FilletAuthoringTests
         {
             var part = Assert.IsType<SldPart>(sw);
             var error = Assert.Throws<NotSupportedException>(
-                () => part.AddFillet(new FilletFeatureDefinitionData { DefaultRadius = .002 }));
+                () => part.AddFillet(new FilletFeatureModel { DefaultRadius = .002 }));
             Assert.Contains(expectedMessage, error.Message);
             part.Save();
         }

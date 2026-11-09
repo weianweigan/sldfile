@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -14,6 +14,26 @@ internal static class MfcPrimitives
     // ═══════════════════════════════════════════════════════════════
     // Marker Detection
     // ═══════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Searches for the first occurrence of an ASCII string in a byte array.
+    /// </summary>
+    public static int FindAscii(byte[] data, string text, int startOffset = 0)
+    {
+        if (data == null || string.IsNullOrEmpty(text) || startOffset < 0) return -1;
+        byte[] pattern = Encoding.ASCII.GetBytes(text);
+        if (data.Length - startOffset < pattern.Length) return -1;
+        for (int i = startOffset; i <= data.Length - pattern.Length; i++)
+        {
+            bool match = true;
+            for (int j = 0; j < pattern.Length; j++)
+            {
+                if (data[i + j] != pattern[j]) { match = false; break; }
+            }
+            if (match) return i;
+        }
+        return -1;
+    }
 
     /// <summary>
     /// Checks for an MFC class tag header: FF FF {0x00|0x01} 00.
@@ -137,7 +157,7 @@ internal static class MfcPrimitives
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // WChar String Reading
+    // WChar String Reading, Scanning & Rewriting
     // ═══════════════════════════════════════════════════════════════
 
     /// <summary>
@@ -183,6 +203,105 @@ internal static class MfcPrimitives
     {
         int saved = offset;
         return ReadWChar(data, ref saved);
+    }
+
+    /// <summary>
+    /// Represents a scanned WChar string slice with its byte range <c>[Offset, EndOffset)</c>.
+    /// </summary>
+    public sealed class WCharField
+    {
+        public int Offset { get; set; }
+        public int EndOffset { get; set; }
+        public string Value { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Encodes a string using the MFC 4.2 WChar wire format (<c>FF FE FF</c> + length prefix + UTF-16LE bytes).
+    /// </summary>
+    public static byte[] EncodeWChar(string value)
+    {
+        if (value == null) throw new ArgumentNullException(nameof(value));
+        var bytes = new List<byte>(4 + value.Length * 2) { 0xFF, 0xFE, 0xFF };
+        if (value.Length < 255)
+        {
+            bytes.Add((byte)value.Length);
+        }
+        else if (value.Length < ushort.MaxValue)
+        {
+            bytes.Add(0xFF);
+            bytes.AddRange(BitConverter.GetBytes((ushort)value.Length));
+        }
+        else
+        {
+            bytes.Add(0xFF);
+            bytes.Add(0xFF);
+            bytes.AddRange(BitConverter.GetBytes((uint)value.Length));
+        }
+        bytes.AddRange(Encoding.Unicode.GetBytes(value));
+        return bytes.ToArray();
+    }
+
+    /// <summary>
+    /// Scans <c>[start, end)</c> for non-empty WChar fields matching an optional predicate.
+    /// </summary>
+    public static List<WCharField> ScanWCharFields(
+        byte[] data,
+        int start,
+        int end,
+        int maxStringLength = int.MaxValue,
+        Func<string, bool>? predicate = null)
+    {
+        var result = new List<WCharField>();
+        if (data == null) return result;
+        int limit = Math.Min(end, data.Length);
+        for (int i = Math.Max(0, start); i + 4 <= limit; i++)
+        {
+            if (!IsWCharPrefix(data, i)) continue;
+            int cursor = i;
+            string? value = ReadWChar(data, ref cursor, limit);
+            if (string.IsNullOrEmpty(value) || value!.Length > maxStringLength)
+                continue;
+            if (predicate != null && !predicate(value))
+                continue;
+            result.Add(new WCharField
+            {
+                Offset = i,
+                EndOffset = cursor,
+                Value = value
+            });
+            i = Math.Max(i, cursor - 1);
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Rebuilds <paramref name="template"/> by replacing each field in <paramref name="fields"/>
+    /// with the encoded WChar string at the corresponding index in <paramref name="replacements"/>.
+    /// </summary>
+    public static byte[] RewriteWCharFields(
+        byte[] template,
+        IReadOnlyList<WCharField> fields,
+        IReadOnlyList<string> replacements)
+    {
+        if (template == null) throw new ArgumentNullException(nameof(template));
+        if (fields == null) throw new ArgumentNullException(nameof(fields));
+        if (replacements == null) throw new ArgumentNullException(nameof(replacements));
+        if (fields.Count != replacements.Count)
+            throw new InvalidOperationException("Unexpected template WChar field count.");
+
+        var output = new List<byte>(template.Length + 64);
+        int position = 0;
+        for (int f = 0; f < fields.Count; f++)
+        {
+            var field = fields[f];
+            for (int b = position; b < field.Offset; b++)
+                output.Add(template[b]);
+            output.AddRange(EncodeWChar(replacements[f]));
+            position = field.EndOffset;
+        }
+        for (int b = position; b < template.Length; b++)
+            output.Add(template[b]);
+        return output.ToArray();
     }
 
     // ═══════════════════════════════════════════════════════════════

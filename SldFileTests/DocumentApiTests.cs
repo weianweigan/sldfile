@@ -6,7 +6,13 @@ using SldFile;
 using SldFile.Binary;
 using SldFile.Diagnostics;
 using SldFile.Ole;
-using SldFile.Sketches;
+using SldFile.Mfc;
+using SketchFeature = SldFile.Mfc.SketchFeatureModel;
+using SketchPoint = SldFile.Mfc.SketchPointModel;
+using SketchSegment = SldFile.Mfc.SketchSegmentModel;
+using SketchRelation = SldFile.Mfc.SketchRelationModel;
+using SketchDimension = SldFile.Mfc.SketchDimensionModel;
+using SketchEntityReference = SldFile.Mfc.SketchEntityReferenceModel;
 
 namespace SldFileTests;
 
@@ -172,10 +178,10 @@ public class DocumentApiTests
     public void PublicSurfaceDoesNotExposeFormatImplementation()
     {
         var assembly = typeof(SwFile).Assembly;
-        Assert.DoesNotContain(assembly.GetExportedTypes(), t => t.Namespace is "SldFile.Binary" or "SldFile.Mfc" or "SldFile.Ole");
+        Assert.DoesNotContain(assembly.GetExportedTypes(), t => t.Namespace is "SldFile.Binary" or "SldFile.Ole");
         var names = typeof(SwFile).GetProperties(BindingFlags.Instance | BindingFlags.Public).Select(p => p.Name).OrderBy(n => n).ToArray();
         Assert.Equal(new[] { "Configurations", "CustomProperties", "DrawingSheetNames", "Features", "FilePath", "IsReadOnly", "Kind", "Metadata", "References", "Revisions", "Sketches", "Users" }, names);
-        Assert.All(new[] { typeof(Feature), typeof(DocumentReference), typeof(Revision), typeof(SketchFeature), typeof(SketchPoint), typeof(SketchSegment), typeof(SketchRelation), typeof(SketchDimension), typeof(SketchEntityReference) }, type =>
+        Assert.All(new[] { typeof(Feature), typeof(DocumentReference), typeof(Revision) }, type =>
             Assert.All(type.GetProperties(), property => Assert.Null(property.GetSetMethod())));
     }
 

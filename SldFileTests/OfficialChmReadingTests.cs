@@ -1,5 +1,6 @@
 using System.Linq;
 using SldFile;
+using SldFile.Mfc;
 using Xunit;
 
 namespace SldFileTests;
@@ -15,8 +16,8 @@ public class OfficialChmReadingTests
     public void RibOfficialSample_ReadsMeasuredThickness()
     {
         using var file = SwFile.Open(Sample("official_rib_block20"), readOnly: true);
-        var definition = Assert.IsType<RibFeatureDefinitionData>(
-            Assert.Single(file.Features.Where(f => f.Definition is RibFeatureDefinitionData)).Definition);
+        var definition = Assert.IsType<RibFeatureModel>(
+            Assert.Single(file.Features.Where(f => f.Model is RibFeatureModel)).Model);
         Assert.Equal("moRib_c", definition.ClassName);
         Assert.Equal(0x29u, definition.SerializedTypeId);
         Assert.Equal(0.00254, definition.Thickness!.Value, 12);
@@ -41,9 +42,9 @@ public class OfficialChmReadingTests
     {
         using var file = SwFile.Open(Sample("official_combine_multi_inter"), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f =>
-            f.Definition is CombineBodiesFeatureDefinitionData));
+            f.Model is CombineBodiesFeatureModel));
         Assert.Equal(FeatureKind.CombineBodies, feature.Kind);
-        var definition = Assert.IsType<CombineBodiesFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<CombineBodiesFeatureModel>(feature.Model);
         Assert.Equal("moCombineBodies_c", definition.ClassName);
         Assert.Equal(0x5Au, definition.SerializedTypeId);
         Assert.Null(definition.OperationType);
@@ -56,9 +57,9 @@ public class OfficialChmReadingTests
     {
         using var file = SwFile.Open(Sample("official_split_multi_inter"), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f =>
-            f.Definition is SplitBodyFeatureDefinitionData));
+            f.Model is SplitBodyFeatureModel));
         Assert.Equal(FeatureKind.SplitBody, feature.Kind);
-        var definition = Assert.IsType<SplitBodyFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<SplitBodyFeatureModel>(feature.Model);
         Assert.Equal("moSplit_c", definition.ClassName);
         Assert.Equal(0x5Au, definition.SerializedTypeId);
         Assert.Null(definition.State);
@@ -77,9 +78,9 @@ public class OfficialChmReadingTests
         using var file = SwFile.Open(Sample("official_gusset_weldment_box3"), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f =>
             f.Name == "official_gusset_weldment_box3" &&
-            f.Definition is GussetFeatureDefinitionData));
+            f.Model is GussetFeatureModel));
         Assert.Equal(FeatureKind.Gusset, feature.Kind);
-        var definition = Assert.IsType<GussetFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<GussetFeatureModel>(feature.Model);
         Assert.Equal("moGusset_c", definition.ClassName);
         Assert.Equal(0x51u, definition.SerializedTypeId);
         Assert.Equal(1, definition.ProfileType);
@@ -97,9 +98,9 @@ public class OfficialChmReadingTests
     {
         using var file = SwFile.Open(Sample("official_surface_trim"), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f =>
-            f.Definition is SurfaceTrimFeatureDefinitionData));
+            f.Model is SurfaceTrimFeatureModel));
         Assert.Equal(FeatureKind.SurfaceTrim, feature.Kind);
-        var definition = Assert.IsType<SurfaceTrimFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<SurfaceTrimFeatureModel>(feature.Model);
         Assert.Equal("moTrimRefSurface_c", definition.ClassName);
         Assert.Equal(0x2Au, definition.SerializedTypeId);
         Assert.Equal(1, definition.TrimType);

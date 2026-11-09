@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 using Xunit;
 
@@ -46,9 +45,9 @@ public class HoleWizardAuthoringTests
         return temp;
     }
 
-    private static HoleWizardFeatureDefinitionData Definition(int endCondition, double diameter, double? depth = null)
+    private static HoleWizardFeatureModel Definition(int endCondition, double diameter, double? depth = null)
     {
-        return new HoleWizardFeatureDefinitionData
+        return new HoleWizardFeatureModel
         {
             FolderTypeId = 0x54u,
             Type = 0,
@@ -81,7 +80,7 @@ public class HoleWizardAuthoringTests
         Assert.Equal("moHoleWzd_c", feature.TypeName);
         Assert.Equal(0x54, feature.Id);
         Assert.Equal("HoleAgent1", feature.Name);
-        var definition = Assert.IsType<HoleWizardFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<HoleWizardFeatureModel>(feature.Model);
         Assert.Equal(0x54u, definition.FolderTypeId);
         Assert.Equal(0, definition.Type);
         Assert.Equal(1, definition.EndCondition);
@@ -105,8 +104,8 @@ public class HoleWizardAuthoringTests
         }
 
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
-        var definition = Assert.IsType<HoleWizardFeatureDefinitionData>(
-            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.HoleWizard)).Definition);
+        var definition = Assert.IsType<HoleWizardFeatureModel>(
+            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.HoleWizard)).Model);
         Assert.Equal(0, definition.Type);
         Assert.Equal(0, definition.EndCondition);
         Assert.Equal(0.0045, definition.Diameter!.Value, 12);
@@ -161,8 +160,8 @@ public class HoleWizardAuthoringTests
 
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         Assert.Equal(before, reopened.RawStreams[ResolvedStream]);
-        var definition = Assert.IsType<HoleWizardFeatureDefinitionData>(
-            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.HoleWizard)).Definition);
+        var definition = Assert.IsType<HoleWizardFeatureModel>(
+            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.HoleWizard)).Model);
         Assert.Equal(0.007, definition.Diameter!.Value, 12);
         Assert.Equal(1, definition.EndCondition);
     }
@@ -219,7 +218,7 @@ public class HoleWizardAuthoringTests
         Assert.Throws<NotSupportedException>(() =>
             HoleWizardFeatureBuilder.ValidateDefinition(Definition(1, 0.005, 0.020)));
 
-        void Reject(HoleWizardFeatureDefinitionData definition)
+        void Reject(HoleWizardFeatureModel definition)
         {
             Assert.Throws<NotSupportedException>(() => HoleWizardFeatureBuilder.ValidateDefinition(definition));
         }
@@ -227,25 +226,25 @@ public class HoleWizardAuthoringTests
         // A legacy definition carrying tapped markers is classified as tapped and fails the
         // tapped required-thread validation; the exact exception type depends on the missing field.
         Assert.ThrowsAny<Exception>(() => HoleWizardFeatureBuilder.ValidateDefinition(
-            new HoleWizardFeatureDefinitionData { EndCondition = 1, Diameter = 0.005, FolderTypeId = 0x52 }));
+            new HoleWizardFeatureModel { EndCondition = 1, Diameter = 0.005, FolderTypeId = 0x52 }));
         Assert.ThrowsAny<Exception>(() => HoleWizardFeatureBuilder.ValidateDefinition(
-            new HoleWizardFeatureDefinitionData { EndCondition = 1, Diameter = 0.005, Type = 48 }));
-        Reject(new HoleWizardFeatureDefinitionData { EndCondition = 1, Diameter = 0.005, CounterBoreDiameter = 0.008 });
-        Reject(new HoleWizardFeatureDefinitionData { EndCondition = 1, Diameter = 0.005, ThreadDiameter = 0.006 });
-        Reject(new HoleWizardFeatureDefinitionData { EndCondition = 1, Diameter = 0.005, Face = new FeatureReferenceData() });
-        Reject(new HoleWizardFeatureDefinitionData { EndCondition = 1, Diameter = 0.005, SketchPoints = new[] { new FeatureReferenceData() } });
-        Reject(new HoleWizardFeatureDefinitionData { EndCondition = 1, Diameter = 0.005, SketchPointLocations = new[] { new HoleWizardSketchPointLocation() } });
-        Reject(new HoleWizardFeatureDefinitionData { EndCondition = 1, Diameter = 0.005, FeatureScope = false });
-        Reject(new HoleWizardFeatureDefinitionData { EndCondition = 1, Diameter = 0.005, ReverseDirection = false });
+            new HoleWizardFeatureModel { EndCondition = 1, Diameter = 0.005, Type = 48 }));
+        Reject(new HoleWizardFeatureModel { EndCondition = 1, Diameter = 0.005, CounterBoreDiameter = 0.008 });
+        Reject(new HoleWizardFeatureModel { EndCondition = 1, Diameter = 0.005, ThreadDiameter = 0.006 });
+        Reject(new HoleWizardFeatureModel { EndCondition = 1, Diameter = 0.005, Face = new FeatureReferenceData() });
+        Reject(new HoleWizardFeatureModel { EndCondition = 1, Diameter = 0.005, SketchPoints = new[] { new FeatureReferenceData() } });
+        Reject(new HoleWizardFeatureModel { EndCondition = 1, Diameter = 0.005, SketchPointLocations = new[] { new HoleWizardSketchPointLocation() } });
+        Reject(new HoleWizardFeatureModel { EndCondition = 1, Diameter = 0.005, FeatureScope = false });
+        Reject(new HoleWizardFeatureModel { EndCondition = 1, Diameter = 0.005, ReverseDirection = false });
 
-        AssertHoleAddRejected(temp, new HoleWizardFeatureDefinitionData
+        AssertHoleAddRejected(temp, new HoleWizardFeatureModel
         {
             EndCondition = 1, Diameter = 0.005, CounterSinkAngle = 1.5
         }, "CounterSinkAngle");
     }
 
     private static void AssertHoleAddRejected(
-        TempTestFile temp, HoleWizardFeatureDefinitionData definition, string expectedMessage)
+        TempTestFile temp, HoleWizardFeatureModel definition, string expectedMessage)
     {
         byte[] before = ReadStream(temp.FilePath);
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))

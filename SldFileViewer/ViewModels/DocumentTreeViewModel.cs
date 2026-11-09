@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -6,7 +6,7 @@ using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Sketches;
+using SldFile.Mfc;
 using SldFileViewer.Models;
 using SldFileViewer.Services;
 
@@ -93,7 +93,14 @@ public partial class DocumentTreeViewModel : ObservableObject
     {
         var features = _docService.GetFeatures();
         var sketches = _docService.GetSketches(configIndex);
-        var sketchDict = sketches.ToDictionary(s => s.Name, StringComparer.OrdinalIgnoreCase);
+        var sketchDict = new Dictionary<string, SketchFeatureModel>(StringComparer.OrdinalIgnoreCase);
+        foreach (var s in sketches)
+        {
+            if (!sketchDict.TryGetValue(s.Name, out var existing) || (existing.Segments.Count == 0 && s.Segments.Count > 0))
+            {
+                sketchDict[s.Name] = s;
+            }
+        }
 
         // FeatureManager Tree Branch
         var featTree = CreateNode("特征管理器 (FeatureManager)", TreeNodeKind.FeatureFolder, null, $"{features.Count} 个特征");
@@ -181,7 +188,7 @@ public partial class DocumentTreeViewModel : ObservableObject
                 sub = f.Dimensions.Count > 0 ? $"{f.Name} ({f.Dimensions[0].Name}={f.Dimensions[0].Value})" : f.Name;
             }
 
-            if (f.Definition != null)
+            if (f.Model != null)
             {
                 sub = $"{sub} · FeatureData 已解析";
             }
@@ -232,7 +239,7 @@ public partial class DocumentTreeViewModel : ObservableObject
             // Match the FeatureDetailViewModel classification so the tree badge and the
             // detail panel always agree: parsed definition vs. registered parser vs. none.
             total++;
-            if (feature.Definition != null)
+            if (feature.Model != null)
             {
                 resolved++;
             }
@@ -299,7 +306,14 @@ public partial class DocumentTreeViewModel : ObservableObject
     {
         if (_featTreeFolder == null || _currentSwFile == null) return;
         var sketches = _docService.GetSketches(configIndex);
-        var sketchDict = sketches.ToDictionary(s => s.Name, StringComparer.OrdinalIgnoreCase);
+        var sketchDict = new Dictionary<string, SketchFeatureModel>(StringComparer.OrdinalIgnoreCase);
+        foreach (var s in sketches)
+        {
+            if (!sketchDict.TryGetValue(s.Name, out var existing) || (existing.Segments.Count == 0 && s.Segments.Count > 0))
+            {
+                sketchDict[s.Name] = s;
+            }
+        }
 
         void UpdateSketchTags(TreeNodeModel node)
         {

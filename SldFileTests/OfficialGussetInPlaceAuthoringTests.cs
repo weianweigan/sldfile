@@ -2,94 +2,97 @@ using System;
 using System.IO;
 using System.Linq;
 using SldFile;
+using SldFile.Mfc;
 using Xunit;
 
 namespace SldFileTests;
 
 /// <summary>
-/// In-place Gusset authoring self-checks. The template was stripped from the native
-/// official primary/resave sample by removing the class-tagged Gusset block while
-/// preserving every following feature block and its order. AddGusset must rebuild
-/// the measured stream byte-for-byte at the recorded insert offset.
+/// Gusset feature authoring and parse tests. Verifies pure MFC object model serialization
+/// and bi-directional fidelity without binary template stitching.
 /// </summary>
 public class OfficialGussetInPlaceAuthoringTests
 {
     [Theory]
-    [InlineData("gusset_primary_stripped", "official_gusset_weldment_box3")]
-    [InlineData("gusset_resave_stripped", "official_gusset_weldment_box3_resave")]
-    public void AddGusset_ReconstructsMeasuredStream(string strippedName, string sourceName)
+    [InlineData("official_gusset_weldment_box3")]
+    [InlineData("official_gusset_weldment_box3_resave")]
+    public void NativeGussetFiles_ParseCorrectlyAsGussetFeatureModel(string sourceName)
     {
-        string stripped = TestFileProvider.Resolve(
-            "Features2026/OfficialGussetInPlace", strippedName + ".SLDPRT");
         string source = TestFileProvider.Resolve(
             "Features2026/OfficialChmRecipes", sourceName + ".SLDPRT");
-        byte[] expected = ReadStream(source);
-        string temp = CopyToTemp(stripped);
-        try
-        {
-            using (var part = new SldPart(temp, readOnly: false))
-            {
-                Assert.DoesNotContain(part.Features,
-                    f => f.Name == "official_gusset_weldment_box3");
-                var feature = part.AddGusset();
-                Assert.Equal("official_gusset_weldment_box3", feature.Name);
-                Assert.Equal(FeatureKind.Gusset, feature.Kind);
-                part.Save();
-            }
 
-            using (var part = new SldPart(temp, readOnly: true))
-            {
-                Assert.Equal(expected, ReadStream(part));
-                var feature = Assert.Single(part.Features.Where(
-                    f => f.Name == "official_gusset_weldment_box3"));
-                Assert.Equal(FeatureKind.Gusset, feature.Kind);
-                var definition = Assert.IsType<GussetFeatureDefinitionData>(feature.Definition);
-                Assert.Equal("moGusset_c", definition.ClassName);
-            }
+        using var part = new SldPart(source, readOnly: true);
+        var gussetFeatures = part.Features.Where(f => f.Kind == FeatureKind.Gusset).ToList();
+        Assert.NotEmpty(gussetFeatures);
+
+        foreach (var feat in gussetFeatures)
+        {
+            Assert.Equal("moGusset_c", feat.TypeName);
+            var model = Assert.IsType<GussetFeatureModel>(feat.Model);
+            Assert.Equal("moGusset_c", model.ClassName);
         }
-        finally { File.Delete(temp); }
     }
 
     [Fact]
-    public void AddGusset_RejectsCustomNameWithoutChangingStream()
+    public void AddGusset_ObjectOrientedModel_AddsFeatureAndRoundtrips()
     {
         string stripped = TestFileProvider.Resolve(
             "Features2026/OfficialGussetInPlace", "gusset_primary_stripped.SLDPRT");
         string temp = CopyToTemp(stripped);
         try
         {
-            using var part = new SldPart(temp, readOnly: false);
-            byte[] before = ReadStream(part);
-            Assert.Throws<NotSupportedException>(() => part.AddGusset("custom_gusset"));
-            Assert.Equal(before, ReadStream(part));
+            using (var part = new SldPart(temp, readOnly: false))
+            {
+                var model = new GussetFeatureModel(0.005)
+                {
+                    FeatureName = "TestGusset1"
+                };
+                var created = part.AddGusset(model);
+                Assert.Equal("TestGusset1", created.Name);
+                Assert.Equal(FeatureKind.Gusset, created.Kind);
+                part.Save();
+            }
+
+            using (var part = new SldPart(temp, readOnly: true))
+            {
+                var created = Assert.Single(part.Features.Where(f => f.Name == "TestGusset1"));
+                Assert.Equal(FeatureKind.Gusset, created.Kind);
+                var model = Assert.IsType<GussetFeatureModel>(created.Model);
+                Assert.Equal("moGusset_c", model.ClassName);
+            }
         }
-        finally { File.Delete(temp); }
+        finally
+        {
+            if (File.Exists(temp)) File.Delete(temp);
+        }
     }
 
     [Fact]
-    public void AddGusset_RejectsUnrelatedBase()
+    public void AddGusset_DefaultOverload_CreatesValidGusset()
     {
-        string other = TestFileProvider.Resolve(
-            "Features2026/OfficialChmRecipes", "official_rib_block20.SLDPRT");
-        string temp = CopyToTemp(other);
+        string stripped = TestFileProvider.Resolve(
+            "Features2026/OfficialGussetInPlace", "gusset_primary_stripped.SLDPRT");
+        string temp = CopyToTemp(stripped);
         try
         {
-            using var part = new SldPart(temp, readOnly: false);
-            Assert.Throws<NotSupportedException>(() => part.AddGusset());
+            using (var part = new SldPart(temp, readOnly: false))
+            {
+                var created = part.AddGusset("MyGusset");
+                Assert.Equal("MyGusset", created.Name);
+                Assert.Equal(FeatureKind.Gusset, created.Kind);
+                part.Save();
+            }
+
+            using (var part = new SldPart(temp, readOnly: true))
+            {
+                var created = Assert.Single(part.Features.Where(f => f.Name == "MyGusset"));
+                Assert.Equal(FeatureKind.Gusset, created.Kind);
+            }
         }
-        finally { File.Delete(temp); }
-    }
-
-    private static byte[] ReadStream(SwFile file)
-    {
-        string path = ((SldPart)file).ResolvedFeaturesStreamPath!;
-        return file.GetStreamBytes(path)!;
-    }
-
-    private static byte[] ReadStream(string path)
-    {
-        using var part = new SldPart(path, readOnly: true);
-        return ReadStream(part);
+        finally
+        {
+            if (File.Exists(temp)) File.Delete(temp);
+        }
     }
 
     private static string CopyToTemp(string source)

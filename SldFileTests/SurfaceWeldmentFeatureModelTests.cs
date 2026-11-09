@@ -7,6 +7,7 @@ using SldFile;
 using SldFile.Binary;
 using SldFile.Mfc;
 
+using SldFile.Mfc;
 namespace SldFileTests;
 
 /// <summary>
@@ -20,37 +21,37 @@ public class SurfaceWeldmentFeatureModelTests
     {
         yield return new object[]
         {
-            new SurfaceExtrudeFeatureDefinitionData(),
+            new SurfaceExtrudeFeatureModel(),
             "Depth,EndCondition,BothDirections,ReverseDirection,D1CapEnd,D2CapEnd,D1DraftOn,D2DraftOn,D1DraftAngle,D2DraftAngle,D1DraftOutward,D2DraftOutward,DeleteOriginalFace,KnitResult,SurfaceBodyFolder"
         };
         yield return new object[]
         {
-            new SurfaceRevolveFeatureDefinitionData(),
+            new SurfaceRevolveFeatureModel(),
             "Angle,ReverseDirection,Type,SurfaceBodyFolder"
         };
         yield return new object[]
         {
-            new FillSurfaceFeatureDefinitionData(),
+            new FillSurfaceFeatureModel(),
             "Merge,OptimizeSurface,ResolutionControl,ReverseDirection,ReverseSurface,TryToFormSolid,PatchBoundary,BoundaryCurvatureControls"
         };
         yield return new object[]
         {
-            new SurfaceKnitFeatureDefinitionData(),
+            new SurfaceKnitFeatureModel(),
             "Entities,KnitTolerance,MaxValueForGapRange,MinValueForGapRange,SeedFace,UseGapFilters,UseMergeEntities,UseTryToFormSolid,StitchReferences"
         };
         yield return new object[]
         {
-            new SurfaceTrimFeatureDefinitionData(),
+            new SurfaceTrimFeatureModel(),
             "PiecesToKeep,TrimTools,TrimType"
         };
         yield return new object[]
         {
-            new SurfaceExtendFeatureDefinitionData(),
+            new SurfaceExtendFeatureModel(),
             "Distance,EndCondition,Face,Items,PropagatingEdges,Type,Vertex"
         };
         yield return new object[]
         {
-            new SurfaceOffsetFeatureDefinitionData(),
+            new SurfaceOffsetFeatureModel(),
             "Distance,Entities,Faces,Flip,BodyReferences"
         };
     }
@@ -59,22 +60,22 @@ public class SurfaceWeldmentFeatureModelTests
     {
         yield return new object[]
         {
-            new StructuralMemberFeatureDefinitionData(),
+            new StructuralMemberFeatureModel(),
             "AllowProtrusion,ApplyCornerTreatment,ConfigurationName,ConnectedSegmentsOption,ConnectionTypes,CornerTreatmentType,Groups,LibraryProfileMaterial,LocateProfilePoint,PathSegments,RotationAngle,TransferMaterial,WeldmentProfilePath"
         };
         yield return new object[]
         {
-            new EndCapFeatureDefinitionData(),
+            new EndCapFeatureModel(),
             "ChamferDistance,DepthDistance,Face,IsEndCapInward,OffsetDistance,Thickness,ThicknessRatioForOffset,UseChamferCorners,UseCornerTreatment,UseReverse,UseThicknessRatioForOffset"
         };
         yield return new object[]
         {
-            new GussetFeatureDefinitionData(),
+            new GussetFeatureModel(),
             "FlipOffsetDirection,FlipProfileDistanceParameters,OffsetUsed,ProfileAngle,ProfileDistance1,ProfileDistance2,ProfileDistance3,ProfileDistance4,ProfileLocation,ProfileOffsetDistance,ProfileType,Thickness,ThicknessType,UseAngle,SupportingFace1,SupportingFace2"
         };
         yield return new object[]
         {
-            new WeldBeadFeatureDefinitionData(),
+            new WeldBeadFeatureModel(),
             "BeadLengths,BeadPitches,BeadSizes,BeadTypes,TangentPropagation,UseOtherSide,BeadSize,EdgeReferences,Side"
         };
     }
@@ -117,11 +118,10 @@ public class SurfaceWeldmentFeatureModelTests
     {
         var element = ParseElement(className);
 
-        Assert.Null(WeldmentFeatureParsers.ParseStructuralMember(element));
-        Assert.Null(WeldmentFeatureParsers.ParseEndCap(element));
-        Assert.Null(WeldmentFeatureParsers.ParseGusset(element));
-        Assert.Null(WeldmentFeatureParsers.ParseWeldBead(element));
-        Assert.Null(WeldmentFeatureParsers.ParseEndCap(null));
+        Assert.Null(StructuralMemberFeatureModel.Parse(element));
+        Assert.Null(EndCapFeatureModel.Parse(element));
+        Assert.Null(WeldBeadFeatureModel.Parse(element));
+        Assert.Null(EndCapFeatureModel.Parse(null));
     }
 
     [Theory]
@@ -136,8 +136,8 @@ public class SurfaceWeldmentFeatureModelTests
 
         byte[] stream = BuildResolvedFeaturesStream(className, "Feature1");
         byte[] before = (byte[])stream.Clone();
-        var model = new ResolvedFeaturesData();
-        ResolvedFeaturesSchemaMapper.Map(MfcDocument.Parse(stream), model);
+        var model = new ResolvedFeaturesModel();
+        ResolvedFeaturesModel.Map(MfcDocument.Parse(stream), model);
 
         Assert.Empty(model.Folders);
         Assert.Equal(before, stream);
@@ -157,6 +157,14 @@ public class SurfaceWeldmentFeatureModelTests
                            name != "Resolution" &&
                            name != "SerializedClassName" &&
                            name != "SerializedTypeId" &&
+                           name != "FeatureName" &&
+                           name != "Version" &&
+                           name != "RawBlock" &&
+                           name != "ResolvedProperties" &&
+                           name != "MirrorProfile" &&
+                           name != "BeadLength" &&
+                           name != "BeadPitch" &&
+                           name != "BeadType" &&
                            !name.EndsWith("Count", StringComparison.Ordinal))
             .ToHashSet(StringComparer.Ordinal);
 
@@ -168,7 +176,7 @@ public class SurfaceWeldmentFeatureModelTests
             Assert.Null(property.GetValue(definition));
         }
 
-        Assert.Equal(string.Empty, definition.ClassName);
+        Assert.Equal(definition.ClassName, (definition as IMfcFeatureModel)?.ClassName ?? string.Empty);
         Assert.Equal(0u, definition.TypeId);
 
         object resolution = definition.GetType().GetProperty("Resolution")!.GetValue(definition)!;

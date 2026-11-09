@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.Topology;
 using SldFile.Mfc;
 using Xunit;
 
@@ -37,17 +36,17 @@ public class TopologyUpToSurfaceSelectionTests
     public void UpToSurfaceCut_DecodesEndFaceAndBodyScope(string name, uint faceId)
     {
         using var file = SwFile.Open(SamplePath(name), readOnly: true);
-        var definitions = file.Features.Select(f => f.Definition).OfType<ExtrudeFeatureDefinitionData>().ToArray();
+        var definitions = file.Features.Select(f => f.Model).OfType<ExtrudeFeatureModel>().ToArray();
         var baseBox = definitions.Single(d => !d.IsCut);
         var cut = definitions.Single(d => d.IsCut);
 
         Assert.Equal(0u, baseBox.EndCondition);
         Assert.Null(baseBox.EndConditionEntity);
-        Assert.True(baseBox.BodyScope.AutoSelect);
+        Assert.True(baseBox.BodyScope!.AutoSelect);
         Assert.Empty(baseBox.BodyScope.BodyIds);
 
         Assert.Equal(4u, cut.EndCondition);
-        Assert.True(cut.IsResolved(nameof(ExtrudeFeatureDefinitionData.EndCondition)));
+        Assert.True(cut.IsResolved(nameof(ExtrudeFeatureModel.EndCondition)));
         Assert.Equal(0d, cut.Depth);
         var target = Assert.IsType<EndConditionEntityReference>(cut.EndConditionEntity);
         Assert.Equal(SelectionEntityType.Face, target.EntityType);
@@ -55,18 +54,18 @@ public class TopologyUpToSurfaceSelectionTests
         Assert.Equal(1u, target.FaceCount);
         Assert.True(target.IsValid);
         Assert.Contains($"Face_0x{faceId:X}", target.SurfaceName);
-        Assert.True(cut.IsResolved(nameof(ExtrudeFeatureDefinitionData.EndConditionEntity)));
+        Assert.True(cut.IsResolved(nameof(ExtrudeFeatureModel.EndConditionEntity)));
 
         Assert.False(cut.AutoSelect);
         Assert.True(cut.FeatureScope);
-        Assert.False(cut.BodyScope.AutoSelect);
+        Assert.False(cut.BodyScope!.AutoSelect);
         Assert.Equal(new uint[] { 2479u }, cut.BodyScope.BodyIds.ToArray());
         var body = Assert.Single(cut.BodyScope.Bodies);
         Assert.Equal(2479u, body.EntityId);
         Assert.Equal(SelectionEntityType.Body, body.EntityType);
-        Assert.True(cut.IsResolved(nameof(ExtrudeFeatureDefinitionData.BodyScope)));
-        Assert.True(cut.IsResolved(nameof(ExtrudeFeatureDefinitionData.AutoSelect)));
-        Assert.True(cut.IsResolved(nameof(ExtrudeFeatureDefinitionData.FeatureScope)));
+        Assert.True(cut.IsResolved(nameof(ExtrudeFeatureModel.BodyScope)));
+        Assert.True(cut.IsResolved(nameof(ExtrudeFeatureModel.AutoSelect)));
+        Assert.True(cut.IsResolved(nameof(ExtrudeFeatureModel.FeatureScope)));
     }
 
     [Theory]
@@ -125,15 +124,15 @@ public class TopologyUpToSurfaceSelectionTests
         var mutatedFace = Assert.Single(mutated.AllElements.Where(e => e.ClassName == "moSingleFaceRef_w"));
         Assert.Null(PersistentFaceReferenceParser.ReadSingleFaceRef(mutated, mutatedFace));
 
-        var model = new ResolvedFeaturesData();
-        ResolvedFeaturesSchemaMapper.Map(mutated, model);
+        var model = new ResolvedFeaturesModel();
+        ResolvedFeaturesModel.Map(mutated, model);
         var cut = Assert.Single(model.Folders.Where(f => f.ClassName == "moICE_c")).FeatureData;
-        var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(cut);
+        var definition = Assert.IsType<ExtrudeFeatureModel>(cut);
         // The malformed selection object yields no structural claim at all.
         Assert.NotEqual(4u, definition.EndCondition);
-        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.EndCondition)));
+        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureModel.EndCondition)));
         Assert.Null(definition.EndConditionEntity);
-        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.EndConditionEntity)));
+        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureModel.EndConditionEntity)));
     }
 
     [Fact]
@@ -158,18 +157,18 @@ public class TopologyUpToSurfaceSelectionTests
         BitConverter.GetBytes(0u).CopyTo(stream, fromEndSpec.DataStart + 256);
         BitConverter.GetBytes(0u).CopyTo(stream, fromEndSpec.DataStart + 260);
         var mutated = MfcDocument.Parse(stream);
-        var model = new ResolvedFeaturesData();
-        ResolvedFeaturesSchemaMapper.Map(mutated, model);
-        var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(
+        var model = new ResolvedFeaturesModel();
+        ResolvedFeaturesModel.Map(mutated, model);
+        var definition = Assert.IsType<ExtrudeFeatureModel>(
             Assert.Single(model.Folders.Where(f => f.ClassName == "moICE_c")).FeatureData);
 
         // The cut's terminating face is decoded from moSingleFaceRef_w only.
         Assert.Equal(4u, definition.EndCondition);
-        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.EndCondition)));
+        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureModel.EndCondition)));
         var target = Assert.IsType<EndConditionEntityReference>(definition.EndConditionEntity);
         Assert.Equal(SelectionEntityType.Face, target.EntityType);
         Assert.Equal(0x7CBu, target.EntityId);
-        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.EndConditionEntity)));
+        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureModel.EndConditionEntity)));
     }
 
     [Fact]
@@ -184,14 +183,14 @@ public class TopologyUpToSurfaceSelectionTests
         var mutatedBody = Assert.Single(mutated.AllElements.Where(e => e.ClassName == "moCompSolidBody_c"));
         Assert.Null(CompSolidBodyReferenceParser.Read(mutated, mutatedBody));
 
-        var model = new ResolvedFeaturesData();
-        ResolvedFeaturesSchemaMapper.Map(mutated, model);
-        var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(
+        var model = new ResolvedFeaturesModel();
+        ResolvedFeaturesModel.Map(mutated, model);
+        var definition = Assert.IsType<ExtrudeFeatureModel>(
             Assert.Single(model.Folders.Where(f => f.ClassName == "moICE_c")).FeatureData);
         Assert.Equal(4u, definition.EndCondition);
         Assert.NotNull(definition.EndConditionEntity);
-        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.BodyScope)));
-        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.FeatureScope)));
+        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureModel.BodyScope)));
+        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureModel.FeatureScope)));
     }
 
     [Fact]
@@ -210,18 +209,18 @@ public class TopologyUpToSurfaceSelectionTests
         Assert.Equal(0x4Fu, body!.BodyClassWord);
         Assert.False(body.IsExplicitBodySelection);
 
-        var model = new ResolvedFeaturesData();
-        ResolvedFeaturesSchemaMapper.Map(mutated, model);
-        var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(
+        var model = new ResolvedFeaturesModel();
+        ResolvedFeaturesModel.Map(mutated, model);
+        var definition = Assert.IsType<ExtrudeFeatureModel>(
             Assert.Single(model.Folders.Where(f => f.ClassName == "moICE_c")).FeatureData);
         // The terminating-face decode is independent of the body class word.
         Assert.Equal(4u, definition.EndCondition);
         Assert.NotNull(definition.EndConditionEntity);
-        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.EndConditionEntity)));
+        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureModel.EndConditionEntity)));
         // An auto-resolved body reference must not claim explicit scope/AutoSelect values.
-        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.BodyScope)));
-        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.AutoSelect)));
-        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.FeatureScope)));
+        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureModel.BodyScope)));
+        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureModel.AutoSelect)));
+        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureModel.FeatureScope)));
     }
 
     [Fact]
@@ -229,8 +228,8 @@ public class TopologyUpToSurfaceSelectionTests
     {
         using var file = SwFile.Open(SamplePath("extrude_cut_5mm"), readOnly: true);
         var cut = Assert.Single(file.Features
-            .Select(f => f.Definition)
-            .OfType<ExtrudeFeatureDefinitionData>()
+            .Select(f => f.Model)
+            .OfType<ExtrudeFeatureModel>()
             .Where(d => d.IsCut));
 
         byte[] stream = (byte[])file.RawStreams["Contents/Config-0-ResolvedFeatures"];
@@ -253,8 +252,8 @@ public class TopologyUpToSurfaceSelectionTests
 
         Assert.NotEqual(4u, cut.EndCondition);
         Assert.Null(cut.EndConditionEntity);
-        Assert.True(cut.BodyScope.AutoSelect);
-        Assert.False(cut.IsResolved(nameof(ExtrudeFeatureDefinitionData.BodyScope)));
+        Assert.True(cut.BodyScope!.AutoSelect);
+        Assert.False(cut.IsResolved(nameof(ExtrudeFeatureModel.BodyScope)));
     }
 
     [Theory]
@@ -281,8 +280,8 @@ public class TopologyUpToSurfaceSelectionTests
     public void BlindAndMidPlaneSamples_DoNotClaimTerminatingEntity(string name)
     {
         using var file = SwFile.Open(SamplePath(name), readOnly: true);
-        var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(
-            Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Definition);
+        var definition = Assert.IsType<ExtrudeFeatureModel>(
+            Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Model);
         if (name == "extrude_midplane") Assert.Equal(6u, definition.EndCondition);
         else Assert.Equal(0u, definition.EndCondition);
         Assert.Null(definition.EndConditionEntity);

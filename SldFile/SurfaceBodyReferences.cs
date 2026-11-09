@@ -1,4 +1,4 @@
-namespace SldFile;
+﻿namespace SldFile;
 
 /// <summary>
 /// Presence-level reference to the design-tree <c>moSurfaceBodyFolder_c</c> node.

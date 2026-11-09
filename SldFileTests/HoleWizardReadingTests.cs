@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 using Xunit;
 
@@ -26,10 +25,10 @@ public class HoleWizardReadingTests
         using var file = SwFile.Open(SamplePath(name), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.HoleWizard));
         Assert.Equal("moHoleWzd_c", feature.TypeName);
-        return new Hit(feature, Assert.IsType<HoleWizardFeatureDefinitionData>(feature.Definition));
+        return new Hit(feature, Assert.IsType<HoleWizardFeatureModel>(feature.Model));
     }
 
-    private sealed record Hit(Feature Feature, HoleWizardFeatureDefinitionData Definition);
+    private sealed record Hit(Feature Feature, HoleWizardFeatureModel Model);
 
     [Theory]
     [InlineData("hole_simple_d5_throughall", 1, 0.005, 0.009986487374987973, 0.010014305598872397)]
@@ -48,7 +47,7 @@ public class HoleWizardReadingTests
         string sample, int endCondition, double diameter, double x, double y)
     {
         var hit = Read(sample);
-        var definition = hit.Definition;
+        var definition = hit.Model;
         Assert.Equal(0x54, hit.Feature.Id);
         Assert.Equal(0x54u, definition.FolderTypeId);
         Assert.Equal(0, definition.Type);
@@ -86,14 +85,14 @@ public class HoleWizardReadingTests
         // moCompSolidBody_c carries no body id/class word in any legacy sample; its final u32
         // is the EndCondition, so no body terminator is claimed even for UpToNext.
         Assert.Null(definition.EndConditionReference);
-        Assert.False(definition.IsResolved(nameof(HoleWizardFeatureDefinitionData.EndConditionReference)));
-        Assert.True(definition.IsResolved(nameof(HoleWizardFeatureDefinitionData.Face)));
-        Assert.True(definition.IsResolved(nameof(HoleWizardFeatureDefinitionData.IFace)));
+        Assert.False(definition.IsResolved(nameof(HoleWizardFeatureModel.EndConditionReference)));
+        Assert.True(definition.IsResolved(nameof(HoleWizardFeatureModel.Face)));
+        Assert.True(definition.IsResolved(nameof(HoleWizardFeatureModel.IFace)));
 
-        Assert.True(definition.IsResolved(nameof(HoleWizardFeatureDefinitionData.Type)));
-        Assert.True(definition.IsResolved(nameof(HoleWizardFeatureDefinitionData.EndCondition)));
-        Assert.True(definition.IsResolved(nameof(HoleWizardFeatureDefinitionData.Diameter)));
-        Assert.True(definition.IsResolved(nameof(HoleWizardFeatureDefinitionData.SketchPointLocations)));
+        Assert.True(definition.IsResolved(nameof(HoleWizardFeatureModel.Type)));
+        Assert.True(definition.IsResolved(nameof(HoleWizardFeatureModel.EndCondition)));
+        Assert.True(definition.IsResolved(nameof(HoleWizardFeatureModel.Diameter)));
+        Assert.True(definition.IsResolved(nameof(HoleWizardFeatureModel.SketchPointLocations)));
     }
 
     [Theory]
@@ -105,8 +104,8 @@ public class HoleWizardReadingTests
     [InlineData("hole_countersink_d8_d4_90")]
     public void LegacyHole_FaceReferencesAreStableAcrossResave(string main)
     {
-        var mainDefinition = Read(main).Definition;
-        var resaveDefinition = Read(main + "_resave").Definition;
+        var mainDefinition = Read(main).Model;
+        var resaveDefinition = Read(main + "_resave").Model;
         foreach (var pair in new[]
                  {
                      (mainDefinition.Face, resaveDefinition.Face, "HoleFaceRef"),
@@ -128,7 +127,7 @@ public class HoleWizardReadingTests
         }
         Assert.NotEqual(mainDefinition.Face!.PersistentId, mainDefinition.IFace!.PersistentId);
         Assert.Null(mainDefinition.EndConditionReference);
-        Assert.False(mainDefinition.IsResolved(nameof(HoleWizardFeatureDefinitionData.EndConditionReference)));
+        Assert.False(mainDefinition.IsResolved(nameof(HoleWizardFeatureModel.EndConditionReference)));
     }
 
     [Theory]
@@ -137,7 +136,7 @@ public class HoleWizardReadingTests
     public void TappedHole_ParsesIsoM6ThreadFields(string sample)
     {
         var hit = Read(sample);
-        var definition = hit.Definition;
+        var definition = hit.Model;
         Assert.Equal(0x52, hit.Feature.Id);
         Assert.Equal(0x52u, definition.FolderTypeId);
         Assert.Equal(48, definition.Type);
@@ -163,20 +162,20 @@ public class HoleWizardReadingTests
         Assert.Null(definition.Face);
         Assert.Null(definition.IFace);
         Assert.Null(definition.EndConditionReference);
-        Assert.False(definition.IsResolved(nameof(HoleWizardFeatureDefinitionData.Face)));
-        Assert.False(definition.IsResolved(nameof(HoleWizardFeatureDefinitionData.IFace)));
+        Assert.False(definition.IsResolved(nameof(HoleWizardFeatureModel.Face)));
+        Assert.False(definition.IsResolved(nameof(HoleWizardFeatureModel.IFace)));
         foreach (string name in new[]
         {
-            nameof(HoleWizardFeatureDefinitionData.Type),
-            nameof(HoleWizardFeatureDefinitionData.EndCondition),
-            nameof(HoleWizardFeatureDefinitionData.Standard),
-            nameof(HoleWizardFeatureDefinitionData.Standard2),
-            nameof(HoleWizardFeatureDefinitionData.FastenerType),
-            nameof(HoleWizardFeatureDefinitionData.FastenerType2),
-            nameof(HoleWizardFeatureDefinitionData.FastenerSize),
-            nameof(HoleWizardFeatureDefinitionData.ThreadDiameter),
-            nameof(HoleWizardFeatureDefinitionData.ThreadDepth),
-            nameof(HoleWizardFeatureDefinitionData.CosmeticThreadType)
+            nameof(HoleWizardFeatureModel.Type),
+            nameof(HoleWizardFeatureModel.EndCondition),
+            nameof(HoleWizardFeatureModel.Standard),
+            nameof(HoleWizardFeatureModel.Standard2),
+            nameof(HoleWizardFeatureModel.FastenerType),
+            nameof(HoleWizardFeatureModel.FastenerType2),
+            nameof(HoleWizardFeatureModel.FastenerSize),
+            nameof(HoleWizardFeatureModel.ThreadDiameter),
+            nameof(HoleWizardFeatureModel.ThreadDepth),
+            nameof(HoleWizardFeatureModel.CosmeticThreadType)
         })
         {
             Assert.True(definition.IsResolved(name));
@@ -268,7 +267,7 @@ public class HoleWizardReadingTests
         {
             before = (byte[])file.RawStreams[ResolvedStream].Clone();
             var feature = Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.HoleWizard));
-            Assert.IsType<HoleWizardFeatureDefinitionData>(feature.Definition);
+            Assert.IsType<HoleWizardFeatureModel>(feature.Model);
             Assert.Equal(before, file.RawStreams[ResolvedStream]);
         }
 

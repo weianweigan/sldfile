@@ -1,4 +1,4 @@
-namespace SldFile.Resources
+﻿namespace SldFile.Resources
 {
     /// <summary>
     /// Icon theme color styles supported by SolidWorks.

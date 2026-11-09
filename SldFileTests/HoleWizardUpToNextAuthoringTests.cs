@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 using Xunit;
 
@@ -44,9 +43,9 @@ public class HoleWizardUpToNextAuthoringTests
         return temp;
     }
 
-    private static HoleWizardFeatureDefinitionData Definition(double diameter, int endCondition = 11)
+    private static HoleWizardFeatureModel Definition(double diameter, int endCondition = 11)
     {
-        return new HoleWizardFeatureDefinitionData
+        return new HoleWizardFeatureModel
         {
             FolderTypeId = 0x54u,
             Type = 0,
@@ -78,7 +77,7 @@ public class HoleWizardUpToNextAuthoringTests
         Assert.Equal("moHoleWzd_c", feature.TypeName);
         Assert.Equal(0x54, feature.Id);
         Assert.Equal("UpToNextAgent1", feature.Name);
-        var definition = Assert.IsType<HoleWizardFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<HoleWizardFeatureModel>(feature.Model);
         Assert.Equal(0x54u, definition.FolderTypeId);
         Assert.Equal(0, definition.Type);
         Assert.Equal(11, definition.EndCondition);
@@ -133,8 +132,8 @@ public class HoleWizardUpToNextAuthoringTests
 
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         Assert.Equal(before, reopened.RawStreams[ResolvedStream]);
-        var definition = Assert.IsType<HoleWizardFeatureDefinitionData>(
-            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.HoleWizard)).Definition);
+        var definition = Assert.IsType<HoleWizardFeatureModel>(
+            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.HoleWizard)).Model);
         Assert.Equal(11, definition.EndCondition);
         Assert.Equal(0.007, definition.Diameter!.Value, 12);
     }
@@ -196,22 +195,22 @@ public class HoleWizardUpToNextAuthoringTests
     public void UpToNextAuthoring_RejectsUnverifiedFields()
     {
         using var temp = CreateStrippedBase(out _);
-        AssertUpToNextRejected(temp, new HoleWizardFeatureDefinitionData
+        AssertUpToNextRejected(temp, new HoleWizardFeatureModel
         {
             EndCondition = 11, Diameter = 0.005, CounterSinkDiameter = 0.008
         }, "CounterSinkDiameter");
-        AssertUpToNextRejected(temp, new HoleWizardFeatureDefinitionData
+        AssertUpToNextRejected(temp, new HoleWizardFeatureModel
         {
             EndCondition = 11, Diameter = 0.005, Depth = 0.020
         }, "template depth");
-        AssertUpToNextRejected(temp, new HoleWizardFeatureDefinitionData
+        AssertUpToNextRejected(temp, new HoleWizardFeatureModel
         {
             EndCondition = 11, Diameter = 0.005, Face = new FeatureReferenceData()
         }, "Face");
     }
 
     private static void AssertUpToNextRejected(
-        TempTestFile temp, HoleWizardFeatureDefinitionData definition, string expectedMessage)
+        TempTestFile temp, HoleWizardFeatureModel definition, string expectedMessage)
     {
         byte[] before = ReadStream(temp.FilePath);
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))

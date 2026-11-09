@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.Topology;
 using Xunit;
 
 namespace SldFileTests;
@@ -38,7 +37,7 @@ public class TopologySelectionTests
         var extFolder = sw.ResolvedFeatures.Folders.FirstOrDefault(f => f.ClassName is "moExtrusion_c" or "moExtrusion_ct");
         Assert.NotNull(extFolder);
 
-        var extData = Assert.IsType<ExtrudeFeatureDefinitionData>(extFolder!.FeatureData);
+        var extData = Assert.IsType<ExtrudeFeatureModel>(extFolder!.FeatureData);
         Assert.Equal("草图1", extData.SketchName);
         Assert.NotEmpty(extData.AvailableSketchContours);
 
@@ -64,7 +63,7 @@ public class TopologySelectionTests
         var extFolder = sw.ResolvedFeatures.Folders.FirstOrDefault(f => f.ClassName is "moExtrusion_c" or "moExtrusion_ct");
         Assert.NotNull(extFolder);
 
-        var extData = Assert.IsType<ExtrudeFeatureDefinitionData>(extFolder!.FeatureData);
+        var extData = Assert.IsType<ExtrudeFeatureModel>(extFolder!.FeatureData);
         Assert.NotEmpty(extData.AvailableSketchRegions);
 
         var region = extData.AvailableSketchRegions[0];
@@ -83,7 +82,7 @@ public class TopologySelectionTests
         var cutFolder = sw.ResolvedFeatures.Folders.FirstOrDefault(f => f.ClassName == "moICE_c" || f.DisplayName.Contains("切除"));
         Assert.NotNull(cutFolder);
 
-        var cutData = Assert.IsType<ExtrudeFeatureDefinitionData>(cutFolder!.FeatureData);
+        var cutData = Assert.IsType<ExtrudeFeatureModel>(cutFolder!.FeatureData);
         Assert.True(cutData.IsCut);
         Assert.Equal("草图1", cutData.SketchName);
         Assert.NotEmpty(cutData.AvailableSketchContours);
@@ -136,13 +135,13 @@ public class TopologySelectionTests
         var smFolder = sw.ResolvedFeatures.Folders.FirstOrDefault(f => f.ClassName == "moSMBaseFlange_c");
         Assert.NotNull(smFolder);
 
-        var smData = Assert.IsType<SheetMetalBaseFlangeDefinitionData>(smFolder!.FeatureData);
+        var smData = Assert.IsType<SheetMetalBaseFlangeModel>(smFolder!.FeatureData);
         Assert.Equal(expectedThickness, smData.Thickness, precision: 6);
         Assert.Equal(expectedRadius, smData.BendRadius, precision: 6);
         Assert.Equal("草图1", smData.SketchName);
-        Assert.NotEmpty(smData.SelectedContours);
+        Assert.NotEmpty(smData.SelectedContours!);
 
-        var contour = smData.SelectedContours[0];
+        var contour = smData.SelectedContours![0];
         Assert.True(contour.IsValid);
         Assert.True(contour.IsClosed);
         Assert.True(contour.EntityIndices.Count >= 4);

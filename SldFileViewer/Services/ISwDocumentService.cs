@@ -1,10 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using SldFile;
 using SldFile.Assembly;
-using SldFile.Drawing;
-using SldFile.Sketches;
+using SldFile.Mfc;
 using SldFileViewer.Models;
 
 namespace SldFileViewer.Services;
@@ -20,7 +19,7 @@ public interface ISwDocumentService : IDisposable
 
     IReadOnlyList<Configuration> GetConfigurations();
     IReadOnlyList<Feature> GetFeatures();
-    IReadOnlyList<SketchFeature> GetSketches(int configIndex = 0);
+    IReadOnlyList<SketchFeatureModel> GetSketches(int configIndex = 0);
     DisplayMesh? GetDisplayMesh();
     IReadOnlyList<AssemblyComponentNode> GetAssemblyTree(string? configName = null);
     IReadOnlyList<BomItem> GetBom(string? configName = null);

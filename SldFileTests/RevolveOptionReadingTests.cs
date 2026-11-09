@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -19,33 +19,33 @@ public class RevolveOptionReadingTests
     private static string SamplePath(string sample) =>
         Path.Combine(AppContext.BaseDirectory, "TestFiles", "Features2026", "RevolveOptions", sample + ".SLDPRT");
 
-    private static RevolveFeatureDefinitionData ReadThin(string sample)
+    private static RevolveFeatureModel ReadThin(string sample)
     {
         using var file = SwFile.Open(SamplePath(sample), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Revolve));
-        var definition = Assert.IsType<RevolveFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<RevolveFeatureModel>(feature.Model);
         Assert.Equal("moRevolutionThin_c", feature.TypeName);
         Assert.Equal("moRevolutionThin_c", definition.ClassName);
         Assert.Equal(0x50u, definition.TypeId);
         return definition;
     }
 
-    private static RevolveFeatureDefinitionData ReadBoth(string sample)
+    private static RevolveFeatureModel ReadBoth(string sample)
     {
         using var file = SwFile.Open(SamplePath(sample), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Revolve));
-        var definition = Assert.IsType<RevolveFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<RevolveFeatureModel>(feature.Model);
         Assert.Equal("moRevolution_c", definition.ClassName);
         Assert.Equal(0x4Eu, definition.TypeId);
         return definition;
     }
 
-    private static RevolveFeatureDefinitionData ReadCut(string sample)
+    private static RevolveFeatureModel ReadCut(string sample)
     {
         using var file = SwFile.Open(SamplePath(sample), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f => f.TypeName == "moRevCut_c"));
         Assert.Equal(FeatureKind.Cut, feature.Kind);
-        var definition = Assert.IsType<RevolveFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<RevolveFeatureModel>(feature.Model);
         Assert.Equal("moRevCut_c", definition.ClassName);
         Assert.Equal(0x55u, definition.TypeId);
         return definition;
@@ -71,15 +71,15 @@ public class RevolveOptionReadingTests
         Assert.Equal(0.001, definition.Thickness1, 12);
         Assert.Equal(0, definition.Thickness2, 12);
 
-        Assert.True(definition.IsResolved(nameof(RevolveFeatureDefinitionData.Angle)));
-        Assert.True(definition.IsResolved(nameof(RevolveFeatureDefinitionData.Type)));
-        Assert.True(definition.IsResolved(nameof(RevolveFeatureDefinitionData.BothDirections)));
-        Assert.True(definition.IsResolved(nameof(RevolveFeatureDefinitionData.IsThinFeature)));
-        Assert.True(definition.IsResolved(nameof(RevolveFeatureDefinitionData.IsCut)));
-        Assert.True(definition.IsResolved(nameof(RevolveFeatureDefinitionData.ThinWallType)));
-        Assert.True(definition.IsResolved(nameof(RevolveFeatureDefinitionData.Thickness1)));
-        Assert.True(definition.IsResolved(nameof(RevolveFeatureDefinitionData.Thickness2)));
-        Assert.False(definition.IsResolved(nameof(RevolveFeatureDefinitionData.Merge)));
+        Assert.True(definition.IsResolved(nameof(RevolveFeatureModel.Angle)));
+        Assert.True(definition.IsResolved(nameof(RevolveFeatureModel.Type)));
+        Assert.True(definition.IsResolved(nameof(RevolveFeatureModel.BothDirections)));
+        Assert.True(definition.IsResolved(nameof(RevolveFeatureModel.IsThinFeature)));
+        Assert.True(definition.IsResolved(nameof(RevolveFeatureModel.IsCut)));
+        Assert.True(definition.IsResolved(nameof(RevolveFeatureModel.ThinWallType)));
+        Assert.True(definition.IsResolved(nameof(RevolveFeatureModel.Thickness1)));
+        Assert.True(definition.IsResolved(nameof(RevolveFeatureModel.Thickness2)));
+        Assert.False(definition.IsResolved(nameof(RevolveFeatureModel.Merge)));
     }
 
     [Theory]
@@ -97,11 +97,11 @@ public class RevolveOptionReadingTests
         Assert.Equal(Math.PI / 2.0, definition.Angle, 12);
         Assert.Equal(Math.PI / 4.0, definition.AngleDirection2, 12);
 
-        Assert.True(definition.IsResolved(nameof(RevolveFeatureDefinitionData.Angle)));
-        Assert.True(definition.IsResolved(nameof(RevolveFeatureDefinitionData.AngleDirection2)));
-        Assert.True(definition.IsResolved(nameof(RevolveFeatureDefinitionData.Type)));
-        Assert.True(definition.IsResolved(nameof(RevolveFeatureDefinitionData.BothDirections)));
-        Assert.True(definition.IsResolved(nameof(RevolveFeatureDefinitionData.ReverseDirection)));
+        Assert.True(definition.IsResolved(nameof(RevolveFeatureModel.Angle)));
+        Assert.True(definition.IsResolved(nameof(RevolveFeatureModel.AngleDirection2)));
+        Assert.True(definition.IsResolved(nameof(RevolveFeatureModel.Type)));
+        Assert.True(definition.IsResolved(nameof(RevolveFeatureModel.BothDirections)));
+        Assert.True(definition.IsResolved(nameof(RevolveFeatureModel.ReverseDirection)));
     }
 
     [Theory]
@@ -121,11 +121,11 @@ public class RevolveOptionReadingTests
         Assert.Equal(0, definition.Thickness1, 12);
         Assert.Equal(0, definition.Thickness2, 12);
 
-        Assert.True(definition.IsResolved(nameof(RevolveFeatureDefinitionData.Angle)));
-        Assert.True(definition.IsResolved(nameof(RevolveFeatureDefinitionData.Type)));
-        Assert.True(definition.IsResolved(nameof(RevolveFeatureDefinitionData.BothDirections)));
-        Assert.True(definition.IsResolved(nameof(RevolveFeatureDefinitionData.IsCut)));
-        Assert.True(definition.IsResolved(nameof(RevolveFeatureDefinitionData.IsThinFeature)));
+        Assert.True(definition.IsResolved(nameof(RevolveFeatureModel.Angle)));
+        Assert.True(definition.IsResolved(nameof(RevolveFeatureModel.Type)));
+        Assert.True(definition.IsResolved(nameof(RevolveFeatureModel.BothDirections)));
+        Assert.True(definition.IsResolved(nameof(RevolveFeatureModel.IsCut)));
+        Assert.True(definition.IsResolved(nameof(RevolveFeatureModel.IsThinFeature)));
     }
 
     [Theory]
@@ -137,8 +137,8 @@ public class RevolveOptionReadingTests
     public void ExistingSingleDirectionRevolveSamples_KeepMeasuredFields(string sample, double angle, bool reverse)
     {
         using var file = SwFile.Open(SamplePath(sample), readOnly: true);
-        var definition = Assert.IsType<RevolveFeatureDefinitionData>(
-            Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Revolve)).Definition);
+        var definition = Assert.IsType<RevolveFeatureModel>(
+            Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Revolve)).Model);
 
         Assert.Equal(angle, definition.Angle, 12);
         Assert.Equal(reverse, definition.ReverseDirection);
@@ -147,12 +147,12 @@ public class RevolveOptionReadingTests
         Assert.Equal(0, definition.AngleDirection2, 12);
         Assert.False(definition.IsCut);
         Assert.False(definition.IsThinFeature);
-        Assert.True(definition.IsResolved(nameof(RevolveFeatureDefinitionData.Type)));
-        Assert.True(definition.IsResolved(nameof(RevolveFeatureDefinitionData.BothDirections)));
-        Assert.True(definition.IsResolved(nameof(RevolveFeatureDefinitionData.ReverseDirection)));
+        Assert.True(definition.IsResolved(nameof(RevolveFeatureModel.Type)));
+        Assert.True(definition.IsResolved(nameof(RevolveFeatureModel.BothDirections)));
+        Assert.True(definition.IsResolved(nameof(RevolveFeatureModel.ReverseDirection)));
     }
 
-    private static RevolveFeatureDefinitionData? ParseDirect(byte[] stream, string className, uint typeId)
+    private static RevolveFeatureModel? ParseDirect(byte[] stream, string className, uint typeId)
     {
         var doc = MfcDocument.Parse(stream);
         var feature = Assert.Single(doc.AllElements.Where(e => e.ClassName == className));

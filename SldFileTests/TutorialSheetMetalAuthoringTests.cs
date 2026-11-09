@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
+using SldFile.Mfc;
 using Xunit;
 
 namespace SldFileTests;
@@ -105,7 +105,7 @@ public class TutorialSheetMetalAuthoringTests
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         var folder = Assert.Single(reopened.ResolvedFeatures.Folders,
             f => f.ClassName == "moJog_c");
-        var definition = Assert.IsType<JogFeatureDefinitionData>(folder.FeatureData);
+        var definition = Assert.IsType<JogFeatureModel>(folder.FeatureData);
         Assert.Equal(0x159u, definition.TypeId);
         Assert.Equal(0.00254, definition.BendRadius!.Value, precision: 12);
         Assert.Equal(1.5707963267949, definition.JogAngle!.Value, precision: 12);
@@ -125,7 +125,7 @@ public class TutorialSheetMetalAuthoringTests
             }
 
             using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
-            var definition = Assert.IsType<UnFoldFeatureDefinitionData>(
+            var definition = Assert.IsType<UnFoldFeatureModel>(
                 reopened.ResolvedFeatures.Folders.Single(f => f.ClassName == "moUnFold_c").FeatureData);
             Assert.Equal(3, definition.BendsCount ?? -1);
             Assert.Equal(0x144u, definition.TypeId);
@@ -141,7 +141,7 @@ public class TutorialSheetMetalAuthoringTests
             }
 
             using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
-            var definition = Assert.IsType<FoldFeatureDefinitionData>(
+            var definition = Assert.IsType<FoldFeatureModel>(
                 reopened.ResolvedFeatures.Folders.Single(f => f.ClassName == "moFold_c").FeatureData);
             Assert.Equal(3, definition.BendsCount ?? -1);
             Assert.Equal(0x153u, definition.TypeId);
@@ -183,7 +183,7 @@ public class TutorialSheetMetalAuthoringTests
             authored = (byte[])reopened.RawStreams[ResolvedStreamPath(reopened)].Clone();
             var folder = Assert.Single(reopened.ResolvedFeatures.Folders,
                 f => f.ClassName == "moFlatPattern_c");
-            var definition = Assert.IsType<FlatPatternFeatureDefinitionData>(folder.FeatureData);
+            var definition = Assert.IsType<FlatPatternFeatureModel>(folder.FeatureData);
             Assert.Equal(typeId, definition.TypeId);
             Assert.True(definition.SimplifyBends ?? false);
             Assert.Equal(0, definition.BreakCornerType ?? -1);
@@ -233,7 +233,7 @@ public class TutorialSheetMetalAuthoringTests
         Assert.Equal(before, reopened.RawStreams[ResolvedStreamPath(reopened)]);
         var folder = Assert.Single(reopened.ResolvedFeatures.Folders,
             f => f.ClassName == "moFlatPattern_c");
-        Assert.Equal(typeId, Assert.IsType<FlatPatternFeatureDefinitionData>(folder.FeatureData).TypeId);
+        Assert.Equal(typeId, Assert.IsType<FlatPatternFeatureModel>(folder.FeatureData).TypeId);
         var reopenedPart = Assert.IsType<SldPart>(reopened);
         Assert.Contains(reopenedPart.Features,
             f => f.Kind == FeatureKind.FlatPattern && f.Name == displayName);

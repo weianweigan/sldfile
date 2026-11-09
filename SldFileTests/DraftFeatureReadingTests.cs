@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 
 namespace SldFileTests;
@@ -24,7 +23,7 @@ public class DraftFeatureReadingTests
         using var file = SwFile.Open(Resolve(name), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f => f.Name == "Draft3deg"));
         Assert.Equal(FeatureKind.Draft, feature.Kind);
-        var definition = Assert.IsType<DraftFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<DraftFeatureModel>(feature.Model);
 
         Assert.Equal("moDraft_c", definition.ClassName);
         Assert.Equal(0x51u, definition.SerializedTypeId);
@@ -62,8 +61,8 @@ public class DraftFeatureReadingTests
     public void DraftParser_RejectsUnknownLayout()
     {
         byte[] stream = BuildDraftStream(new byte[64]);
-        var model = new ResolvedFeaturesData();
-        ResolvedFeaturesSchemaMapper.Map(MfcDocument.Parse(stream), model);
+        var model = new ResolvedFeaturesModel();
+        ResolvedFeaturesModel.Map(MfcDocument.Parse(stream), model);
 
         var folder = Assert.Single(model.Folders);
         Assert.Equal("moDraft_c", folder.ClassName);
@@ -82,7 +81,7 @@ public class DraftFeatureReadingTests
         byte[] before = (byte[])stream.Clone();
         var element = MfcDocument.Parse(stream).AllElements.First(e => e.ClassName == "moDraft_c");
 
-        Assert.NotNull(DraftFeatureParser.Parse(element));
+        Assert.NotNull(DraftFeatureModel.Parse(element));
         Assert.Equal(before, stream);
     }
 

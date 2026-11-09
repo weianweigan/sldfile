@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -32,7 +32,7 @@ public class ExtrudeThinOptionReadingTests
     {
         using var file = SwFile.Open(SamplePath(sample), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Extrusion));
-        var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<ExtrudeFeatureModel>(feature.Model);
 
         Assert.True(definition.IsThinFeature);
         Assert.Equal("moExtruThin_c", definition.ClassName);
@@ -46,19 +46,19 @@ public class ExtrudeThinOptionReadingTests
         Assert.Equal(bothDirections, definition.BothDirections);
         Assert.Equal(bothDirections ? 0.005 : 0, definition.DepthDirection2, 12);
 
-        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.IsThinFeature)));
-        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.ThinWallType)));
-        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.WallThickness)));
-        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.WallThicknessDirection2)));
-        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.CapEnds)));
-        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.Depth)));
+        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureModel.IsThinFeature)));
+        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureModel.ThinWallType)));
+        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureModel.WallThickness)));
+        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureModel.WallThicknessDirection2)));
+        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureModel.CapEnds)));
+        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureModel.Depth)));
         // No sample establishes a non-zero cap thickness or a thin draft/outward value.
-        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.CapThickness)));
-        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.DraftWhileExtruding)));
-        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.DraftOutward)));
+        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureModel.CapThickness)));
+        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureModel.DraftWhileExtruding)));
+        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureModel.DraftOutward)));
     }
 
-    private static bool TryParseThin(byte[] stream, out ExtrudeFeatureDefinitionData? definition, uint typeId = 0x52)
+    private static bool TryParseThin(byte[] stream, out ExtrudeFeatureModel? definition, uint typeId = 0x52)
     {
         var doc = MfcDocument.Parse(stream);
         MfcElement thin = Assert.Single(doc.AllElements.Where(e => e.ClassName == "moExtruThin_c"));

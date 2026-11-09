@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using SldFile;
@@ -65,7 +65,7 @@ public class TutorialBendTableAuthoringTests
         }
 
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
-        var definition = Assert.IsType<SheetMetalBaseFlangeDefinitionData>(
+        var definition = Assert.IsType<SheetMetalBaseFlangeModel>(
             reopened.ResolvedFeatures.Folders.Single(f => f.ClassName == "moSMBaseFlange_c").FeatureData);
         Assert.True(definition.ParameterResolution.BendTableFile);
         Assert.Equal(PatchedPath, definition.BendTableFile);
@@ -78,7 +78,7 @@ public class TutorialBendTableAuthoringTests
         }
         using var resaved = SwFile.Open(temp.FilePath, readOnly: true);
         Assert.Equal(before, resaved.RawStreams[ResolvedStream]);
-        Assert.Equal(PatchedPath, Assert.IsType<SheetMetalBaseFlangeDefinitionData>(
+        Assert.Equal(PatchedPath, Assert.IsType<SheetMetalBaseFlangeModel>(
             resaved.ResolvedFeatures.Folders.Single(f => f.ClassName == "moSMBaseFlange_c")
                 .FeatureData).BendTableFile);
     }

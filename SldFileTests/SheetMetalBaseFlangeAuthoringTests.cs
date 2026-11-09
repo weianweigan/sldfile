@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 using Xunit;
 
@@ -114,8 +113,8 @@ public class SheetMetalBaseFlangeAuthoringTests
         return temp;
     }
 
-    private static SheetMetalBaseFlangeDefinitionData AuthorAndReopen(
-        SheetMetalBaseFlangeDefinitionData definition,
+    private static SheetMetalBaseFlangeModel AuthorAndReopen(
+        SheetMetalBaseFlangeModel definition,
         out string featureName)
     {
         using var temp = CreateStrippedSketchPart();
@@ -129,7 +128,7 @@ public class SheetMetalBaseFlangeAuthoringTests
 
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         var featureFolder = Assert.Single(reopened.ResolvedFeatures.Folders.Where(f => f.ClassName == "moSMBaseFlange_c"));
-        return Assert.IsType<SheetMetalBaseFlangeDefinitionData>(featureFolder.FeatureData);
+        return Assert.IsType<SheetMetalBaseFlangeModel>(featureFolder.FeatureData);
     }
 
     [Fact]
@@ -168,7 +167,7 @@ public class SheetMetalBaseFlangeAuthoringTests
     public void AuthoringRoundtripsThicknessRadiusDepth(
         double thickness, double bendRadius, double depth)
     {
-        var definition = new SheetMetalBaseFlangeDefinitionData
+        var definition = new SheetMetalBaseFlangeModel
         {
             Thickness = thickness,
             BendRadius = bendRadius,
@@ -216,7 +215,7 @@ public class SheetMetalBaseFlangeAuthoringTests
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
         {
             var part = Assert.IsType<SldPart>(sw);
-            part.AddSheetMetalBaseFlange(new SheetMetalBaseFlangeDefinitionData
+            part.AddSheetMetalBaseFlange(new SheetMetalBaseFlangeModel
             {
                 Thickness = thickness,
                 BendRadius = radius,
@@ -228,7 +227,7 @@ public class SheetMetalBaseFlangeAuthoringTests
 
         Assert.Equal(thickness, ReadConfigThickness(temp.FilePath), 12);
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
-        var parsed = Assert.IsType<SheetMetalBaseFlangeDefinitionData>(
+        var parsed = Assert.IsType<SheetMetalBaseFlangeModel>(
             reopened.ResolvedFeatures.Folders.Single(f => f.ClassName == "moSMBaseFlange_c").FeatureData);
         Assert.Equal(thickness, parsed.Thickness, 12);
     }
@@ -241,7 +240,7 @@ public class SheetMetalBaseFlangeAuthoringTests
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
         {
             var part = Assert.IsType<SldPart>(sw);
-            part.AddSheetMetalBaseFlange(new SheetMetalBaseFlangeDefinitionData
+            part.AddSheetMetalBaseFlange(new SheetMetalBaseFlangeModel
             {
                 Thickness = thickness,
                 BendRadius = radius,
@@ -292,7 +291,7 @@ public class SheetMetalBaseFlangeAuthoringTests
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
         {
             var part = Assert.IsType<SldPart>(sw);
-            part.AddSheetMetalBaseFlange(new SheetMetalBaseFlangeDefinitionData
+            part.AddSheetMetalBaseFlange(new SheetMetalBaseFlangeModel
             {
                 Thickness = 0.0017,
                 BendRadius = 0.0022,
@@ -313,7 +312,7 @@ public class SheetMetalBaseFlangeAuthoringTests
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         Assert.Equal(before, reopened.RawStreams[ResolvedStream]);
         Assert.Equal(beforeConfig, reopened.RawStreams[ConfigStream]);
-        var definition = Assert.IsType<SheetMetalBaseFlangeDefinitionData>(
+        var definition = Assert.IsType<SheetMetalBaseFlangeModel>(
             reopened.ResolvedFeatures.Folders.Single(f => f.ClassName == "moSMBaseFlange_c").FeatureData);
         Assert.Equal(0.0017, definition.Thickness, 12);
         Assert.Equal(0.0022, definition.BendRadius, 12);
@@ -322,7 +321,7 @@ public class SheetMetalBaseFlangeAuthoringTests
 
     public static IEnumerable<object[]> UnsupportedDefinitions()
     {
-        SheetMetalBaseFlangeDefinitionData Base() => new()
+        SheetMetalBaseFlangeModel Base() => new()
         {
             Thickness = 0.0015,
             BendRadius = 0.0025,
@@ -367,7 +366,7 @@ public class SheetMetalBaseFlangeAuthoringTests
     [Theory]
     [MemberData(nameof(UnsupportedDefinitions))]
     public void UnsupportedOptionsAreRejectedWithoutModifyingStream(
-        SheetMetalBaseFlangeDefinitionData definition, string property)
+        SheetMetalBaseFlangeModel definition, string property)
     {
         using var temp = CreateStrippedSketchPart();
         byte[] before, beforeConfig;
@@ -416,7 +415,7 @@ public class SheetMetalBaseFlangeAuthoringTests
         {
             var part = Assert.IsType<SldPart>(sw);
             var error = Assert.Throws<NotSupportedException>(() => part.AddSheetMetalBaseFlange(
-                new SheetMetalBaseFlangeDefinitionData
+                new SheetMetalBaseFlangeModel
                 {
                     Thickness = 0.0015,
                     BendRadius = 0.0025,
@@ -468,7 +467,7 @@ public class SheetMetalBaseFlangeAuthoringTests
         {
             var part = Assert.IsType<SldPart>(sw);
             var error = Assert.Throws<NotSupportedException>(() => part.AddSheetMetalBaseFlange(
-                new SheetMetalBaseFlangeDefinitionData
+                new SheetMetalBaseFlangeModel
                 {
                     Thickness = 0.0015,
                     BendRadius = 0.0025,
@@ -498,7 +497,7 @@ public class SheetMetalBaseFlangeAuthoringTests
         {
             var part = Assert.IsType<SldPart>(sw);
             var error = Assert.Throws<NotSupportedException>(() => part.AddSheetMetalBaseFlange(
-                new SheetMetalBaseFlangeDefinitionData
+                new SheetMetalBaseFlangeModel
                 {
                     Thickness = 0.0015,
                     BendRadius = 0.0025,
@@ -533,7 +532,7 @@ public class SheetMetalBaseFlangeAuthoringTests
         {
             var part = Assert.IsType<SldPart>(sw);
             var error = Assert.Throws<NotSupportedException>(() => part.AddSheetMetalBaseFlange(
-                new SheetMetalBaseFlangeDefinitionData
+                new SheetMetalBaseFlangeModel
                 {
                     Thickness = 0.0015,
                     BendRadius = 0.0025,
@@ -560,7 +559,7 @@ public class SheetMetalBaseFlangeAuthoringTests
         {
             var part = Assert.IsType<SldPart>(sw);
             var error = Assert.Throws<NotSupportedException>(() => part.AddSheetMetalBaseFlange(
-                new SheetMetalBaseFlangeDefinitionData
+                new SheetMetalBaseFlangeModel
                 {
                     Thickness = 0.0015,
                     BendRadius = 0.0025,
@@ -589,7 +588,7 @@ public class SheetMetalBaseFlangeAuthoringTests
         {
             var part = Assert.IsType<SldPart>(sw);
             var error = Assert.Throws<NotSupportedException>(() => part.AddSheetMetalBaseFlange(
-                new SheetMetalBaseFlangeDefinitionData
+                new SheetMetalBaseFlangeModel
                 {
                     Thickness = 0.0015,
                     BendRadius = 0.0025,
@@ -616,7 +615,7 @@ public class SheetMetalBaseFlangeAuthoringTests
         {
             var part = Assert.IsType<SldPart>(sw);
             var error = Assert.Throws<NotSupportedException>(() => part.AddSheetMetalBaseFlange(
-                new SheetMetalBaseFlangeDefinitionData
+                new SheetMetalBaseFlangeModel
                 {
                     Thickness = 0.0015,
                     BendRadius = 0.0025,

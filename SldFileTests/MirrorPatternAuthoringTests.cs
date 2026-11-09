@@ -2,7 +2,6 @@ using System;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 using Xunit;
 
@@ -38,10 +37,10 @@ public class MirrorPatternAuthoringTests
         return temp;
     }
 
-    private static MirrorPatternFeatureDefinitionData Definition(bool presenceOnly = true)
+    private static MirrorFeatureModel Definition(bool presenceOnly = true)
     {
-        if (!presenceOnly) return new MirrorPatternFeatureDefinitionData();
-        return new MirrorPatternFeatureDefinitionData
+        if (!presenceOnly) return new MirrorFeatureModel();
+        return new MirrorFeatureModel
         {
             MirrorPlaneType = 1,
             Plane = new FeatureReferenceData { EntityType = SelectionEntityType.Plane },
@@ -77,7 +76,7 @@ public class MirrorPatternAuthoringTests
         Assert.Equal("moMirrorPattern_c", feature.TypeName);
         Assert.Equal(0x57, feature.Id);
         Assert.Equal("Mirror", feature.Name);
-        var definition = Assert.IsType<MirrorPatternFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<MirrorFeatureModel>(feature.Model);
         Assert.Equal(1, definition.MirrorPlaneType);
         Assert.Equal(SelectionEntityType.Plane, definition.Plane!.EntityType);
         Assert.Equal(1, definition.GetPatternFeatureCount());
@@ -127,8 +126,8 @@ public class MirrorPatternAuthoringTests
 
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         Assert.Equal(before, reopened.RawStreams[ResolvedStream]);
-        var definition = Assert.IsType<MirrorPatternFeatureDefinitionData>(
-            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Mirror)).Definition);
+        var definition = Assert.IsType<MirrorFeatureModel>(
+            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Mirror)).Model);
         Assert.Equal(1, definition.MirrorPlaneType);
         Assert.Equal(1, definition.GetPatternFeatureCount());
     }
@@ -170,14 +169,14 @@ public class MirrorPatternAuthoringTests
     {
         using var temp = CreateStrippedMirrorBase(out _);
 
-        AssertMirrorAddRejected(temp, new MirrorPatternFeatureDefinitionData { GeometryPattern = true }, "GeometryPattern");
-        AssertMirrorAddRejected(temp, new MirrorPatternFeatureDefinitionData { MirrorPlaneType = 2 }, "MirrorPlaneType");
-        AssertMirrorAddRejected(temp, new MirrorPatternFeatureDefinitionData { FeatureScope = 1 }, "feature scope");
-        AssertMirrorAddRejected(temp, new MirrorPatternFeatureDefinitionData
+        AssertMirrorAddRejected(temp, new MirrorFeatureModel { GeometryPattern = true }, "GeometryPattern");
+        AssertMirrorAddRejected(temp, new MirrorFeatureModel { MirrorPlaneType = 2 }, "MirrorPlaneType");
+        AssertMirrorAddRejected(temp, new MirrorFeatureModel { FeatureScope = 1 }, "feature scope");
+        AssertMirrorAddRejected(temp, new MirrorFeatureModel
         {
             Plane = new FeatureReferenceData { EntityType = SelectionEntityType.Plane, EntityId = 42 }
         }, "Plane");
-        AssertMirrorAddRejected(temp, new MirrorPatternFeatureDefinitionData
+        AssertMirrorAddRejected(temp, new MirrorFeatureModel
         {
             PatternFeatureArray = new[]
             {
@@ -185,22 +184,22 @@ public class MirrorPatternAuthoringTests
                 new FeatureReferenceData { EntityType = SelectionEntityType.None }
             }
         }, "source reference");
-        AssertMirrorAddRejected(temp, new MirrorPatternFeatureDefinitionData
+        AssertMirrorAddRejected(temp, new MirrorFeatureModel
         {
             MirrorFaceArray = new[] { new FeatureReferenceData { EntityType = SelectionEntityType.Face } }
         }, "mirror faces");
-        AssertMirrorAddRejected(temp, new MirrorPatternFeatureDefinitionData
+        AssertMirrorAddRejected(temp, new MirrorFeatureModel
         {
             FeatureScopeBodies = new[] { new FeatureReferenceData { EntityType = SelectionEntityType.Body } }
         }, "feature-scope bodies");
-        AssertMirrorAddRejected(temp, new MirrorPatternFeatureDefinitionData
+        AssertMirrorAddRejected(temp, new MirrorFeatureModel
         {
             PropagateVisualProperty = true
         }, "PropagateVisualProperty");
     }
 
     private static void AssertMirrorAddRejected(
-        TempTestFile temp, MirrorPatternFeatureDefinitionData definition, string expectedMessage)
+        TempTestFile temp, MirrorFeatureModel definition, string expectedMessage)
     {
         byte[] before = ReadStream(temp.FilePath);
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))

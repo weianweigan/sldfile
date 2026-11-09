@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace SldFile.Mfc;
@@ -12,11 +12,13 @@ internal sealed class MfcElement
     public int DataEnd { get; internal set; }
     public int Depth { get; internal set; }
     public int Index { get; internal set; } = -1;
+    public MfcDocument? Document { get; internal set; }
     public MfcElement? Parent { get; internal set; }
     public List<MfcElement> Children { get; } = new List<MfcElement>();
 
     public byte[] SourceData => _source;
     public int DataLength => Math.Max(0, DataEnd - DataStart);
+    public ReadOnlySpan<byte> DataSpan => _source.AsSpan(DataStart, DataLength);
 
     private readonly byte[] _source;
 

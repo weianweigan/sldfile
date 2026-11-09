@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 
 namespace SldFileTests;
@@ -16,23 +15,23 @@ namespace SldFileTests;
 public class SurfaceBodyFolderTests
 {
     [Theory]
-    [InlineData("surf_extrude_10mm", "SurfaceExtrudeFeatureDefinitionData")]
-    [InlineData("surf_extrude_10mm_resave", "SurfaceExtrudeFeatureDefinitionData")]
-    [InlineData("surf_revolve_360", "SurfaceRevolveFeatureDefinitionData")]
-    [InlineData("surf_revolve_360_resave", "SurfaceRevolveFeatureDefinitionData")]
-    [InlineData("surf_planar_region", "PlanarSurfaceFeatureDefinitionData")]
-    [InlineData("surf_planar_region_resave", "PlanarSurfaceFeatureDefinitionData")]
-    [InlineData("surf_sweep_basic", "SurfaceSweepFeatureDefinitionData")]
-    [InlineData("surf_sweep_basic_resave", "SurfaceSweepFeatureDefinitionData")]
-    [InlineData("surf_loft_2sections_loft2", "SurfaceLoftFeatureDefinitionData")]
-    [InlineData("surf_loft_2sections_loft2_resave", "SurfaceLoftFeatureDefinitionData")]
+    [InlineData("surf_extrude_10mm", "SurfaceExtrudeFeatureModel")]
+    [InlineData("surf_extrude_10mm_resave", "SurfaceExtrudeFeatureModel")]
+    [InlineData("surf_revolve_360", "SurfaceRevolveFeatureModel")]
+    [InlineData("surf_revolve_360_resave", "SurfaceRevolveFeatureModel")]
+    [InlineData("surf_planar_region", "PlanarSurfaceFeatureModel")]
+    [InlineData("surf_planar_region_resave", "PlanarSurfaceFeatureModel")]
+    [InlineData("surf_sweep_basic", "SurfaceSweepFeatureModel")]
+    [InlineData("surf_sweep_basic_resave", "SurfaceSweepFeatureModel")]
+    [InlineData("surf_loft_2sections_loft2", "SurfaceLoftFeatureModel")]
+    [InlineData("surf_loft_2sections_loft2_resave", "SurfaceLoftFeatureModel")]
     public void SurfaceFeature_DecodesSurfaceBodyFolderPresence(
         string sample, string definitionType)
     {
         using var file = SwFile.Open(Resolve(sample), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f =>
-            f.Definition != null && f.Definition.GetType().Name == definitionType));
-        var definition = feature.Definition!;
+            f.Model != null && (f.Model.GetType().Name == definitionType )));
+        var definition = (IFeatureData)feature.Model!;
 
         var folder = GetFolder(definition);
         Assert.NotNull(folder);
@@ -67,22 +66,22 @@ public class SurfaceBodyFolderTests
     private static SurfaceBodyFolderReference? GetFolder(IFeatureData definition) =>
         definition switch
         {
-            SurfaceExtrudeFeatureDefinitionData d => d.SurfaceBodyFolder,
-            SurfaceRevolveFeatureDefinitionData d => d.SurfaceBodyFolder,
-            PlanarSurfaceFeatureDefinitionData d => d.SurfaceBodyFolder,
-            SurfaceSweepFeatureDefinitionData d => d.SurfaceBodyFolder,
-            SurfaceLoftFeatureDefinitionData d => d.SurfaceBodyFolder,
+            SurfaceExtrudeFeatureModel d => d.SurfaceBodyFolder,
+            SurfaceRevolveFeatureModel d => d.SurfaceBodyFolder,
+            PlanarSurfaceFeatureModel d => d.SurfaceBodyFolder,
+            SurfaceSweepFeatureModel d => d.SurfaceBodyFolder,
+            SurfaceLoftFeatureModel d => d.SurfaceBodyFolder,
             _ => null
         };
 
     private static bool GetResolution(IFeatureData definition) =>
         definition switch
         {
-            SurfaceExtrudeFeatureDefinitionData d => d.Resolution.SurfaceBodyFolder,
-            SurfaceRevolveFeatureDefinitionData d => d.Resolution.SurfaceBodyFolder,
-            PlanarSurfaceFeatureDefinitionData d => d.Resolution.SurfaceBodyFolder,
-            SurfaceSweepFeatureDefinitionData d => d.Resolution.SurfaceBodyFolder,
-            SurfaceLoftFeatureDefinitionData d => d.Resolution.SurfaceBodyFolder,
+            SurfaceExtrudeFeatureModel d => d.Resolution.SurfaceBodyFolder,
+            SurfaceRevolveFeatureModel d => d.Resolution.SurfaceBodyFolder,
+            PlanarSurfaceFeatureModel d => d.Resolution.SurfaceBodyFolder,
+            SurfaceSweepFeatureModel d => d.Resolution.SurfaceBodyFolder,
+            SurfaceLoftFeatureModel d => d.Resolution.SurfaceBodyFolder,
             _ => false
         };
 
@@ -101,3 +100,4 @@ public class SurfaceBodyFolderTests
         return bytes.ToArray();
     }
 }
+

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 using SldFile.Mfc;
@@ -84,71 +84,5 @@ internal sealed class CmMotionLoadMapUData
         var nameBytes = Encoding.ASCII.GetBytes(Name);
         Array.Copy(nameBytes, 0, buf, 24, Math.Min(nameBytes.Length, 16));
         return buf;
-    }
-}
-
-// ── SheetPreviews/SheetNames (variable) ──────────────────────────────
-
-/// <summary>
-/// SheetPreviews/SheetNames stream (variable): drawing sheet names.
-/// Located at SheetPreviews/SheetNames (Drawing only).
-/// </summary>
-internal sealed class SheetNamesData
-{
-    public IReadOnlyList<string> Names { get; internal set; } = Array.Empty<string>();
-    internal List<string> NamesBuilder { get; set; } = new();
-    internal byte[]? RawData;
-
-    internal void Freeze()
-    {
-        Names = NamesBuilder.AsReadOnly();
-    }
-
-    internal static SheetNamesData Parse(byte[] data)
-    {
-        var model = new SheetNamesData { RawData = data };
-        if (data.Length < 2) return model;
-
-        int offset = 0;
-        ushort count = BitConverter.ToUInt16(data, offset);
-        offset += 2;
-
-        for (int i = 0; i < count && offset < data.Length; i++)
-        {
-            if (MfcPrimitives.IsWCharPrefix(data, offset))
-            {
-                var name = MfcPrimitives.ReadWChar(data, ref offset);
-                if (name != null)
-                    model.NamesBuilder.Add(name);
-            }
-            else
-            {
-                break;
-            }
-        }
-
-        model.Freeze();
-        return model;
-    }
-
-    internal byte[] Serialize()
-    {
-        // Preserve original if no changes
-        if (RawData != null)
-            return RawData;
-
-        var list = new List<byte>();
-        list.AddRange(BitConverter.GetBytes((ushort)NamesBuilder.Count));
-        foreach (var name in NamesBuilder)
-        {
-            // WChar encoding: FF FE FF <count> <UTF-16LE bytes>
-            list.Add(0xFF);
-            list.Add(0xFE);
-            list.Add(0xFF);
-            list.Add((byte)name.Length);
-            var utf16 = Encoding.Unicode.GetBytes(name);
-            list.AddRange(utf16);
-        }
-        return list.ToArray();
     }
 }

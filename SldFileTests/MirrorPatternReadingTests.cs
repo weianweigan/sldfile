@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 using Xunit;
 
@@ -37,7 +36,7 @@ public class MirrorPatternReadingTests
         Assert.Equal(0x57, feature.Id);
         Assert.Equal("Mirror", feature.Name);
 
-        var definition = Assert.IsType<MirrorPatternFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<MirrorFeatureModel>(feature.Model);
         Assert.Equal("moMirrorPattern_c", definition.ClassName);
         Assert.Equal(0x57u, definition.TypeId);
         Assert.Equal(1, definition.MirrorPlaneType);
@@ -48,9 +47,9 @@ public class MirrorPatternReadingTests
         Assert.Single(definition.PatternFeatureArray!);
         Assert.Equal(1, definition.GetPatternFeatureCount());
         Assert.Equal(1, definition.GetMirrorPlaneType());
-        Assert.True(definition.IsResolved(nameof(MirrorPatternFeatureDefinitionData.MirrorPlaneType)));
-        Assert.True(definition.IsResolved(nameof(MirrorPatternFeatureDefinitionData.Plane)));
-        Assert.True(definition.IsResolved(nameof(MirrorPatternFeatureDefinitionData.PatternFeatureArray)));
+        Assert.True(definition.IsResolved(nameof(MirrorFeatureModel.MirrorPlaneType)));
+        Assert.True(definition.IsResolved(nameof(MirrorFeatureModel.Plane)));
+        Assert.True(definition.IsResolved(nameof(MirrorFeatureModel.PatternFeatureArray)));
 
         // Flags without a controlled variant stay unresolved.
         Assert.Null(definition.GeometryPattern);
@@ -63,11 +62,11 @@ public class MirrorPatternReadingTests
     [Fact]
     public void MirrorPattern_MainAndResaveProduceTheSameDefinition()
     {
-        MirrorPatternFeatureDefinitionData Read(string name)
+        MirrorFeatureModel Read(string name)
         {
             using var file = SwFile.Open(SamplePath(name), readOnly: true);
-            return Assert.IsType<MirrorPatternFeatureDefinitionData>(
-                Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Mirror)).Definition);
+            return Assert.IsType<MirrorFeatureModel>(
+                Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Mirror)).Model);
         }
 
         var main = Read("mirror_plane");
@@ -75,8 +74,8 @@ public class MirrorPatternReadingTests
         Assert.Equal(main.MirrorPlaneType, resave.MirrorPlaneType);
         Assert.Equal(main.PatternFeatureArray!.Count, resave.PatternFeatureArray!.Count);
         Assert.Equal(main.Plane!.EntityType, resave.Plane!.EntityType);
-        Assert.Equal(main.IsResolved(nameof(MirrorPatternFeatureDefinitionData.MirrorPlaneType)),
-            resave.IsResolved(nameof(MirrorPatternFeatureDefinitionData.MirrorPlaneType)));
+        Assert.Equal(main.IsResolved(nameof(MirrorFeatureModel.MirrorPlaneType)),
+            resave.IsResolved(nameof(MirrorFeatureModel.MirrorPlaneType)));
     }
 
     [Fact]
@@ -135,7 +134,7 @@ public class MirrorPatternReadingTests
         using (var file = SwFile.Open(path, readOnly: true))
         {
             var feature = Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Mirror));
-            Assert.IsType<MirrorPatternFeatureDefinitionData>(feature.Definition);
+            Assert.IsType<MirrorFeatureModel>(feature.Model);
             Assert.Equal(before, file.RawStreams[ResolvedStream]);
         }
         Assert.Equal(before, ReadStream(path));

@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
+using SldFile.Mfc;
 
 namespace SldFileTests;
 
@@ -174,7 +174,7 @@ public class SurfaceExtrudeAuthoringTests
 
     private static void AssertDefinition(Feature feature, double depth)
     {
-        var definition = Assert.IsType<SurfaceExtrudeFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<SurfaceExtrudeFeatureModel>(feature.Model);
         Assert.Equal("moExtruRefSurface_c", definition.ClassName);
         Assert.Equal(0x4Fu, definition.SerializedTypeId);
         Assert.Equal(depth, definition.Depth!.Value, 12);

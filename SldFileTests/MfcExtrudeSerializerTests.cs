@@ -7,8 +7,6 @@ using Xunit;
 using Xunit.Abstractions;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
-using SldFile.Binary.Topology;
 using SldFile.Mfc;
 
 namespace SldFileTests;
@@ -33,7 +31,7 @@ public class MfcExtrudeSerializerTests
         byte[] originalExtrude = new byte[raw.Length - 0x22E0];
         Array.Copy(raw, 0x22E0, originalExtrude, 0, originalExtrude.Length);
 
-        var def = new ExtrudeFeatureDefinitionData
+        var def = new ExtrudeFeatureModel
         {
             Depth = 0.010,
             EndCondition = 0,
@@ -63,7 +61,7 @@ public class MfcExtrudeSerializerTests
         byte[] originalCut = new byte[3092];
         Array.Copy(raw, 0x3FC5, originalCut, 0, 3092);
 
-        var def = new ExtrudeFeatureDefinitionData
+        var def = new ExtrudeFeatureModel
         {
             Depth = 0.005,
             EndCondition = 0,
@@ -115,7 +113,7 @@ public class MfcExtrudeSerializerTests
     [InlineData("Boss-Extrude1", 13)]
     public void VariableLengthFeatureNames_SerializesAndParsesAccurately(string name, int expectedCharCount)
     {
-        var def = new ExtrudeFeatureDefinitionData
+        var def = new ExtrudeFeatureModel
         {
             Depth = 0.020,
             EndCondition = 0,
@@ -162,7 +160,7 @@ public class MfcExtrudeSerializerTests
     [Fact]
     public void EntityCount_IsActive_GovernsSerializedContourSize()
     {
-        var def = new ExtrudeFeatureDefinitionData { Depth = 0.015, EndCondition = 0 };
+        var def = new ExtrudeFeatureModel { Depth = 0.015, EndCondition = 0 };
 
         // N = 3 (triangle): 3221 - 40 = 3181 bytes
         byte[] triangleBlock = ExtrudeFeatureBuilder.BuildBossExtrudeBlock(def, "凸台-拉伸1", 3);
@@ -215,7 +213,7 @@ public class MfcExtrudeSerializerTests
         {
             var feat = Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Extrusion));
             Assert.Equal(customName, feat.Name);
-            var def = Assert.IsType<ExtrudeFeatureDefinitionData>(feat.Definition);
+            var def = Assert.IsType<ExtrudeFeatureModel>(feat.Model);
             Assert.Equal(0.025, def.Depth);
             Assert.Equal(0u, def.EndCondition);
             Assert.False(def.IsCut);

@@ -26,8 +26,8 @@ public class SweepLoftFeatureLabelTests
     {
         byte[] stream = BuildResolvedFeaturesStream(className, "Feature1");
 
-        var model = new ResolvedFeaturesData();
-        ResolvedFeaturesSchemaMapper.Map(MfcDocument.Parse(stream), model);
+        var model = new ResolvedFeaturesModel();
+        ResolvedFeaturesModel.Map(MfcDocument.Parse(stream), model);
 
         var folder = Assert.Single(model.Folders);
         Assert.Equal(className, folder.ClassName);
@@ -40,8 +40,8 @@ public class SweepLoftFeatureLabelTests
     {
         byte[] stream = BuildResolvedFeaturesStream("moUnknownPhase3_c", "Feature1");
 
-        var model = new ResolvedFeaturesData();
-        ResolvedFeaturesSchemaMapper.Map(MfcDocument.Parse(stream), model);
+        var model = new ResolvedFeaturesModel();
+        ResolvedFeaturesModel.Map(MfcDocument.Parse(stream), model);
 
         Assert.Empty(model.Folders);
     }
@@ -52,8 +52,8 @@ public class SweepLoftFeatureLabelTests
         byte[] stream = BuildResolvedFeaturesStream("moSweep_c", "Sweep1");
         byte[] before = (byte[])stream.Clone();
 
-        var model = new ResolvedFeaturesData();
-        ResolvedFeaturesSchemaMapper.Map(MfcDocument.Parse(stream), model);
+        var model = new ResolvedFeaturesModel();
+        ResolvedFeaturesModel.Map(MfcDocument.Parse(stream), model);
 
         Assert.Equal(before, stream);
         Assert.Single(model.Folders);

@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 using Xunit;
 
@@ -48,18 +47,18 @@ public class NativePatternAuthoringTests
         return temp;
     }
 
-    private static LinearPatternFeatureDefinitionData ReadLinear(string sample)
+    private static LinearPatternFeatureModel ReadLinear(string sample)
     {
         using var file = SwFile.Open(SamplePath(sample), readOnly: true);
-        return Assert.IsType<LinearPatternFeatureDefinitionData>(
-            Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Pattern)).Definition);
+        return Assert.IsType<LinearPatternFeatureModel>(
+            Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Pattern)).Model);
     }
 
-    private static CircularPatternFeatureDefinitionData ReadCircular(string sample)
+    private static CircularPatternFeatureModel ReadCircular(string sample)
     {
         using var file = SwFile.Open(SamplePath(sample), readOnly: true);
-        return Assert.IsType<CircularPatternFeatureDefinitionData>(
-            Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Pattern)).Definition);
+        return Assert.IsType<CircularPatternFeatureModel>(
+            Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Pattern)).Model);
     }
 
     private static void AssertBlockEquals(string sample, Action<SldPart> add)
@@ -195,7 +194,7 @@ public class NativePatternAuthoringTests
         var read = ReadLinear(sample);
         AssertBlockEquals(sample, part =>
         {
-            var feature = part.AddLinearPattern(new LinearPatternFeatureDefinitionData
+            var feature = part.AddLinearPattern(new LinearPatternFeatureModel
             {
                 D1TotalInstances = read.D1TotalInstances,
                 D1Spacing = read.D1Spacing,
@@ -217,7 +216,7 @@ public class NativePatternAuthoringTests
         var read = ReadCircular(sample);
         AssertBlockEquals(sample, part =>
         {
-            var feature = part.AddCircularPattern(new CircularPatternFeatureDefinitionData
+            var feature = part.AddCircularPattern(new CircularPatternFeatureModel
             {
                 TotalInstances = read.TotalInstances,
                 Spacing = read.Spacing,
@@ -238,15 +237,15 @@ public class NativePatternAuthoringTests
         if (sample.StartsWith("lpattern"))
         {
             var d = ReadLinear(sample);
-            Assert.True(d.IsResolved(nameof(LinearPatternFeatureDefinitionData.D1TotalInstances)));
-            Assert.True(d.IsResolved(nameof(LinearPatternFeatureDefinitionData.D2TotalInstances)));
+            Assert.True(d.IsResolved(nameof(LinearPatternFeatureModel.D1TotalInstances)));
+            Assert.True(d.IsResolved(nameof(LinearPatternFeatureModel.D2TotalInstances)));
             Assert.Null(d.GeometryPattern);
         }
         else
         {
             var d = ReadCircular(sample);
-            Assert.True(d.IsResolved(nameof(CircularPatternFeatureDefinitionData.TotalInstances)));
-            Assert.True(d.IsResolved(nameof(CircularPatternFeatureDefinitionData.EqualSpacing)));
+            Assert.True(d.IsResolved(nameof(CircularPatternFeatureModel.TotalInstances)));
+            Assert.True(d.IsResolved(nameof(CircularPatternFeatureModel.EqualSpacing)));
             Assert.Null(d.GeometryPattern);
         }
     }
@@ -260,13 +259,13 @@ public class NativePatternAuthoringTests
             var part = Assert.IsType<SldPart>(sw);
             byte[] before = (byte[])part.RawStreams[ResolvedStream].Clone();
             Assert.Throws<NotSupportedException>(() => part.AddLinearPattern(
-                new LinearPatternFeatureDefinitionData
+                new LinearPatternFeatureModel
                 {
                     D1TotalInstances = 2, D1Spacing = .01, D2TotalInstances = 3, D2Spacing = .015
                 }));
             Assert.Equal(before, part.RawStreams[ResolvedStream]);
             Assert.Throws<NotSupportedException>(() => part.AddLinearPattern(
-                new LinearPatternFeatureDefinitionData
+                new LinearPatternFeatureModel
                 {
                     D1TotalInstances = 3, D1Spacing = .015, D2TotalInstances = 1, D2Spacing = .015
                 }, "Custom"));
@@ -278,13 +277,13 @@ public class NativePatternAuthoringTests
             var part = Assert.IsType<SldPart>(sw);
             byte[] before = (byte[])part.RawStreams[ResolvedStream].Clone();
             Assert.Throws<NotSupportedException>(() => part.AddCircularPattern(
-                new CircularPatternFeatureDefinitionData
+                new CircularPatternFeatureModel
                 {
                     TotalInstances = 4, Spacing = Math.PI / 2, EqualSpacing = true
                 }));
             Assert.Equal(before, part.RawStreams[ResolvedStream]);
             Assert.Throws<NotSupportedException>(() => part.AddCircularPattern(
-                new CircularPatternFeatureDefinitionData
+                new CircularPatternFeatureModel
                 {
                     TotalInstances = 4, Spacing = Math.PI / 2, EqualSpacing = false
                 }, "Custom"));

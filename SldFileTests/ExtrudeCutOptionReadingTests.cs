@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -24,11 +24,11 @@ public class ExtrudeCutOptionReadingTests
             : Path.Combine(AppContext.BaseDirectory, "TestFiles", "Features2026", sample + ".SLDPRT");
     }
 
-    private static ExtrudeFeatureDefinitionData ReadCut(string sample)
+    private static ExtrudeFeatureModel ReadCut(string sample)
     {
         using var file = SwFile.Open(SamplePath(sample), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Cut));
-        return Assert.IsType<ExtrudeFeatureDefinitionData>(feature.Definition);
+        return Assert.IsType<ExtrudeFeatureModel>(feature.Model);
     }
 
     [Theory]
@@ -48,12 +48,12 @@ public class ExtrudeCutOptionReadingTests
         Assert.Equal(0, definition.DraftAngleDirection2, 12);
         // The native sample was created with DraftOutward=false and reads back false; no field is claimed.
         Assert.False(definition.DraftOutward);
-        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.DraftOutward)));
-        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.DraftWhileExtrudingDirection2)));
-        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.Depth)));
-        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.DraftWhileExtruding)));
-        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.DraftAngle)));
-        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.Merge)));
+        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureModel.DraftOutward)));
+        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureModel.DraftWhileExtrudingDirection2)));
+        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureModel.Depth)));
+        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureModel.DraftWhileExtruding)));
+        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureModel.DraftAngle)));
+        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureModel.Merge)));
         Assert.True(definition.Merge);
     }
 
@@ -74,13 +74,13 @@ public class ExtrudeCutOptionReadingTests
         Assert.True(definition.DraftWhileExtrudingDirection2);
         Assert.Equal(angle, definition.DraftAngleDirection2, 12);
         Assert.False(definition.DraftOutwardDirection2);
-        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.DraftOutwardDirection2)));
-        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.BothDirections)));
-        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.DepthDirection2)));
-        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.EndConditionDirection2)));
-        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.DraftWhileExtrudingDirection2)));
-        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.DraftAngleDirection2)));
-        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.Merge)));
+        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureModel.DraftOutwardDirection2)));
+        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureModel.BothDirections)));
+        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureModel.DepthDirection2)));
+        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureModel.EndConditionDirection2)));
+        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureModel.DraftWhileExtrudingDirection2)));
+        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureModel.DraftAngleDirection2)));
+        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureModel.Merge)));
         Assert.True(definition.Merge);
     }
 
@@ -92,9 +92,9 @@ public class ExtrudeCutOptionReadingTests
     {
         var definition = ReadCut(sample);
         Assert.Equal(expected, definition.Merge);
-        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.Merge)));
+        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureModel.Merge)));
         Assert.Equal(sample.StartsWith("extrude_merge_false") ? 0.010 : 0.005, definition.Depth, 12);
-        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.Depth)));
+        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureModel.Depth)));
     }
 
     [Fact]
@@ -102,11 +102,11 @@ public class ExtrudeCutOptionReadingTests
     {
         var definition = ReadCut("extrude_flip_side_cut");
         Assert.True(definition.Merge); // model default, not evidence
-        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.Merge)));
-        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.Depth)));
+        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureModel.Merge)));
+        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureModel.Depth)));
     }
 
-    private static ExtrudeFeatureDefinitionData ApplyToMutatedStream(
+    private static ExtrudeFeatureModel ApplyToMutatedStream(
         string sample, Action<byte[], MfcDocument> mutate)
     {
         using var file = SwFile.Open(SamplePath(sample), readOnly: true);
@@ -115,7 +115,7 @@ public class ExtrudeCutOptionReadingTests
         mutate(stream, doc);
         var cut = Assert.Single(doc.AllElements.Where(e => e.ClassName == "moICE_c"));
         var reparsed = MfcDocument.Parse(stream);
-        var definition = new ExtrudeFeatureDefinitionData();
+        var definition = new ExtrudeFeatureModel();
         ExtrudeCutOptionParser.Apply(reparsed, BitConverter.ToUInt16(stream, 0),
             "moICE_c", cut.TagOffset, stream.Length, definition);
         return definition;
@@ -130,7 +130,7 @@ public class ExtrudeCutOptionReadingTests
             BitConverter.GetBytes(0u).CopyTo(stream, display.TagOffset - 24);
         });
         Assert.False(forward.DraftWhileExtruding);
-        Assert.False(forward.IsResolved(nameof(ExtrudeFeatureDefinitionData.DraftWhileExtruding)));
+        Assert.False(forward.IsResolved(nameof(ExtrudeFeatureModel.DraftWhileExtruding)));
 
         var reverse = ApplyToMutatedStream("extrude_draft_dir2_3deg", (stream, doc) =>
         {
@@ -139,7 +139,7 @@ public class ExtrudeCutOptionReadingTests
         });
         Assert.False(reverse.DraftWhileExtrudingDirection2);
         Assert.False(reverse.BothDirections);
-        Assert.False(reverse.IsResolved(nameof(ExtrudeFeatureDefinitionData.DraftWhileExtrudingDirection2)));
+        Assert.False(reverse.IsResolved(nameof(ExtrudeFeatureModel.DraftWhileExtrudingDirection2)));
     }
 
     [Fact]
@@ -158,7 +158,7 @@ public class ExtrudeCutOptionReadingTests
             BitConverter.GetBytes(double.NaN).CopyTo(stream, parameter.DataStart + 32);
         });
         Assert.False(invalid.DraftWhileExtrudingDirection2);
-        Assert.False(invalid.IsResolved(nameof(ExtrudeFeatureDefinitionData.DraftAngleDirection2)));
+        Assert.False(invalid.IsResolved(nameof(ExtrudeFeatureModel.DraftAngleDirection2)));
     }
 
     [Fact]
@@ -169,7 +169,7 @@ public class ExtrudeCutOptionReadingTests
             var endFace = Assert.Single(doc.AllElements.Where(e => e.ClassName == "moEndFace3IntSurfIdRep_c"));
             BitConverter.GetBytes(2u).CopyTo(stream, endFace.DataStart + 14);
         });
-        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.Merge)));
+        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureModel.Merge)));
         Assert.True(definition.Merge); // default only; no resolved value was promoted
     }
 
@@ -181,6 +181,6 @@ public class ExtrudeCutOptionReadingTests
             var endFace = Assert.Single(doc.AllElements.Where(e => e.ClassName == "moEndFace3IntSurfIdRep_c"));
             stream[endFace.DataStart + 6] = 0x4F; // break the measured TypeId 0x56 reference header
         });
-        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.Merge)));
+        Assert.False(definition.IsResolved(nameof(ExtrudeFeatureModel.Merge)));
     }
 }

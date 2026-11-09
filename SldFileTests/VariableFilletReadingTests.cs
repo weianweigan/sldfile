@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 using Xunit;
 
@@ -36,7 +35,7 @@ public class VariableFilletReadingTests
         Assert.Equal(0x52, feature.Id);
         Assert.Equal("VariableFillet", feature.Name);
 
-        var definition = Assert.IsType<VariableFilletFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<VariableFilletFeatureModel>(feature.Model);
         Assert.Equal("VarFillet_c", definition.ClassName);
         Assert.Equal(0x52u, definition.TypeId);
         Assert.Equal(new[] { 0.002, 0.004 }, definition.ControlPointRadii!.ToArray());
@@ -44,8 +43,8 @@ public class VariableFilletReadingTests
         Assert.Equal(0.002, definition.GetControlPointRadiusAtIndex(0)!.Value, 12);
         Assert.Equal(0.004, definition.GetControlPointRadiusAtIndex(1)!.Value, 12);
         Assert.Null(definition.GetControlPointRadiusAtIndex(2));
-        Assert.True(definition.IsResolved(nameof(VariableFilletFeatureDefinitionData.ControlPointRadii)));
-        Assert.True(definition.IsResolved(nameof(VariableFilletFeatureDefinitionData.ControlPointCount)));
+        Assert.True(definition.IsResolved(nameof(VariableFilletFeatureModel.ControlPointRadii)));
+        Assert.True(definition.IsResolved(nameof(VariableFilletFeatureModel.ControlPointCount)));
         var edge = Assert.Single(definition.Edges!);
         Assert.Equal(SelectionEntityType.Edge, edge.EntityType);
         Assert.Equal(4u, edge.EntityId);
@@ -53,7 +52,7 @@ public class VariableFilletReadingTests
         Assert.Equal(0x254Au, edge.PersistentId);
         Assert.Equal(PersistentEdgeReferenceParser.ExpectedArchiveGuid, edge.ArchiveGuid);
         Assert.Equal(4, edge.RecordCount);
-        Assert.True(definition.IsResolved(nameof(VariableFilletFeatureDefinitionData.Edges)));
+        Assert.True(definition.IsResolved(nameof(VariableFilletFeatureModel.Edges)));
 
         // Not established by the controlled layout: keep unresolved instead of copying native defaults.
         Assert.Null(definition.DefaultRadius);
@@ -66,19 +65,19 @@ public class VariableFilletReadingTests
     [Fact]
     public void VariableFillet_MainAndResaveProduceTheSameDefinition()
     {
-        VariableFilletFeatureDefinitionData Read(string name)
+        VariableFilletFeatureModel Read(string name)
         {
             using var file = SwFile.Open(SamplePath(name), readOnly: true);
-            return Assert.IsType<VariableFilletFeatureDefinitionData>(
-                Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Fillet && f.TypeName == "VarFillet_c")).Definition);
+            return Assert.IsType<VariableFilletFeatureModel>(
+                Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Fillet && f.TypeName == "VarFillet_c")).Model);
         }
 
         var main = Read("fillet_variable_2_4mm");
         var resave = Read("fillet_variable_2_4mm_resave");
         Assert.Equal(main.ControlPointRadii!.ToArray(), resave.ControlPointRadii!.ToArray());
         Assert.Equal(main.ControlPointCount, resave.ControlPointCount);
-        Assert.Equal(main.IsResolved(nameof(VariableFilletFeatureDefinitionData.ControlPointRadii)),
-            resave.IsResolved(nameof(VariableFilletFeatureDefinitionData.ControlPointRadii)));
+        Assert.Equal(main.IsResolved(nameof(VariableFilletFeatureModel.ControlPointRadii)),
+            resave.IsResolved(nameof(VariableFilletFeatureModel.ControlPointRadii)));
     }
 
     [Theory]
@@ -89,9 +88,9 @@ public class VariableFilletReadingTests
         using var file = SwFile.Open(SamplePath(sample), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Fillet && f.TypeName == "Fillet_c"));
         Assert.Equal(0x51, feature.Id);
-        var definition = Assert.IsType<FilletFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<FilletFeatureModel>(feature.Model);
         Assert.Equal(0.005, definition.DefaultRadius!.Value, 12);
-        Assert.True(definition.IsResolved(nameof(FilletFeatureDefinitionData.DefaultRadius)));
+        Assert.True(definition.IsResolved(nameof(FilletFeatureModel.DefaultRadius)));
     }
 
     [Fact]

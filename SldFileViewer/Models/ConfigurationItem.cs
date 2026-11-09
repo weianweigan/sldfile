@@ -1,4 +1,4 @@
-﻿using SldFile;
+using SldFile;
 
 namespace SldFileViewer.Models;
 

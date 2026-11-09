@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 
 namespace SldFileTests;
@@ -23,7 +22,7 @@ public class SurfaceExtrudeFeatureReadingTests
         using var file = SwFile.Open(Resolve(name), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f => f.Name == "SurfaceExtrude"));
         Assert.Equal(FeatureKind.SurfaceExtrude, feature.Kind);
-        var definition = Assert.IsType<SurfaceExtrudeFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<SurfaceExtrudeFeatureModel>(feature.Model);
 
         Assert.Equal("moExtruRefSurface_c", definition.ClassName);
         Assert.Equal(0x4Fu, definition.SerializedTypeId);
@@ -54,8 +53,8 @@ public class SurfaceExtrudeFeatureReadingTests
     public void SurfaceExtrudeParser_RejectsUnknownLayout()
     {
         byte[] stream = BuildSurfaceExtrudeStream(new byte[64]);
-        var model = new ResolvedFeaturesData();
-        ResolvedFeaturesSchemaMapper.Map(MfcDocument.Parse(stream), model);
+        var model = new ResolvedFeaturesModel();
+        ResolvedFeaturesModel.Map(MfcDocument.Parse(stream), model);
 
         var folder = Assert.Single(model.Folders);
         Assert.Equal("moExtruRefSurface_c", folder.ClassName);

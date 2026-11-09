@@ -1,4 +1,4 @@
-namespace SldFile.Binary;
+﻿namespace SldFile.Binary;
 
 internal static class ViewOrientationStreamHandler
 {

@@ -28,7 +28,7 @@ public class SweepLoftFeatureReadingTests
     {
         using var file = SwFile.Open(TestFileProvider.Resolve("Features2026/SweepOptions", name + ".SLDPRT"), readOnly: true);
         var feature = FindFeature(file, name);
-        var definition = Assert.IsType<SweepFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<SweepFeatureModel>(feature.Model);
 
         Assert.Equal("moSweep_c", definition.ClassName);
         Assert.Equal(name, definition.DisplayName);
@@ -63,7 +63,7 @@ public class SweepLoftFeatureReadingTests
     {
         using var file = SwFile.Open(TestFileProvider.Resolve("Features2026/LoftOptions", name + ".SLDPRT"), readOnly: true);
         var feature = FindFeature(file, name);
-        var definition = Assert.IsType<LoftFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<LoftFeatureModel>(feature.Model);
 
         // The serialized class observed in samples is moBlend_c, not moLoft_c.
         Assert.Equal("moBlend_c", definition.ClassName);
@@ -104,7 +104,7 @@ public class SweepLoftFeatureReadingTests
         using var file = SwFile.Open(
             TestFileProvider.Resolve("Features2026/LoftOptions", fileName + ".SLDPRT"), readOnly: true);
         var feature = FindFeature(file, featureName);
-        var definition = Assert.IsType<LoftFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<LoftFeatureModel>(feature.Model);
         Assert.Equal(start, definition.StartTangencyType);
         Assert.Equal(end, definition.EndTangencyType);
         Assert.True(definition.Resolution.StartTangencyType);
@@ -119,7 +119,7 @@ public class SweepLoftFeatureReadingTests
         using var file = SwFile.Open(
             TestFileProvider.Resolve("Features2026/LoftOptions", name + ".SLDPRT"), readOnly: true);
         var feature = FindFeature(file, name);
-        var definition = Assert.IsType<LoftFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<LoftFeatureModel>(feature.Model);
         Assert.Null(definition.StartTangencyType);
         Assert.Null(definition.EndTangencyType);
         Assert.False(definition.Resolution.StartTangencyType);
@@ -139,7 +139,7 @@ public class SweepLoftFeatureReadingTests
     {
         using var file = SwFile.Open(
             TestFileProvider.Resolve("Features2026/SweepOptions", fileName + ".SLDPRT"), readOnly: true);
-        var definition = Assert.IsType<SweepFeatureDefinitionData>(FindFeature(file, featureName).Definition);
+        var definition = Assert.IsType<SweepFeatureModel>(FindFeature(file, featureName).Model);
         Assert.Equal(merge, definition.Merge);
         Assert.Equal(twistControlType, definition.TwistControlType);
         Assert.Equal(twistAngle, definition.TwistAngleRad!.Value, 12);
@@ -160,7 +160,7 @@ public class SweepLoftFeatureReadingTests
     {
         using var file = SwFile.Open(
             TestFileProvider.Resolve("Features2026/SweepOptions", fileName + ".SLDPRT"), readOnly: true);
-        var definition = Assert.IsType<LoftFeatureDefinitionData>(FindFeature(file, featureName).Definition);
+        var definition = Assert.IsType<LoftFeatureModel>(FindFeature(file, featureName).Model);
         Assert.Equal(profileCount, definition.SelectionCount);
         Assert.All(definition.References, r => Assert.Equal(SketchCurveRole.Profile, r.Role));
         Assert.Null(definition.StartTangencyType);
@@ -184,7 +184,7 @@ public class SweepLoftFeatureReadingTests
     {
         using var file = SwFile.Open(
             TestFileProvider.Resolve("Features2026/SweepOptions", fileName + ".SLDPRT"), readOnly: true);
-        var definition = Assert.IsType<SweepFeatureDefinitionData>(FindFeature(file, featureName).Definition);
+        var definition = Assert.IsType<SweepFeatureModel>(FindFeature(file, featureName).Model);
         Assert.Equal(merge, definition.Merge);
         Assert.Equal(twistControlType, definition.TwistControlType);
         Assert.Equal(twistAngle, definition.TwistAngleRad!.Value, 12);
@@ -200,7 +200,7 @@ public class SweepLoftFeatureReadingTests
     {
         using var file = SwFile.Open(
             TestFileProvider.Resolve("Features2026/LoftOptions", fileName + ".SLDPRT"), readOnly: true);
-        var definition = Assert.IsType<LoftFeatureDefinitionData>(FindFeature(file, featureName).Definition);
+        var definition = Assert.IsType<LoftFeatureModel>(FindFeature(file, featureName).Model);
         var centerline = Assert.IsType<SketchCurveReference>(definition.Centerline);
         Assert.Equal(SketchCurveRole.Centerline, centerline.Role);
         Assert.Equal(0x49u, centerline.EntityId);
@@ -212,7 +212,7 @@ public class SweepLoftFeatureReadingTests
     {
         using var file = SwFile.Open(
             TestFileProvider.Resolve("Features2026/LoftOptions", "loft_guide1.SLDPRT"), readOnly: true);
-        var definition = Assert.IsType<LoftFeatureDefinitionData>(FindFeature(file, "loft_guide1").Definition);
+        var definition = Assert.IsType<LoftFeatureModel>(FindFeature(file, "loft_guide1").Model);
         Assert.Null(definition.Centerline);
         Assert.False(definition.Resolution.Centerline);
     }
@@ -293,8 +293,8 @@ public class SweepLoftFeatureReadingTests
     {
         byte[] stream = BuildResolvedFeaturesStream(className, "BadFeature", headerBytes: new byte[10]);
 
-        var model = new ResolvedFeaturesData();
-        ResolvedFeaturesSchemaMapper.Map(MfcDocument.Parse(stream), model);
+        var model = new ResolvedFeaturesModel();
+        ResolvedFeaturesModel.Map(MfcDocument.Parse(stream), model);
 
         var folder = Assert.Single(model.Folders);
         Assert.Equal(className, folder.ClassName);
@@ -313,8 +313,8 @@ public class SweepLoftFeatureReadingTests
 
         byte[] stream = BuildResolvedFeaturesStream(className, "BadFeature", header);
 
-        var model = new ResolvedFeaturesData();
-        ResolvedFeaturesSchemaMapper.Map(MfcDocument.Parse(stream), model);
+        var model = new ResolvedFeaturesModel();
+        ResolvedFeaturesModel.Map(MfcDocument.Parse(stream), model);
 
         var folder = Assert.Single(model.Folders);
         Assert.Equal(className, folder.ClassName);
@@ -323,16 +323,16 @@ public class SweepLoftFeatureReadingTests
 
     // ── Helpers ───────────────────────────────────────────────────────
 
-    private static SweepFeatureDefinitionData ReadSweep(string fileName, string featureName)
+    private static SweepFeatureModel ReadSweep(string fileName, string featureName)
     {
         using var file = SwFile.Open(TestFileProvider.Resolve("Features2026/SweepOptions", fileName + ".SLDPRT"), readOnly: true);
-        return Assert.IsType<SweepFeatureDefinitionData>(FindFeature(file, featureName).Definition);
+        return Assert.IsType<SweepFeatureModel>(FindFeature(file, featureName).Model);
     }
 
-    private static LoftFeatureDefinitionData ReadLoft(string fileName, string featureName)
+    private static LoftFeatureModel ReadLoft(string fileName, string featureName)
     {
         using var file = SwFile.Open(TestFileProvider.Resolve("Features2026/LoftOptions", fileName + ".SLDPRT"), readOnly: true);
-        return Assert.IsType<LoftFeatureDefinitionData>(FindFeature(file, featureName).Definition);
+        return Assert.IsType<LoftFeatureModel>(FindFeature(file, featureName).Model);
     }
 
     private static Feature FindFeature(SwFile file, string name)

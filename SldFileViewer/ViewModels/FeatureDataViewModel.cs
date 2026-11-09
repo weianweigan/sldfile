@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -7,6 +7,7 @@ using System.Linq;
 using System.Reflection;
 using SldFile;
 using SldFile.Binary;
+using SldFile.Mfc;
 
 namespace SldFileViewer.ViewModels;
 
@@ -196,7 +197,7 @@ public sealed class FeatureDataViewModel : CommunityToolkit.Mvvm.ComponentModel.
         feature.Attributes.TryGetValue("ClassName", out var folderClass);
         folderClass ??= feature.TypeName;
 
-        var def = feature.Definition;
+        var def = feature.Model;
         if (def == null)
         {
             ClassName = folderClass ?? string.Empty;
@@ -212,14 +213,16 @@ public sealed class FeatureDataViewModel : CommunityToolkit.Mvvm.ComponentModel.
             return;
         }
 
-        ClassName = def.ClassName;
-        TypeId = def.TypeId != 0 ? def.TypeId : ParseTypeId(feature.Attributes);
+        string className = def is IMfcFeatureModel mfc ? mfc.ClassName : (def is IFeatureData ifd ? ifd.ClassName : folderClass ?? string.Empty);
+        ClassName = className;
+        uint defTypeId = def is IMfcFeatureModel mfc2 ? mfc2.TypeId : (def is IFeatureData ifd2 ? ifd2.TypeId : 0u);
+        TypeId = defTypeId != 0 ? defTypeId : ParseTypeId(feature.Attributes);
         ModelType = def.GetType().Name;
         Status = FeatureDataStatus.Resolved;
         StatusDescription = "参数取自 ResolvedFeatures 流的结构化解码结果；未标记的属性可能只是模型默认值，不代表文件中存储的值。";
 
         var resolvedSet = TryGetResolvedProperties(def);
-        var sheetMetalResolution = def as SheetMetalBaseFlangeDefinitionData;
+        var sheetMetalResolution = def as SheetMetalBaseFlangeModel;
 
         var rows = new List<FeatureDataPropertyItem>();
         foreach (var prop in EnumerateProperties(def.GetType()))
@@ -245,7 +248,7 @@ public sealed class FeatureDataViewModel : CommunityToolkit.Mvvm.ComponentModel.
             {
                 Name = prop.Name,
                 Value = FormatValue(prop.Name, value),
-                Group = Categorize(def.ClassName, prop.Name),
+                Group = Categorize(className, prop.Name),
                 IsResolved = resolved,
                 IsUnresolved = value == null,
                 Status = value == null
@@ -321,7 +324,7 @@ public sealed class FeatureDataViewModel : CommunityToolkit.Mvvm.ComponentModel.
 
     /// <summary>
     /// 已解析属性集合。仅由带解析证据跟踪的模型提供
-    /// （<see cref="FeatureDefinitionData.ResolvedProperties"/> 或同等结构的 ResolvedProperties 属性）。
+    /// （<see cref="MfcFeatureModelBase.ResolvedProperties"/> 或同等结构的 ResolvedProperties 属性）。
     /// </summary>
     private static HashSet<string>? TryGetResolvedProperties(object def)
     {
@@ -331,32 +334,32 @@ public sealed class FeatureDataViewModel : CommunityToolkit.Mvvm.ComponentModel.
         return null;
     }
 
-    private static bool IsSheetMetalParameterResolved(SheetMetalBaseFlangeDefinitionData def, string name)
+    private static bool IsSheetMetalParameterResolved(SheetMetalBaseFlangeModel def, string name)
     {
         var r = def.ParameterResolution;
         return name switch
         {
-            nameof(SheetMetalBaseFlangeDefinitionData.Thickness) => r.Thickness,
-            nameof(SheetMetalBaseFlangeDefinitionData.BendRadius) => r.BendRadius,
-            nameof(SheetMetalBaseFlangeDefinitionData.Depth) => r.Depth,
-            nameof(SheetMetalBaseFlangeDefinitionData.DepthDirection2) => r.DepthDirection2,
-            nameof(SheetMetalBaseFlangeDefinitionData.BothDirections) => r.BothDirections,
-            nameof(SheetMetalBaseFlangeDefinitionData.ReverseDirection) => r.ReverseDirection,
-            nameof(SheetMetalBaseFlangeDefinitionData.ReverseThickness) => r.ReverseThickness,
-            nameof(SheetMetalBaseFlangeDefinitionData.UseDefaultBendRadius) => r.UseDefaultBendRadius,
-            nameof(SheetMetalBaseFlangeDefinitionData.KFactor) => r.KFactor,
-            nameof(SheetMetalBaseFlangeDefinitionData.BendAllowanceType) => r.BendAllowanceType,
-            nameof(SheetMetalBaseFlangeDefinitionData.AutoReliefType) => r.AutoReliefType,
-            nameof(SheetMetalBaseFlangeDefinitionData.ReliefRatio) => r.ReliefRatio,
-            nameof(SheetMetalBaseFlangeDefinitionData.ReliefWidth) => r.ReliefWidth,
-            nameof(SheetMetalBaseFlangeDefinitionData.ReliefDepth) => r.ReliefDepth,
-            nameof(SheetMetalBaseFlangeDefinitionData.UseDefaultBendRelief) => r.UseDefaultBendRelief,
-            nameof(SheetMetalBaseFlangeDefinitionData.UseGaugeTable) => r.UseGaugeTable,
-            nameof(SheetMetalBaseFlangeDefinitionData.BendAllowance) => r.BendAllowance,
-            nameof(SheetMetalBaseFlangeDefinitionData.BendDeduction) => r.BendDeduction,
-            nameof(SheetMetalBaseFlangeDefinitionData.GaugeTablePath) => r.GaugeTablePath,
-            nameof(SheetMetalBaseFlangeDefinitionData.ThicknessTableName) => r.ThicknessTableName,
-            nameof(SheetMetalBaseFlangeDefinitionData.BendTableFile) => r.BendTableFile,
+            nameof(SheetMetalBaseFlangeModel.Thickness) => r.Thickness,
+            nameof(SheetMetalBaseFlangeModel.BendRadius) => r.BendRadius,
+            nameof(SheetMetalBaseFlangeModel.Depth) => r.Depth,
+            nameof(SheetMetalBaseFlangeModel.DepthDirection2) => r.DepthDirection2,
+            nameof(SheetMetalBaseFlangeModel.BothDirections) => r.BothDirections,
+            nameof(SheetMetalBaseFlangeModel.ReverseDirection) => r.ReverseDirection,
+            nameof(SheetMetalBaseFlangeModel.ReverseThickness) => r.ReverseThickness,
+            nameof(SheetMetalBaseFlangeModel.UseDefaultBendRadius) => r.UseDefaultBendRadius,
+            nameof(SheetMetalBaseFlangeModel.KFactor) => r.KFactor,
+            nameof(SheetMetalBaseFlangeModel.BendAllowanceType) => r.BendAllowanceType,
+            nameof(SheetMetalBaseFlangeModel.AutoReliefType) => r.AutoReliefType,
+            nameof(SheetMetalBaseFlangeModel.ReliefRatio) => r.ReliefRatio,
+            nameof(SheetMetalBaseFlangeModel.ReliefWidth) => r.ReliefWidth,
+            nameof(SheetMetalBaseFlangeModel.ReliefDepth) => r.ReliefDepth,
+            nameof(SheetMetalBaseFlangeModel.UseDefaultBendRelief) => r.UseDefaultBendRelief,
+            nameof(SheetMetalBaseFlangeModel.UseGaugeTable) => r.UseGaugeTable,
+            nameof(SheetMetalBaseFlangeModel.BendAllowance) => r.BendAllowance,
+            nameof(SheetMetalBaseFlangeModel.BendDeduction) => r.BendDeduction,
+            nameof(SheetMetalBaseFlangeModel.GaugeTablePath) => r.GaugeTablePath,
+            nameof(SheetMetalBaseFlangeModel.ThicknessTableName) => r.ThicknessTableName,
+            nameof(SheetMetalBaseFlangeModel.BendTableFile) => r.BendTableFile,
             _ => false
         };
     }

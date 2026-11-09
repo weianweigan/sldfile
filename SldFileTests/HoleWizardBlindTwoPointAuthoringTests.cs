@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 using Xunit;
 
@@ -26,7 +25,7 @@ public class HoleWizardBlindTwoPointAuthoringTests
     private static string StreamKey(SwFile file) =>
         file.RawStreams.Keys.First(k => k.Contains("ResolvedFeatures", StringComparison.OrdinalIgnoreCase));
 
-    private sealed record BaseFile(TempTestFile Temp, byte[] OriginalStream, HoleWizardFeatureDefinitionData Definition) : IDisposable
+    private sealed record BaseFile(TempTestFile Temp, byte[] OriginalStream, HoleWizardFeatureModel Model) : IDisposable
     {
         public void Dispose() => Temp.Dispose();
     }
@@ -54,8 +53,8 @@ public class HoleWizardBlindTwoPointAuthoringTests
             sw.Save();
         }
         using var original = SwFile.Open(PathOf(file), readOnly: true);
-        var definition = Assert.IsType<HoleWizardFeatureDefinitionData>(
-            Assert.Single(original.Features.Where(f => f.Kind == FeatureKind.HoleWizard)).Definition);
+        var definition = Assert.IsType<HoleWizardFeatureModel>(
+            Assert.Single(original.Features.Where(f => f.Kind == FeatureKind.HoleWizard)).Model);
         return new BaseFile(temp, native, definition);
     }
 
@@ -86,7 +85,7 @@ public class HoleWizardBlindTwoPointAuthoringTests
         using var sw = SwFile.Open(PathOf(file), readOnly: true);
         Assert.Equal(0x71, BitConverter.ToUInt16(sw.RawStreams[StreamKey(sw)], 0));
         var feature = Assert.Single(sw.Features.Where(f => f.Kind == FeatureKind.HoleWizard));
-        var definition = Assert.IsType<HoleWizardFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<HoleWizardFeatureModel>(feature.Model);
         Assert.Equal(14, definition.Type);
         Assert.Equal("ISO", definition.Standard);
         Assert.Equal(8, definition.Standard2);
@@ -167,18 +166,18 @@ public class HoleWizardBlindTwoPointAuthoringTests
         using (var sw = SwFile.Open(baseFile.Temp.FilePath, readOnly: false))
         {
             var part = Assert.IsType<SldPart>(sw);
-            var definition = CloneDefinition(baseFile.Definition);
+            var definition = CloneDefinition(baseFile.Model);
             var feature = part.AddHoleWizard(definition);
             Assert.Equal(ExpectedName(file), feature.Name);
             part.Save();
         }
         using var reopened = SwFile.Open(baseFile.Temp.FilePath, readOnly: true);
         Assert.Equal(baseFile.OriginalStream, reopened.RawStreams[StreamKey(reopened)]);
-        var read = Assert.IsType<HoleWizardFeatureDefinitionData>(
-            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.HoleWizard)).Definition);
-        Assert.Equal(baseFile.Definition.EndCondition, read.EndCondition);
-        Assert.Equal(baseFile.Definition.ThruHoleDepth, read.ThruHoleDepth);
-        Assert.Equal(baseFile.Definition.GetSketchPointCount(), read.GetSketchPointCount());
+        var read = Assert.IsType<HoleWizardFeatureModel>(
+            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.HoleWizard)).Model);
+        Assert.Equal(baseFile.Model.EndCondition, read.EndCondition);
+        Assert.Equal(baseFile.Model.ThruHoleDepth, read.ThruHoleDepth);
+        Assert.Equal(baseFile.Model.GetSketchPointCount(), read.GetSketchPointCount());
     }
 
     [Theory]
@@ -192,17 +191,17 @@ public class HoleWizardBlindTwoPointAuthoringTests
         byte[] before = (byte[])part.RawStreams[key].Clone();
 
         Assert.Throws<NotSupportedException>(() =>
-            part.AddHoleWizard(CloneDefinition(baseFile.Definition), "Custom"));
+            part.AddHoleWizard(CloneDefinition(baseFile.Model), "Custom"));
         Assert.Equal(before, part.RawStreams[key]);
 
-        var wrongDepth = CloneDefinition(baseFile.Definition);
+        var wrongDepth = CloneDefinition(baseFile.Model);
         wrongDepth.ThruHoleDepth = 0.009;
         Assert.Throws<NotSupportedException>(() => part.AddHoleWizard(wrongDepth));
         Assert.Equal(before, part.RawStreams[key]);
 
         if (file.StartsWith("two_point", StringComparison.Ordinal))
         {
-            var wrongPoint = CloneDefinition(baseFile.Definition);
+            var wrongPoint = CloneDefinition(baseFile.Model);
             wrongPoint.SketchPointLocations = new[]
             {
                 new HoleWizardSketchPointLocation { X = 0.001, Y = 0.001 },
@@ -220,7 +219,7 @@ public class HoleWizardBlindTwoPointAuthoringTests
     public void RejectsFolderVersionAndShaTampering(string file)
     {
         using var baseFile = CreateBase(file);
-        var definition = CloneDefinition(baseFile.Definition);
+        var definition = CloneDefinition(baseFile.Model);
         string name = ExpectedName(file);
         byte[] stripped = ReadStripped(baseFile.Temp.FilePath);
 
@@ -257,9 +256,9 @@ public class HoleWizardBlindTwoPointAuthoringTests
             file.Contains("depth8", StringComparison.Ordinal) ? 0.008 : 0.010)!.FeatureName;
     }
 
-    private static HoleWizardFeatureDefinitionData CloneDefinition(HoleWizardFeatureDefinitionData source)
+    private static HoleWizardFeatureModel CloneDefinition(HoleWizardFeatureModel source)
     {
-        var clone = new HoleWizardFeatureDefinitionData
+        var clone = new HoleWizardFeatureModel
         {
             FolderTypeId = source.FolderTypeId,
             Type = source.Type,
@@ -286,7 +285,7 @@ public class HoleWizardBlindTwoPointAuthoringTests
         return clone;
     }
 
-    private static HoleWizardFeatureDefinitionData? ParseDefinition(byte[] raw, uint typeId)
+    private static HoleWizardFeatureModel? ParseDefinition(byte[] raw, uint typeId)
     {
         var doc = MfcDocument.Parse((byte[])raw.Clone());
         var element = Assert.Single(doc.AllElements.Where(e => e.ClassName == "moHoleWzd_c"));

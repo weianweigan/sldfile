@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 using Xunit;
 
@@ -35,7 +34,7 @@ public class LegacyHoleWizardAuthoringTests
         file.RawStreams.Keys.First(k => k.Contains("ResolvedFeatures", StringComparison.OrdinalIgnoreCase));
 
     private sealed record BaseFile(
-        TempTestFile Temp, byte[] NativeBlock, HoleWizardFeatureDefinitionData Definition) : IDisposable
+        TempTestFile Temp, byte[] NativeBlock, HoleWizardFeatureModel Model) : IDisposable
     {
         public void Dispose() => Temp.Dispose();
     }
@@ -44,7 +43,7 @@ public class LegacyHoleWizardAuthoringTests
     {
         var temp = TestFileProvider.CreateTempCopy(PathOf(file));
         byte[] nativeBlock;
-        HoleWizardFeatureDefinitionData definition;
+        HoleWizardFeatureModel definition;
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
         {
             string key = StreamKey(sw);
@@ -64,8 +63,8 @@ public class LegacyHoleWizardAuthoringTests
         {
             // Parse the original definition from a separate read-only open.
             using var original = SwFile.Open(PathOf(file), readOnly: true);
-            definition = Assert.IsType<HoleWizardFeatureDefinitionData>(
-                Assert.Single(original.Features.Where(f => f.Kind == FeatureKind.HoleWizard)).Definition);
+            definition = Assert.IsType<HoleWizardFeatureModel>(
+                Assert.Single(original.Features.Where(f => f.Kind == FeatureKind.HoleWizard)).Model);
         }
         return new BaseFile(temp, nativeBlock, definition);
     }
@@ -79,7 +78,7 @@ public class LegacyHoleWizardAuthoringTests
         using (var sw = SwFile.Open(baseFile.Temp.FilePath, readOnly: false))
         {
             var part = Assert.IsType<SldPart>(sw);
-            var feature = part.AddHoleWizard(baseFile.Definition);
+            var feature = part.AddHoleWizard(baseFile.Model);
             Assert.Equal(template.FeatureName, feature.Name);
             part.Save();
         }
@@ -88,8 +87,8 @@ public class LegacyHoleWizardAuthoringTests
         var doc = MfcDocument.Parse((byte[])stream.Clone());
         var hole = Assert.Single(doc.AllElements.Where(e => e.ClassName == "moHoleWzd_c"));
         Assert.Equal(baseFile.NativeBlock, stream.AsSpan(hole.TagOffset).ToArray());
-        var read = Assert.IsType<HoleWizardFeatureDefinitionData>(
-            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.HoleWizard)).Definition);
+        var read = Assert.IsType<HoleWizardFeatureModel>(
+            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.HoleWizard)).Model);
         Assert.Equal(template.Type, read.Type);
         Assert.Equal(template.EndCondition, read.EndCondition);
         Assert.Equal(template.FastenerSize, read.FastenerSize);
@@ -104,7 +103,7 @@ public class LegacyHoleWizardAuthoringTests
             var part = Assert.IsType<SldPart>(sw);
             string key = StreamKey(part);
             byte[] before = (byte[])part.RawStreams[key].Clone();
-            Assert.Throws<NotSupportedException>(() => part.AddHoleWizard(baseFile.Definition, "Custom"));
+            Assert.Throws<NotSupportedException>(() => part.AddHoleWizard(baseFile.Model, "Custom"));
             var wrongType = CreateDefinition(0x23u);
             wrongType.Type = 99;
             Assert.Throws<NotSupportedException>(() => part.AddHoleWizard(wrongType));
@@ -165,10 +164,10 @@ public class LegacyHoleWizardAuthoringTests
         Reject(wrongBase);
     }
 
-    private static HoleWizardFeatureDefinitionData CreateDefinition(uint folderTypeId)
+    private static HoleWizardFeatureModel CreateDefinition(uint folderTypeId)
     {
         var t = LegacyHoleWizardAuthoringTemplates.Find(folderTypeId)!;
-        return new HoleWizardFeatureDefinitionData
+        return new HoleWizardFeatureModel
         {
             FolderTypeId = folderTypeId, Type = t.Type, EndCondition = t.EndCondition,
             Standard = t.Standard, FastenerType = t.FastenerType, FastenerSize = t.FastenerSize,

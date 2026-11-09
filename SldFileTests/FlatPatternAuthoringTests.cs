@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 using Xunit;
 
@@ -51,7 +50,7 @@ public class FlatPatternAuthoringTests
         return temp;
     }
 
-    private static FlatPatternFeatureDefinitionData AuthorAndReopen(out string featureName)
+    private static FlatPatternFeatureModel AuthorAndReopen(out string featureName)
     {
         using var temp = CreateStrippedBase();
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
@@ -65,10 +64,10 @@ public class FlatPatternAuthoringTests
 
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         var folder = Assert.Single(reopened.ResolvedFeatures.Folders, f => f.ClassName == "moFlatPattern_c");
-        return Assert.IsType<FlatPatternFeatureDefinitionData>(folder.FeatureData);
+        return Assert.IsType<FlatPatternFeatureModel>(folder.FeatureData);
     }
 
-    private static FlatPatternFeatureDefinitionData AuthorOptionsAndReopen(
+    private static FlatPatternFeatureModel AuthorOptionsAndReopen(
         bool merge, bool simplify, bool corner, int breakType, double breakRadius,
         int trimType, double trimDistance, out string featureName)
     {
@@ -85,7 +84,7 @@ public class FlatPatternAuthoringTests
         }
 
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
-        return Assert.IsType<FlatPatternFeatureDefinitionData>(
+        return Assert.IsType<FlatPatternFeatureModel>(
             reopened.ResolvedFeatures.Folders.Single(f => f.ClassName == "moFlatPattern_c").FeatureData);
     }
 
@@ -228,14 +227,14 @@ public class FlatPatternAuthoringTests
 
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         Assert.Equal(before, reopened.RawStreams[ResolvedStream]);
-        var definition = Assert.IsType<FlatPatternFeatureDefinitionData>(
+        var definition = Assert.IsType<FlatPatternFeatureModel>(
             reopened.ResolvedFeatures.Folders.Single(f => f.ClassName == "moFlatPattern_c").FeatureData);
         Assert.True(definition.MergeFace ?? false);
     }
 
     public static IEnumerable<object[]> UnsupportedDefinitions()
     {
-        FlatPatternFeatureDefinitionData Base() => new();
+        FlatPatternFeatureModel Base() => new();
 
         var breakType = Base(); breakType.BreakCornerType = 2;
         yield return new object[] { breakType, "BreakCornerType" };
@@ -260,7 +259,7 @@ public class FlatPatternAuthoringTests
     [Theory]
     [MemberData(nameof(UnsupportedDefinitions))]
     public void UnsupportedOptionsAreRejectedWithoutModifyingStream(
-        FlatPatternFeatureDefinitionData definition, string property)
+        FlatPatternFeatureModel definition, string property)
     {
         using var temp = CreateStrippedBase();
         byte[] before;

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using SldFile;
@@ -44,9 +44,9 @@ public class ExtrudeCutTemplateAuthoringTests
         return temp;
     }
 
-    private static ExtrudeFeatureDefinitionData Draft(double angle = 3.0 * Math.PI / 180.0)
+    private static ExtrudeFeatureModel Draft(double angle = 3.0 * Math.PI / 180.0)
     {
-        return new ExtrudeFeatureDefinitionData
+        return new ExtrudeFeatureModel
         {
             IsCut = true,
             BothDirections = true,
@@ -60,9 +60,9 @@ public class ExtrudeCutTemplateAuthoringTests
         };
     }
 
-    private static ExtrudeFeatureDefinitionData MergeFalse()
+    private static ExtrudeFeatureModel MergeFalse()
     {
-        return new ExtrudeFeatureDefinitionData
+        return new ExtrudeFeatureModel
         {
             IsCut = true,
             Merge = false,
@@ -83,8 +83,8 @@ public class ExtrudeCutTemplateAuthoringTests
         }
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         Assert.Equal(nativeStream, reopened.RawStreams[ResolvedStream]);
-        var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(
-            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Cut)).Definition);
+        var definition = Assert.IsType<ExtrudeFeatureModel>(
+            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Cut)).Model);
         Assert.True(definition.IsCut);
         Assert.True(definition.BothDirections);
         Assert.True(definition.DraftWhileExtrudingDirection2);
@@ -105,8 +105,8 @@ public class ExtrudeCutTemplateAuthoringTests
             part.Save();
         }
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
-        var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(
-            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Cut)).Definition);
+        var definition = Assert.IsType<ExtrudeFeatureModel>(
+            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Cut)).Model);
         Assert.Equal(5.0 * Math.PI / 180.0, definition.DraftAngleDirection2, 12);
         Assert.NotEqual(nativeStream, reopened.RawStreams[ResolvedStream]);
 
@@ -132,12 +132,12 @@ public class ExtrudeCutTemplateAuthoringTests
         }
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         Assert.Equal(nativeStream, reopened.RawStreams[ResolvedStream]);
-        var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(
-            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Cut)).Definition);
+        var definition = Assert.IsType<ExtrudeFeatureModel>(
+            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Cut)).Model);
         Assert.True(definition.IsCut);
         Assert.False(definition.Merge);
         Assert.Equal(0.010, definition.Depth, 12);
-        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureDefinitionData.Merge)));
+        Assert.True(definition.IsResolved(nameof(ExtrudeFeatureModel.Merge)));
 
         byte[] before;
         using (var resave = SwFile.Open(temp.FilePath, readOnly: false))

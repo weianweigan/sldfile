@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Buffers.Binary;
 using System.Text;
 
@@ -182,6 +182,81 @@ internal sealed class MfcReader
 
     public bool IsCStringArrayTerminator => MfcPrimitives.IsCStringArrayTerminator(Data, Offset);
 
+    public string? ReadCString()
+    {
+        if (Offset >= End) return null;
+        int start = Offset;
+
+        byte b0 = Data[Offset++];
+        if (b0 == 0x00) return string.Empty;
+
+        if (b0 == 0xFF)
+        {
+            if (Offset >= End) { Offset = start; return null; }
+            byte b1 = Data[Offset++];
+
+            if (b1 == 0xFE)
+            {
+                if (Offset >= End) { Offset = start; return null; }
+                byte b2 = Data[Offset++];
+                int charCount = b2;
+
+                if (b2 == 0xFF)
+                {
+                    if (Offset >= End) { Offset = start; return null; }
+                    byte b3 = Data[Offset++];
+                    if (b3 == 0xFE)
+                    {
+                        if (Offset + 2 > End) { Offset = start; return null; }
+                        charCount = BinaryPrimitives.ReadUInt16LittleEndian(Data.AsSpan(Offset, 2));
+                        Offset += 2;
+                    }
+                    else if (b3 == 0xFF)
+                    {
+                        if (Offset + 4 > End) { Offset = start; return null; }
+                        charCount = checked((int)BinaryPrimitives.ReadUInt32LittleEndian(Data.AsSpan(Offset, 4)));
+                        Offset += 4;
+                    }
+                    else
+                    {
+                        charCount = b3;
+                    }
+                }
+
+                int byteCount = charCount * 2;
+                if (Offset + byteCount > End) { Offset = start; return null; }
+                string str = Encoding.Unicode.GetString(Data, Offset, byteCount);
+                Offset += byteCount;
+                return str;
+            }
+
+            if (b1 == 0xFF)
+            {
+                if (Offset >= End) { Offset = start; return null; }
+                byte b2 = Data[Offset++];
+                if (b2 == 0x00) return string.Empty;
+
+                int byteCount = b2 * 2;
+                if (Offset + byteCount > End) { Offset = start; return null; }
+                string str = Encoding.Unicode.GetString(Data, Offset, byteCount);
+                Offset += byteCount;
+                return str;
+            }
+
+            int n = b1;
+            if (Offset + n > End) { Offset = start; return null; }
+            string ascii = Encoding.ASCII.GetString(Data, Offset, n);
+            Offset += n;
+            return ascii;
+        }
+
+        int len = b0;
+        if (Offset + len > End) { Offset = start; return null; }
+        string asciiStr = Encoding.ASCII.GetString(Data, Offset, len);
+        Offset += len;
+        return asciiStr;
+    }
+
     public string? ReadWChar()
     {
         if (Offset >= End) return null;
@@ -218,6 +293,15 @@ internal sealed class MfcReader
     }
 
     public byte[] ReadRemainingBytes() => ReadBytes(Remaining);
+
+    public string ReadGuid()
+    {
+        if (Offset + 16 > End) return string.Empty;
+        int cur = Offset;
+        string guid = MfcPrimitives.ReadGuid(Data, ref cur);
+        Offset = cur;
+        return guid;
+    }
 
     #endregion
 

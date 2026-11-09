@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 using Xunit;
 
@@ -23,11 +22,11 @@ public class HoleWizardCounterBoreTests
     private static string SamplePath(string name) =>
         Path.Combine(AppContext.BaseDirectory, "TestFiles", "Features2026", "HoleWizardOptions", name + ".SLDPRT");
 
-    private static HoleWizardFeatureDefinitionData ReadDefinition(string name)
+    private static HoleWizardFeatureModel ReadDefinition(string name)
     {
         using var file = SwFile.Open(SamplePath(name), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.HoleWizard));
-        return Assert.IsType<HoleWizardFeatureDefinitionData>(feature.Definition);
+        return Assert.IsType<HoleWizardFeatureModel>(feature.Model);
     }
 
     [Fact]
@@ -59,14 +58,14 @@ public class HoleWizardCounterBoreTests
         Assert.Equal(0.010014305598872397, point.Y, 12);
         foreach (string name in new[]
         {
-            nameof(HoleWizardFeatureDefinitionData.Type),
-            nameof(HoleWizardFeatureDefinitionData.Standard),
-            nameof(HoleWizardFeatureDefinitionData.FastenerType),
-            nameof(HoleWizardFeatureDefinitionData.ThruHoleDiameter),
-            nameof(HoleWizardFeatureDefinitionData.ThruHoleDepth),
-            nameof(HoleWizardFeatureDefinitionData.CounterBoreDiameter),
-            nameof(HoleWizardFeatureDefinitionData.CounterBoreDepth),
-            nameof(HoleWizardFeatureDefinitionData.SketchPointLocations)
+            nameof(HoleWizardFeatureModel.Type),
+            nameof(HoleWizardFeatureModel.Standard),
+            nameof(HoleWizardFeatureModel.FastenerType),
+            nameof(HoleWizardFeatureModel.ThruHoleDiameter),
+            nameof(HoleWizardFeatureModel.ThruHoleDepth),
+            nameof(HoleWizardFeatureModel.CounterBoreDiameter),
+            nameof(HoleWizardFeatureModel.CounterBoreDepth),
+            nameof(HoleWizardFeatureModel.SketchPointLocations)
         })
             Assert.True(d.IsResolved(name), name);
     }
@@ -157,7 +156,7 @@ public class HoleWizardCounterBoreTests
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
         {
             var part = Assert.IsType<SldPart>(sw);
-            var feature = part.AddHoleWizard(new HoleWizardFeatureDefinitionData
+            var feature = part.AddHoleWizard(new HoleWizardFeatureModel
             {
                 Type = 14,
                 CounterBoreDiameter = 0.011,
@@ -172,8 +171,8 @@ public class HoleWizardCounterBoreTests
         var doc = MfcDocument.Parse((byte[])stream.Clone());
         var holeElement = Assert.Single(doc.AllElements.Where(e => e.ClassName == "moHoleWzd_c"));
         Assert.Equal(nativeBlock, stream.AsSpan(holeElement.TagOffset).ToArray());
-        var read = Assert.IsType<HoleWizardFeatureDefinitionData>(
-            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.HoleWizard)).Definition);
+        var read = Assert.IsType<HoleWizardFeatureModel>(
+            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.HoleWizard)).Model);
         Assert.Equal(0.011, read.CounterBoreDiameter!.Value, 12);
         Assert.Equal(139, read.FastenerType2);
     }
@@ -182,23 +181,23 @@ public class HoleWizardCounterBoreTests
     public void CounterBoreAuthoring_RejectsMismatchedFieldsAndBases()
     {
         using var temp = TestFileProvider.CreateTempCopy(SamplePath(Sample));
-        Reject(temp, new HoleWizardFeatureDefinitionData { Type = 14, CounterBoreDiameter = 0.012 });
-        Reject(temp, new HoleWizardFeatureDefinitionData { Type = 14, CounterBoreDepth = 0.005 });
-        Reject(temp, new HoleWizardFeatureDefinitionData { Type = 14, Standard = "ANSI" });
-        Reject(temp, new HoleWizardFeatureDefinitionData { Type = 14, FastenerSize = "M8" });
-        Reject(temp, new HoleWizardFeatureDefinitionData { Type = 14, CounterBoreDiameter = 0.011,
+        Reject(temp, new HoleWizardFeatureModel { Type = 14, CounterBoreDiameter = 0.012 });
+        Reject(temp, new HoleWizardFeatureModel { Type = 14, CounterBoreDepth = 0.005 });
+        Reject(temp, new HoleWizardFeatureModel { Type = 14, Standard = "ANSI" });
+        Reject(temp, new HoleWizardFeatureModel { Type = 14, FastenerSize = "M8" });
+        Reject(temp, new HoleWizardFeatureModel { Type = 14, CounterBoreDiameter = 0.011,
             CounterBoreDepth = 0.006, Standard = "ISO" }, "Custom");
-        Reject(temp, new HoleWizardFeatureDefinitionData { Type = 14, ThreadDiameter = 0.006 });
+        Reject(temp, new HoleWizardFeatureModel { Type = 14, ThreadDiameter = 0.006 });
 
         using var legacy = TestFileProvider.CreateTempCopy(SamplePath("hole_simple_d5_throughall"));
         using (var sw = SwFile.Open(legacy.FilePath, readOnly: false))
         {
             var part = Assert.IsType<SldPart>(sw);
             Assert.Throws<NotSupportedException>(() => part.AddHoleWizard(
-                new HoleWizardFeatureDefinitionData { Type = 14, CounterBoreDiameter = 0.011 }));
+                new HoleWizardFeatureModel { Type = 14, CounterBoreDiameter = 0.011 }));
         }
 
-        static void Reject(TempTestFile temp, HoleWizardFeatureDefinitionData definition, string? name = null)
+        static void Reject(TempTestFile temp, HoleWizardFeatureModel definition, string? name = null)
         {
             // Use a fresh stripped copy per rejection so earlier failures cannot mutate the base.
             string copy = temp.FilePath + "." + Guid.NewGuid().ToString("N") + ".SLDPRT";
@@ -281,7 +280,7 @@ public class HoleWizardCounterBoreTests
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
         {
             var part = Assert.IsType<SldPart>(sw);
-            var feature = part.AddHoleWizard(new HoleWizardFeatureDefinitionData
+            var feature = part.AddHoleWizard(new HoleWizardFeatureModel
             {
                 Type = 14,
                 Standard = "ANSI Metric",
@@ -302,8 +301,8 @@ public class HoleWizardCounterBoreTests
         var doc = MfcDocument.Parse((byte[])stream.Clone());
         var holeElement = Assert.Single(doc.AllElements.Where(e => e.ClassName == "moHoleWzd_c"));
         Assert.Equal(nativeBlock, stream.AsSpan(holeElement.TagOffset).ToArray());
-        var read = Assert.IsType<HoleWizardFeatureDefinitionData>(
-            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.HoleWizard)).Definition);
+        var read = Assert.IsType<HoleWizardFeatureModel>(
+            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.HoleWizard)).Model);
         Assert.Equal(33, read.FastenerType2);
         Assert.Equal(0.011, read.CounterBoreDiameter!.Value, 12);
     }
@@ -333,7 +332,7 @@ public class HoleWizardCounterBoreTests
         {
             var part = Assert.IsType<SldPart>(sw);
             byte[] before = (byte[])part.RawStreams[StreamPath].Clone();
-            Assert.ThrowsAny<Exception>(() => part.AddHoleWizard(new HoleWizardFeatureDefinitionData
+            Assert.ThrowsAny<Exception>(() => part.AddHoleWizard(new HoleWizardFeatureModel
             {
                 Type = 14,
                 Standard = "ISO",

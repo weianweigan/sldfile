@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using Xunit;
@@ -196,7 +196,7 @@ public class ExtrudeIntegrationTests
             using (var reopened = SwFile.Open(tempPath))
             {
                 var extFeat = Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Extrusion && !f.Name.Contains("切除")));
-                var extDef = Assert.IsType<ExtrudeFeatureDefinitionData>(extFeat.Definition);
+                var extDef = Assert.IsType<ExtrudeFeatureModel>(extFeat.Model);
                 Assert.Equal(0.025, extDef.Depth, precision: 4);
             }
         }
@@ -264,7 +264,7 @@ public class ExtrudeIntegrationTests
             using (var swPart = SwFile.Open(tempPath, readOnly: false))
             {
                 var part = Assert.IsType<SldPart>(swPart);
-                var createdFeature = part.AddExtrude(new ExtrudeFeatureDefinitionData
+                var createdFeature = part.AddExtrude(new ExtrudeFeatureModel
                 {
                     Depth = targetDepth,
                     ReverseDirection = reverse
@@ -336,7 +336,7 @@ public class ExtrudeIntegrationTests
             using (var reopened = SwFile.Open(tempPath))
             {
                 var extFeat = Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Extrusion));
-                var extDef = Assert.IsType<ExtrudeFeatureDefinitionData>(extFeat.Definition);
+                var extDef = Assert.IsType<ExtrudeFeatureModel>(extFeat.Model);
                 Assert.Equal(targetDepth, extDef.Depth, precision: 4);
                 Assert.Equal(reverse, extDef.ReverseDirection);
             }
@@ -362,7 +362,7 @@ public class ExtrudeIntegrationTests
             using (var swPart = SwFile.Open(tempPath, readOnly: false))
             {
                 var part = Assert.IsType<SldPart>(swPart);
-                part.AddExtrude(new ExtrudeFeatureDefinitionData
+                part.AddExtrude(new ExtrudeFeatureModel
                 {
                     Depth = depth1,
                     BothDirections = true,
@@ -405,8 +405,8 @@ public class ExtrudeIntegrationTests
 
             using (var reopened = SwFile.Open(tempPath))
             {
-                var extDef = Assert.IsType<ExtrudeFeatureDefinitionData>(
-                    reopened.Features.Single(f => f.Kind == FeatureKind.Extrusion).Definition);
+                var extDef = Assert.IsType<ExtrudeFeatureModel>(
+                    reopened.Features.Single(f => f.Kind == FeatureKind.Extrusion).Model);
                 Assert.True(extDef.BothDirections);
                 Assert.Equal(depth1, extDef.GetDepth(true), 12);
                 Assert.Equal(depth2, extDef.GetDepth(false), 12);
@@ -433,7 +433,7 @@ public class ExtrudeIntegrationTests
             using (var swPart = SwFile.Open(tempPath, readOnly: false))
             {
                 var part = Assert.IsType<SldPart>(swPart);
-                part.AddExtrude(new ExtrudeFeatureDefinitionData
+                part.AddExtrude(new ExtrudeFeatureModel
                 {
                     Depth = depth,
                     DraftWhileExtruding = true,
@@ -484,8 +484,8 @@ public class ExtrudeIntegrationTests
 
             using (var reopened = SwFile.Open(tempPath))
             {
-                var extDef = Assert.IsType<ExtrudeFeatureDefinitionData>(
-                    reopened.Features.Single(f => f.Kind == FeatureKind.Extrusion).Definition);
+                var extDef = Assert.IsType<ExtrudeFeatureModel>(
+                    reopened.Features.Single(f => f.Kind == FeatureKind.Extrusion).Model);
                 Assert.True(extDef.DraftWhileExtruding);
                 Assert.Equal(angle, extDef.DraftAngle, 12);
             }
@@ -511,7 +511,7 @@ public class ExtrudeIntegrationTests
             using (var swPart = SwFile.Open(tempPath, readOnly: false))
             {
                 var part = Assert.IsType<SldPart>(swPart);
-                part.AddExtrude(new ExtrudeFeatureDefinitionData
+                part.AddExtrude(new ExtrudeFeatureModel
                 {
                     Depth = depth,
                     FromType = 3,
@@ -553,8 +553,8 @@ public class ExtrudeIntegrationTests
 
             using (var reopened = SwFile.Open(tempPath))
             {
-                var extDef = Assert.IsType<ExtrudeFeatureDefinitionData>(
-                    reopened.Features.Single(f => f.Kind == FeatureKind.Extrusion).Definition);
+                var extDef = Assert.IsType<ExtrudeFeatureModel>(
+                    reopened.Features.Single(f => f.Kind == FeatureKind.Extrusion).Model);
                 Assert.Equal(3u, extDef.FromType);
                 Assert.Equal(offset, extDef.FromOffsetDistance, 12);
             }

@@ -20,9 +20,9 @@ public class WeldmentFeatureReadingTests
     {
         using var file = SwFile.Open(Resolve(sample), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f =>
-            f.Definition is EndCapFeatureDefinitionData));
+            f.Model is EndCapFeatureModel));
         Assert.Equal(FeatureKind.EndCap, feature.Kind);
-        var definition = Assert.IsType<EndCapFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<EndCapFeatureModel>(feature.Model);
         Assert.Equal("moEndCap_c", definition.ClassName);
         Assert.Equal(0x51u, definition.SerializedTypeId);
         Assert.Equal(0.002, definition.Thickness!.Value, 12);
@@ -53,8 +53,8 @@ public class WeldmentFeatureReadingTests
         }
 
         using var reopened = new SldPart(temp.FilePath, readOnly: true);
-        var definition = Assert.IsType<EndCapFeatureDefinitionData>(
-            Assert.Single(reopened.Features.Where(f => f.Definition is EndCapFeatureDefinitionData)).Definition);
+        var definition = Assert.IsType<EndCapFeatureModel>(
+            Assert.Single(reopened.Features.Where(f => f.Model is EndCapFeatureModel)).Model);
         Assert.Null(definition.ChamferDistance);
         Assert.False(definition.Resolution.ChamferDistance);
         Assert.Equal(0.002, definition.Thickness!.Value, 12);
@@ -68,9 +68,9 @@ public class WeldmentFeatureReadingTests
     {
         using var file = SwFile.Open(Resolve(sample), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f =>
-            f.Definition is WeldBeadFeatureDefinitionData));
+            f.Model is WeldBeadFeatureModel));
         Assert.Equal(FeatureKind.WeldBead, feature.Kind);
-        var definition = Assert.IsType<WeldBeadFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsAssignableFrom<WeldBeadFeatureModel>(feature.Model);
         Assert.Equal("moCosmeticWeldBead_c", definition.ClassName);
         Assert.Equal(0x50u, definition.SerializedTypeId);
         Assert.Equal(0.003, definition.BeadSize!.Value, 12);

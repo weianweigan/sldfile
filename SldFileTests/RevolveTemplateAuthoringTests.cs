@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using SldFile;
@@ -43,9 +43,9 @@ public class RevolveTemplateAuthoringTests
         return temp;
     }
 
-    private static RevolveFeatureDefinitionData Thin(double angle, double thickness = 0.001)
+    private static RevolveFeatureModel Thin(double angle, double thickness = 0.001)
     {
-        return new RevolveFeatureDefinitionData
+        return new RevolveFeatureModel
         {
             IsThinFeature = true,
             ThinWallType = 0,
@@ -57,9 +57,9 @@ public class RevolveTemplateAuthoringTests
         };
     }
 
-    private static RevolveFeatureDefinitionData Both(double angle1 = Math.PI / 2.0, double angle2 = Math.PI / 4.0)
+    private static RevolveFeatureModel Both(double angle1 = Math.PI / 2.0, double angle2 = Math.PI / 4.0)
     {
-        return new RevolveFeatureDefinitionData
+        return new RevolveFeatureModel
         {
             BothDirections = true,
             Type = 2,
@@ -69,9 +69,9 @@ public class RevolveTemplateAuthoringTests
         };
     }
 
-    private static RevolveFeatureDefinitionData Cut()
+    private static RevolveFeatureModel Cut()
     {
-        return new RevolveFeatureDefinitionData
+        return new RevolveFeatureModel
         {
             IsCut = true,
             Angle = 2.0 * Math.PI,
@@ -94,8 +94,8 @@ public class RevolveTemplateAuthoringTests
         }
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         Assert.Equal(nativeStream, reopened.RawStreams[ResolvedStream]);
-        var definition = Assert.IsType<RevolveFeatureDefinitionData>(
-            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Revolve)).Definition);
+        var definition = Assert.IsType<RevolveFeatureModel>(
+            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Revolve)).Model);
         Assert.True(definition.IsThinFeature);
         Assert.Equal(angle, definition.Angle, 12);
         Assert.Equal(0.001, definition.Thickness1, 12);
@@ -112,8 +112,8 @@ public class RevolveTemplateAuthoringTests
             part.Save();
         }
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
-        var definition = Assert.IsType<RevolveFeatureDefinitionData>(
-            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Revolve)).Definition);
+        var definition = Assert.IsType<RevolveFeatureModel>(
+            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Revolve)).Model);
         Assert.Equal(0.002, definition.Thickness1, 12);
 
         byte[] before;
@@ -160,8 +160,8 @@ public class RevolveTemplateAuthoringTests
             part.Save();
         }
         using var changed = SwFile.Open(temp.FilePath, readOnly: true);
-        var definition = Assert.IsType<RevolveFeatureDefinitionData>(
-            Assert.Single(changed.Features.Where(f => f.Kind == FeatureKind.Revolve)).Definition);
+        var definition = Assert.IsType<RevolveFeatureModel>(
+            Assert.Single(changed.Features.Where(f => f.Kind == FeatureKind.Revolve)).Model);
         Assert.Equal(0.5, definition.Angle, 12);
         Assert.Equal(0.25, definition.AngleDirection2, 12);
     }
@@ -178,8 +178,8 @@ public class RevolveTemplateAuthoringTests
         }
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         Assert.Equal(nativeStream, reopened.RawStreams[ResolvedStream]);
-        var definition = Assert.IsType<RevolveFeatureDefinitionData>(
-            Assert.Single(reopened.Features.Where(f => f.TypeName == "moRevCut_c")).Definition);
+        var definition = Assert.IsType<RevolveFeatureModel>(
+            Assert.Single(reopened.Features.Where(f => f.TypeName == "moRevCut_c")).Model);
         Assert.True(definition.IsCut);
         Assert.Equal(2.0 * Math.PI, definition.Angle, 12);
     }

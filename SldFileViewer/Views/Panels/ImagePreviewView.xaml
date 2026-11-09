@@ -1,59 +1,69 @@
-﻿<UserControl x:Class="SldFileViewer.Views.Panels.ImagePreviewView"
+<UserControl x:Class="SldFileViewer.Views.Panels.ImagePreviewView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
              mc:Ignorable="d" 
-             d:DesignHeight="450" d:DesignWidth="600">
-
+             d:DesignHeight="450" d:DesignWidth="800">
     <Grid Background="{StaticResource Brush.Figma.Canvas}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Top Header (Figma Canvas + Hairline) -->
+        <!-- Top ToolBar / Header -->
         <Border Grid.Row="0"
                 Background="{StaticResource Brush.Figma.Canvas}"
                 BorderBrush="{StaticResource Brush.Figma.Hairline}"
                 BorderThickness="0,0,0,1"
-                Padding="16,8">
+                Padding="16,10">
             <DockPanel LastChildFill="False">
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
                     <Path Data="{StaticResource Geo.Drawing}"
                           Fill="{StaticResource Brush.Figma.Ink}"
                           Width="14" Height="14" Stretch="Uniform"
                           Margin="0,0,8,0" />
-                    <TextBlock Text="2D 图像与模型预览 (Preview)"
+                    <TextBlock Text="2D 图像与工程图预览 (Preview)"
                                FontWeight="Bold" FontSize="13"
                                Foreground="{StaticResource Brush.Figma.Ink}"
                                VerticalAlignment="Center" />
-
-                    <Border Background="{StaticResource Brush.Figma.BlockLilac}"
-                            CornerRadius="10"
-                            Padding="12,3" Margin="12,0,0,0">
-                        <TextBlock Text="{Binding ImageInfo}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Brush.Figma.Ink}" />
+                    <Border Background="{StaticResource Brush.Figma.BlockCream}" CornerRadius="10" Padding="8,2" Margin="12,0,0,0"
+                            Visibility="{Binding HasImage, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <TextBlock Text="{Binding ImageInfo}" FontSize="11" Foreground="{StaticResource Brush.Figma.Ink}" FontWeight="Medium" />
                     </Border>
                 </StackPanel>
 
-                <!-- Switch to 3D Button -->
+                <!-- Actions: Export SVG & Switch to 3D -->
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- Export SVG Button for Drawing Sheets (Feature 5) -->
+                    <Button Command="{Binding ExportSvgCommand}"
+                            Visibility="{Binding IsDrawingSheet, Converter={StaticResource BoolToVisibilityConverter}}"
+                            Style="{StaticResource Style.Button.Primary}"
+                            Padding="12,4"
+                            Margin="0,0,8,0"
+                            ToolTip="导出当前工程图为 W3C 标准 SVG 矢量图形">
+                        <StackPanel Orientation="Horizontal">
+                            <iconPacks:PackIconMaterial Kind="VectorPolyline" Foreground="White" Width="12" Height="12" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="导出 SVG 矢量图" FontSize="11"/>
+                        </StackPanel>
+                    </Button>
+
                     <Button Command="{Binding DataContext.SwitchTo3DViewCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                             Visibility="{Binding DataContext.MeshViewer.HasMesh, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}"
                             Style="{StaticResource Style.Button.Secondary}"
                             Padding="12,4"
-                            ToolTip="切换回 3D 模型网格交互检视器">
+                            ToolTip="切换到 3D 网格渲染查看器">
                         <StackPanel Orientation="Horizontal">
-                            <iconPacks:PackIconMaterial Kind="CubeOutline" Foreground="{StaticResource Brush.Figma.Ink}" Width="12" Height="12" Margin="0,0,4,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="3D 模型网格" FontSize="11"/>
+                            <iconPacks:PackIconMaterial Kind="CubeOutline" Width="12" Height="12" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="切换至 3D 视图" FontSize="11"/>
                         </StackPanel>
                     </Button>
                 </StackPanel>
             </DockPanel>
         </Border>
 
-        <!-- Image Viewer with ScrollViewer -->
+        <!-- Image Area -->
         <ScrollViewer Grid.Row="1"
                       HorizontalScrollBarVisibility="Auto"
                       VerticalScrollBarVisibility="Auto"

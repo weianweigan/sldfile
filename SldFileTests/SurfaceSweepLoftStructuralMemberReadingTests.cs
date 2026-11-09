@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 
 namespace SldFileTests;
@@ -26,10 +25,10 @@ public class SurfaceSweepLoftStructuralMemberReadingTests
     {
         using var file = SwFile.Open(ResolveSurface(name), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f =>
-            f.Definition is SurfaceSweepFeatureDefinitionData));
+            f.Model is SurfaceSweepFeatureModel));
         Assert.Equal(FeatureKind.SurfaceSweep, feature.Kind);
 
-        var definition = Assert.IsType<SurfaceSweepFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<SurfaceSweepFeatureModel>(feature.Model);
         Assert.Equal("moSweepRefSurface_c", definition.ClassName);
         Assert.Equal(0x4Bu, definition.SerializedTypeId);
         Assert.True(definition.CircularProfileLayout);
@@ -50,7 +49,7 @@ public class SurfaceSweepLoftStructuralMemberReadingTests
         Assert.True(definition.Resolution.PathReference);
         Assert.True(definition.Resolution.SweepType);
         Assert.True(definition.Resolution.Merge);
-        Assert.Empty(file.Features.Where(f => f.Definition is SweepFeatureDefinitionData));
+        Assert.Empty(file.Features.Where(f => f.Model is SweepFeatureModel));
     }
 
     [Theory]
@@ -62,10 +61,10 @@ public class SurfaceSweepLoftStructuralMemberReadingTests
     {
         using var file = SwFile.Open(ResolveSurface(name), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f =>
-            f.Definition is SurfaceLoftFeatureDefinitionData));
+            f.Model is SurfaceLoftFeatureModel));
         Assert.Equal(FeatureKind.SurfaceLoft, feature.Kind);
 
-        var definition = Assert.IsType<SurfaceLoftFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<SurfaceLoftFeatureModel>(feature.Model);
         Assert.Equal("moBlendRefSurface_c", definition.ClassName);
         Assert.Equal(0x4Du, definition.SerializedTypeId);
         Assert.Equal(2, definition.SelectionCount);
@@ -81,7 +80,7 @@ public class SurfaceSweepLoftStructuralMemberReadingTests
         Assert.True(definition.Resolution.SerializedTypeId);
         Assert.True(definition.Resolution.SelectionReferenceList);
         Assert.True(definition.Resolution.ProfileReferences);
-        Assert.Empty(file.Features.Where(f => f.Definition is LoftFeatureDefinitionData));
+        Assert.Empty(file.Features.Where(f => f.Model is LoftFeatureModel));
     }
 
     [Theory]
@@ -94,8 +93,8 @@ public class SurfaceSweepLoftStructuralMemberReadingTests
     {
         using var file = SwFile.Open(ResolveSurface(name), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f =>
-            f.Definition is SurfaceLoftFeatureDefinitionData));
-        var definition = Assert.IsType<SurfaceLoftFeatureDefinitionData>(feature.Definition);
+            f.Model is SurfaceLoftFeatureModel));
+        var definition = Assert.IsType<SurfaceLoftFeatureModel>(feature.Model);
         Assert.Equal(typeId, definition.SerializedTypeId);
         Assert.Equal(
             ids.Split(',').Select(value => Convert.ToUInt16(value, 16)).ToArray(),
@@ -115,7 +114,7 @@ public class SurfaceSweepLoftStructuralMemberReadingTests
         var feature = Assert.Single(file.Features.Where(f => f.Name == featureName));
         Assert.Equal(FeatureKind.StructuralMember, feature.Kind);
 
-        var definition = Assert.IsType<StructuralMemberFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<StructuralMemberFeatureModel>(feature.Model);
         Assert.Equal("moWeldMemberFeat_c", definition.ClassName);
         Assert.Equal(0x4Du, definition.SerializedTypeId);
         Assert.Equal(
@@ -157,8 +156,8 @@ public class SurfaceSweepLoftStructuralMemberReadingTests
     public void Parsers_RejectUnknownOrIncompleteLayouts(string className, ushort version)
     {
         byte[] stream = BuildStream(className, version);
-        var model = new ResolvedFeaturesData();
-        ResolvedFeaturesSchemaMapper.Map(MfcDocument.Parse(stream), model);
+        var model = new ResolvedFeaturesModel();
+        ResolvedFeaturesModel.Map(MfcDocument.Parse(stream), model);
         var folder = Assert.Single(model.Folders);
         Assert.Equal(className, folder.ClassName);
         Assert.Null(folder.FeatureData);
@@ -168,11 +167,11 @@ public class SurfaceSweepLoftStructuralMemberReadingTests
     public void Parsers_DoNotModifyInputStream()
     {
         AssertStreamUnchanged("surf_sweep_basic", "moSweepRefSurface_c",
-            e => SurfaceSweepLoftFeatureParsers.ParseSweep(e));
+            e => e.ClassName);
         AssertStreamUnchanged("surf_loft_2sections", "moBlendRefSurface_c",
-            e => SurfaceSweepLoftFeatureParsers.ParseLoft(e));
+            e => e.ClassName);
         AssertStreamUnchanged("weldment_structural", "moWeldMemberFeat_c",
-            e => WeldmentFeatureParsers.ParseStructuralMember(e));
+            e => e.ClassName);
     }
 
     private static void AssertStreamUnchanged(

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -8,8 +8,7 @@ using System.Threading.Tasks;
 using System.Xml.Linq;
 using SldFile;
 using SldFile.Assembly;
-using SldFile.Drawing;
-using SldFile.Sketches;
+using SldFile.Mfc;
 using SldFileViewer.Models;
 
 namespace SldFileViewer.Services;
@@ -68,16 +67,16 @@ public sealed class SwDocumentService : ISwDocumentService
         return _currentFile?.Features ?? Array.Empty<Feature>();
     }
 
-    public IReadOnlyList<SketchFeature> GetSketches(int configIndex = 0)
+    public IReadOnlyList<SketchFeatureModel> GetSketches(int configIndex = 0)
     {
-        if (_currentFile == null) return Array.Empty<SketchFeature>();
+        if (_currentFile == null) return Array.Empty<SketchFeatureModel>();
         try
         {
             return _currentFile.GetSketches(configIndex);
         }
         catch
         {
-            return Array.Empty<SketchFeature>();
+            return Array.Empty<SketchFeatureModel>();
         }
     }
 

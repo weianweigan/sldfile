@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using SldFile;
@@ -25,8 +25,8 @@ public class StructuralMemberRemainingFieldsTests
     {
         using var file = SwFile.Open(SamplePath("Samples", sample + ".SLDPRT"), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f =>
-            f.Definition is StructuralMemberFeatureDefinitionData));
-        var definition = Assert.IsType<StructuralMemberFeatureDefinitionData>(feature.Definition);
+            f.Model is StructuralMemberFeatureModel));
+        var definition = Assert.IsType<StructuralMemberFeatureModel>(feature.Model);
 
         Assert.True(definition.ApplyCornerTreatment);
         Assert.Equal(expectedCornerType, definition.CornerTreatmentType);
@@ -57,8 +57,8 @@ public class StructuralMemberRemainingFieldsTests
     {
         using var file = SwFile.Open(SamplePath("StructuralModify", "box2", sample + ".SLDPRT"), readOnly: true);
         var feature = Assert.Single(file.Features.Where(f =>
-            f.Definition is StructuralMemberFeatureDefinitionData));
-        var definition = Assert.IsType<StructuralMemberFeatureDefinitionData>(feature.Definition);
+            f.Model is StructuralMemberFeatureModel));
+        var definition = Assert.IsType<StructuralMemberFeatureModel>(feature.Model);
 
         Assert.Equal(applyCorner, definition.ApplyCornerTreatment);
         Assert.Equal(cornerType, definition.CornerTreatmentType);
@@ -82,8 +82,8 @@ public class StructuralMemberRemainingFieldsTests
     public void RemainingFieldProbes_HaveNoPersistedStrictSlot(string sample)
     {
         using var file = SwFile.Open(SamplePath("StructuralModify", "box2", sample + ".SLDPRT"), readOnly: true);
-        var definition = Assert.IsType<StructuralMemberFeatureDefinitionData>(file.Features
-            .Single(f => f.Definition is StructuralMemberFeatureDefinitionData).Definition);
+        var definition = Assert.IsType<StructuralMemberFeatureModel>(file.Features
+            .Single(f => f.Model is StructuralMemberFeatureModel).Model);
 
         Assert.Null(definition.ConfigurationName);
         Assert.Null(definition.PathSegments);

@@ -1,4 +1,5 @@
-﻿using System;
+using SldFile.Mfc;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -17,6 +18,9 @@ public abstract partial class SwFile
     public DocumentMetadata Metadata { get; private set; } = null!;
     public PropertyCollection CustomProperties { get; } = new PropertyCollection();
     public IReadOnlyList<Configuration> Configurations { get; private set; } = Array.Empty<Configuration>();
+
+    /// <summary>Returns the currently active configuration, or the first configuration if none is explicitly marked active.</summary>
+    internal Configuration? ActiveConfiguration => Configurations.FirstOrDefault(c => c.Index == ActiveConfigurationIndex) ?? Configurations.FirstOrDefault();
     public IReadOnlyList<string> Users { get; private set; } = Array.Empty<string>();
     public IReadOnlyList<Revision> Revisions { get; private set; } = Array.Empty<Revision>();
     public IReadOnlyList<DocumentReference> References { get; private set; } = Array.Empty<DocumentReference>();
@@ -118,22 +122,28 @@ public abstract partial class SwFile
     }
 
     /// <summary>
-    /// Extracts the raw Parasolid binary transmit data (X_B format) for the specified configuration.
+    /// Extracts the raw Parasolid binary transmit data (X_B format) for the specified configuration index (0 = active/default).
     /// Returns null if the document does not contain Parasolid geometry.
     /// </summary>
     public byte[]? ExtractParasolid(int configIndex = 0)
     {
-        byte[]? partition = null;
-        string key1 = $"Contents/Config-{configIndex}-Partition";
-        if (RawStreams.TryGetValue(key1, out var bytes))
-            partition = bytes;
-        else if (Partition != null && configIndex == 0)
-            partition = Partition;
+        return Geometry.ParasolidExtractor.ExtractFromStreams(RawStreams, configIndex);
+    }
 
-        if (partition == null)
-            return null;
+    /// <summary>
+    /// Extracts the raw Parasolid binary transmit data (X_B format) for the specified configuration name.
+    /// Returns null if the configuration is not found or does not contain Parasolid geometry.
+    /// </summary>
+    public byte[]? ExtractParasolid(string? configurationName)
+    {
+        int targetIndex = ActiveConfigurationIndex;
+        if (!string.IsNullOrEmpty(configurationName))
+        {
+            var cfg = Configurations.FirstOrDefault(c => string.Equals(c.Name, configurationName, StringComparison.OrdinalIgnoreCase));
+            if (cfg != null) targetIndex = cfg.Index;
+        }
 
-        return Geometry.ParasolidExtractor.Extract(partition);
+        return ExtractParasolid(targetIndex);
     }
 
     /// <summary>
@@ -193,7 +203,7 @@ public abstract partial class SwFile
             keywordsXml = zlb.XmlContent;
         }
 
-        return Drawing.DrawingReader.ReadSheets(keywordsXml, DrawingSheetNames, GetSheetPreviewPng);
+        return DrawingReader.ReadSheets(keywordsXml, DrawingSheetNames, GetSheetPreviewPng);
     }
 
     private void InitializeUserData(Dictionary<string, byte[]> streams)
@@ -226,102 +236,13 @@ public abstract partial class SwFile
 
     internal void ReParseResolvedFeatures(byte[] newStream)
     {
-        var reader = new SldFile.Binary.ResolvedFeaturesStreamReader();
-        reader.Parse(newStream, ResolvedFeatures);
+        MfcArchive.DeserializeInto(newStream, ResolvedFeatures);
         RefreshFeaturesFromFolders(RawStreams);
     }
 
     internal void RefreshFeaturesFromFolders(Dictionary<string, byte[]> streams)
     {
         var features = new List<Feature>();
-        Feature MapFolder(FeatureFolder folder)
-        {
-            var name = folder.ClassName;
-            var kind = name.StartsWith("moRefPlane", StringComparison.Ordinal) ? FeatureKind.ReferencePlane
-                : name.StartsWith("moProfileFeature", StringComparison.Ordinal) ? FeatureKind.Sketch
-                : name.StartsWith("moExtruRefSurface", StringComparison.Ordinal) ? FeatureKind.SurfaceExtrude
-                : name.StartsWith("moRevolvRefSurf", StringComparison.Ordinal) ? FeatureKind.SurfaceRevolve
-                : name.StartsWith("moPlanarSurface", StringComparison.Ordinal) ? FeatureKind.PlanarSurface
-                : name.StartsWith("moSewRefSurface", StringComparison.Ordinal) ? FeatureKind.SurfaceKnit
-                : name.StartsWith("moExtendRefSurface", StringComparison.Ordinal) ? FeatureKind.SurfaceExtend
-                : name.StartsWith("moOffsetRefSurface", StringComparison.Ordinal) ? FeatureKind.SurfaceOffset
-                : name.StartsWith("moFillRefSurface", StringComparison.Ordinal) ? FeatureKind.FillSurface
-                : name.StartsWith("moSweepRefSurface", StringComparison.Ordinal) ? FeatureKind.SurfaceSweep
-                : name.StartsWith("moBlendRefSurface", StringComparison.Ordinal) ? FeatureKind.SurfaceLoft
-                : name.StartsWith("moWeldMemberFeat", StringComparison.Ordinal) ? FeatureKind.StructuralMember
-                : name.StartsWith("moEndCap", StringComparison.Ordinal) ? FeatureKind.EndCap
-                : name.StartsWith("moCosmeticWeldBead", StringComparison.Ordinal) ? FeatureKind.WeldBead
-                : (name.StartsWith("moExtrusion", StringComparison.Ordinal) || name == "moICE_c" ||
-                   name.StartsWith("moExtruThin", StringComparison.Ordinal)) ? (folder.DisplayName.Contains("切除") || name == "moICE_c" ? FeatureKind.Cut : FeatureKind.Extrusion)
-                : name.StartsWith("moRevolution", StringComparison.Ordinal) ? FeatureKind.Revolve
-                : name.StartsWith("moRevCut", StringComparison.Ordinal) ? FeatureKind.Cut
-                : name.StartsWith("moSweep", StringComparison.Ordinal) ? FeatureKind.Sweep
-                : name.StartsWith("moLoftedBend_", StringComparison.Ordinal) ? FeatureKind.LoftedBend
-                : name.StartsWith("moJog_", StringComparison.Ordinal) ? FeatureKind.Jog
-                : name.StartsWith("moFold_", StringComparison.Ordinal) ? FeatureKind.Fold
-                : name.StartsWith("moUnFold_", StringComparison.Ordinal) ? FeatureKind.UnFold
-                : name.StartsWith("moShell", StringComparison.Ordinal) ? FeatureKind.Shell
-                : name.StartsWith("moDeleteBody", StringComparison.Ordinal) ? FeatureKind.DeleteBody
-                : name.StartsWith("moDraft", StringComparison.Ordinal) ? FeatureKind.Draft
-                : name.StartsWith("moRib", StringComparison.Ordinal) ? FeatureKind.Rib
-                : name.StartsWith("moGusset", StringComparison.Ordinal) ? FeatureKind.Gusset
-                : name.StartsWith("moCombineBodies", StringComparison.Ordinal) ? FeatureKind.CombineBodies
-                : name.StartsWith("moSplit", StringComparison.Ordinal) ? FeatureKind.SplitBody
-                : name.StartsWith("moTrimRefSurface", StringComparison.Ordinal) ? FeatureKind.SurfaceTrim
-                : (name.StartsWith("moBlend", StringComparison.Ordinal) || name.StartsWith("moLoft", StringComparison.Ordinal)) ? FeatureKind.Loft
-                : name.StartsWith("VarFillet", StringComparison.Ordinal) ? FeatureKind.Fillet
-                : name.StartsWith("Fillet_", StringComparison.Ordinal) ? FeatureKind.Fillet
-                : name.StartsWith("Chamfer_", StringComparison.Ordinal) ? FeatureKind.Chamfer
-                : (name.StartsWith("moLPattern_", StringComparison.Ordinal) ||
-                   name.StartsWith("moCirPattern_", StringComparison.Ordinal)) ? FeatureKind.Pattern
-                : name.StartsWith("moMirrorPattern_", StringComparison.Ordinal) ? FeatureKind.Mirror
-                : name.StartsWith("moHoleWzd", StringComparison.Ordinal) ? FeatureKind.HoleWizard
-                : name.StartsWith("moSMBaseFlange", StringComparison.Ordinal) ? FeatureKind.Extrusion
-                : name.StartsWith("moHem_", StringComparison.Ordinal) ? FeatureKind.Hem
-                : name.StartsWith("moFlatPattern_", StringComparison.Ordinal) ? FeatureKind.FlatPattern
-                : name.StartsWith("moLengthParameter", StringComparison.Ordinal) ? FeatureKind.Dimension
-                : name.Contains("Folder") ? FeatureKind.Folder : FeatureKind.Other;
-
-            var dims = new List<FeatureDimension>();
-            if (folder.FeatureData is LengthParameterData lpd)
-            {
-                dims.Add(new FeatureDimension(folder.DisplayName, lpd.ParamValue.ToString("F3")));
-            }
-            else if (folder.FeatureData is ExtrudeFeatureDefinitionData extDef)
-            {
-                dims.Add(new FeatureDimension("Depth", (extDef.Depth * 1000).ToString("F2") + "mm"));
-            }
-            else if (folder.FeatureData is SheetMetalBaseFlangeDefinitionData smDef)
-            {
-                dims.Add(new FeatureDimension("Thickness", (smDef.Thickness * 1000).ToString("F2") + "mm"));
-                dims.Add(new FeatureDimension("BendRadius", (smDef.BendRadius * 1000).ToString("F2") + "mm"));
-            }
-            if (folder.ChildFeatureData != null)
-            {
-                foreach (var cd in folder.ChildFeatureData)
-                {
-                    if (cd is LengthParameterData childLpd)
-                    {
-                        dims.Add(new FeatureDimension("D", childLpd.ParamValue.ToString("F3")));
-                    }
-                }
-            }
-
-            var children = new List<Feature>();
-            foreach (var child in folder.Children)
-            {
-                children.Add(MapFolder(child));
-            }
-
-            var attrs = new Dictionary<string, string>
-            {
-                ["ClassName"] = folder.ClassName,
-                ["TypeId"] = folder.Header.TypeId.ToString(),
-                ["TagOffset"] = $"0x{folder.TagOffset:X}"
-            };
-
-            return new Feature(folder.DisplayName, kind, folder.ClassName, (int)folder.Header.TypeId, attrs, dims.AsReadOnly(), children.AsReadOnly(), isSuppressed: false, isVisible: true, definition: folder.FeatureData);
-        }
 
         void Visit(IEnumerable<FeatureFolder> folders)
         {
@@ -347,7 +268,7 @@ public abstract partial class SwFile
             else if (streams.TryGetValue("swXmlContents/KeyWords__ZLB", out var zlbRaw))
             {
                 var zlbData = new ZlbData();
-                new ZlbStreamReader().Read(zlbRaw, zlbData);
+                ZlbStreamHandler.Parse(zlbRaw, zlbData);
                 kwBytes = zlbData.RawData ?? (zlbData.XmlContent != null ? System.Text.Encoding.UTF8.GetBytes(zlbData.XmlContent) : null);
             }
 
@@ -357,6 +278,173 @@ public abstract partial class SwFile
             }
         }
         Features = features.AsReadOnly();
+    }
+
+    internal static Feature MapFolder(FeatureFolder folder)
+    {
+        var name = folder.ClassName;
+        var kind = name.StartsWith("moRefPlane", StringComparison.Ordinal) ? FeatureKind.ReferencePlane
+            : name.StartsWith("moProfileFeature", StringComparison.Ordinal) ? FeatureKind.Sketch
+            : name.StartsWith("moExtruRefSurface", StringComparison.Ordinal) ? FeatureKind.SurfaceExtrude
+            : name.StartsWith("moRevolvRefSurf", StringComparison.Ordinal) ? FeatureKind.SurfaceRevolve
+            : name.StartsWith("moPlanarSurface", StringComparison.Ordinal) ? FeatureKind.PlanarSurface
+            : name.StartsWith("moSewRefSurface", StringComparison.Ordinal) ? FeatureKind.SurfaceKnit
+            : name.StartsWith("moExtendRefSurface", StringComparison.Ordinal) ? FeatureKind.SurfaceExtend
+            : name.StartsWith("moOffsetRefSurface", StringComparison.Ordinal) ? FeatureKind.SurfaceOffset
+            : name.StartsWith("moFillRefSurface", StringComparison.Ordinal) ? FeatureKind.FillSurface
+            : name.StartsWith("moSweepRefSurface", StringComparison.Ordinal) ? FeatureKind.SurfaceSweep
+            : name.StartsWith("moBlendRefSurface", StringComparison.Ordinal) ? FeatureKind.SurfaceLoft
+            : name.StartsWith("moWeldMemberFeat", StringComparison.Ordinal) ? FeatureKind.StructuralMember
+            : name.StartsWith("moEndCap", StringComparison.Ordinal) ? FeatureKind.EndCap
+            : name.StartsWith("moCosmeticWeldBead", StringComparison.Ordinal) ? FeatureKind.WeldBead
+            : (name.StartsWith("moExtrusion", StringComparison.Ordinal) || name == "moICE_c" ||
+               name.StartsWith("moExtruThin", StringComparison.Ordinal)) ? (folder.DisplayName.Contains("切除") || name == "moICE_c" ? FeatureKind.Cut : FeatureKind.Extrusion)
+            : name.StartsWith("moRevolution", StringComparison.Ordinal) ? FeatureKind.Revolve
+            : name.StartsWith("moRevCut", StringComparison.Ordinal) ? FeatureKind.Cut
+            : name.StartsWith("moSweep", StringComparison.Ordinal) ? FeatureKind.Sweep
+            : name.StartsWith("moLoftedBend_", StringComparison.Ordinal) ? FeatureKind.LoftedBend
+            : name.StartsWith("moJog_", StringComparison.Ordinal) ? FeatureKind.Jog
+            : name.StartsWith("moFold_", StringComparison.Ordinal) ? FeatureKind.Fold
+            : name.StartsWith("moUnFold_", StringComparison.Ordinal) ? FeatureKind.UnFold
+            : name.StartsWith("moShell", StringComparison.Ordinal) ? FeatureKind.Shell
+            : name.StartsWith("moDeleteBody", StringComparison.Ordinal) ? FeatureKind.DeleteBody
+            : name.StartsWith("moDraft", StringComparison.Ordinal) ? FeatureKind.Draft
+            : name.StartsWith("moRib", StringComparison.Ordinal) ? FeatureKind.Rib
+            : name.StartsWith("moGusset", StringComparison.Ordinal) ? FeatureKind.Gusset
+            : name.StartsWith("moCombineBodies", StringComparison.Ordinal) ? FeatureKind.CombineBodies
+            : name.StartsWith("moSplit", StringComparison.Ordinal) ? FeatureKind.SplitBody
+            : name.StartsWith("moTrimRefSurface", StringComparison.Ordinal) ? FeatureKind.SurfaceTrim
+            : (name.StartsWith("moBlend", StringComparison.Ordinal) || name.StartsWith("moLoft", StringComparison.Ordinal)) ? FeatureKind.Loft
+            : name.StartsWith("VarFillet", StringComparison.Ordinal) ? FeatureKind.Fillet
+            : name.StartsWith("Fillet_", StringComparison.Ordinal) ? FeatureKind.Fillet
+            : name.StartsWith("Chamfer_", StringComparison.Ordinal) ? FeatureKind.Chamfer
+            : (name.StartsWith("moLPattern_", StringComparison.Ordinal) ||
+               name.StartsWith("moCirPattern_", StringComparison.Ordinal)) ? FeatureKind.Pattern
+            : name.StartsWith("moMirrorPattern_", StringComparison.Ordinal) ? FeatureKind.Mirror
+            : name.StartsWith("moHoleWzd", StringComparison.Ordinal) ? FeatureKind.HoleWizard
+            : name.StartsWith("moSMBaseFlange", StringComparison.Ordinal) ? FeatureKind.Extrusion
+            : name.StartsWith("moHem_", StringComparison.Ordinal) ? FeatureKind.Hem
+            : name.StartsWith("moFlatPattern_", StringComparison.Ordinal) ? FeatureKind.FlatPattern
+            : name.StartsWith("moLengthParameter", StringComparison.Ordinal) ? FeatureKind.Dimension
+            : name.Contains("Folder") ? FeatureKind.Folder : FeatureKind.Other;
+
+        var dims = new List<FeatureDimension>();
+        if (folder.FeatureData is LengthParameterData lpd)
+        {
+            var p = lpd.ToParameterModel();
+            p.Name = folder.DisplayName;
+            dims.Add(new FeatureDimension(folder.DisplayName, lpd.ParamValue, SketchDimensionType.Distance, lpd.ParamValue.ToString("F3"), p, lpd.ToDisplayDimension()));
+        }
+        else if (folder.FeatureData is ExtrudeFeatureModel extDef)
+        {
+            var d1Param = new MoLengthParameterModel("D1@" + folder.DisplayName, extDef.Depth);
+            var d1Disp = new MoDisplayDistanceDimModel();
+            dims.Add(new FeatureDimension("Depth", extDef.Depth, SketchDimensionType.Distance, (extDef.Depth * 1000).ToString("F2") + "mm", d1Param, d1Disp));
+
+            if (extDef.BothDirections && extDef.DepthDirection2 > 0)
+            {
+                var d2Param = new MoLengthParameterModel("D2@" + folder.DisplayName, extDef.DepthDirection2);
+                var d2Disp = new MoDisplayDistanceDimModel();
+                dims.Add(new FeatureDimension("Depth2", extDef.DepthDirection2, SketchDimensionType.Distance, (extDef.DepthDirection2 * 1000).ToString("F2") + "mm", d2Param, d2Disp));
+            }
+            if (extDef.DraftAngle > 0)
+            {
+                var draftParam = new MoAngleParameterModel("Draft@" + folder.DisplayName, extDef.DraftAngle);
+                var draftDisp = new MoDisplayAngularDimModel();
+                dims.Add(new FeatureDimension("DraftAngle", extDef.DraftAngle, SketchDimensionType.Angle, $"{(extDef.DraftAngle * 180.0 / Math.PI):F2}°", draftParam, draftDisp));
+            }
+        }
+        else if (folder.FeatureData is SheetMetalBaseFlangeModel smDef)
+        {
+            var thkParam = new MoLengthParameterModel("Thickness@" + folder.DisplayName, smDef.Thickness);
+            dims.Add(new FeatureDimension("Thickness", smDef.Thickness, SketchDimensionType.Distance, (smDef.Thickness * 1000).ToString("F2") + "mm", thkParam));
+
+            var radParam = new MoLengthParameterModel("BendRadius@" + folder.DisplayName, smDef.BendRadius);
+            var radDisp = new MoDisplayRadialDimModel { Radius = smDef.BendRadius };
+            dims.Add(new FeatureDimension("BendRadius", smDef.BendRadius, SketchDimensionType.Radius, (smDef.BendRadius * 1000).ToString("F2") + "mm", radParam, radDisp));
+        }
+        else if (folder.FeatureData is RevolveFeatureModel revDef)
+        {
+            var angParam = new MoAngleParameterModel("D1@" + folder.DisplayName, revDef.Angle);
+            var angDisp = new MoDisplayAngularDimModel { ArcAngle = revDef.Angle };
+            dims.Add(new FeatureDimension("Angle", revDef.Angle, SketchDimensionType.Angle, $"{(revDef.Angle * 180.0 / Math.PI):F2}°", angParam, angDisp));
+
+            if (revDef.BothDirections && revDef.AngleDirection2 > 0)
+            {
+                var ang2Param = new MoAngleParameterModel("D2@" + folder.DisplayName, revDef.AngleDirection2);
+                var ang2Disp = new MoDisplayAngularDimModel { ArcAngle = revDef.AngleDirection2 };
+                dims.Add(new FeatureDimension("Angle2", revDef.AngleDirection2, SketchDimensionType.Angle, $"{(revDef.AngleDirection2 * 180.0 / Math.PI):F2}°", ang2Param, ang2Disp));
+            }
+        }
+        else if (folder.FeatureData is FilletFeatureModel filletDef)
+        {
+            if (filletDef.DefaultRadius.HasValue)
+            {
+                var radParam = new MoLengthParameterModel("Radius@" + folder.DisplayName, filletDef.DefaultRadius.Value);
+                var radDisp = new MoDisplayRadialDimModel { Radius = filletDef.DefaultRadius.Value };
+                dims.Add(new FeatureDimension("Radius", filletDef.DefaultRadius.Value, SketchDimensionType.Radius, (filletDef.DefaultRadius.Value * 1000).ToString("F2") + "mm", radParam, radDisp));
+            }
+        }
+        else if (folder.FeatureData is ChamferFeatureModel chamferDef)
+        {
+            if (chamferDef.EdgeChamferDistanceSide0.HasValue)
+            {
+                var distParam = new MoLengthParameterModel("Distance@" + folder.DisplayName, chamferDef.EdgeChamferDistanceSide0.Value);
+                dims.Add(new FeatureDimension("Distance", chamferDef.EdgeChamferDistanceSide0.Value, SketchDimensionType.Distance, (chamferDef.EdgeChamferDistanceSide0.Value * 1000).ToString("F2") + "mm", distParam));
+            }
+            if (chamferDef.EdgeChamferAngle.HasValue)
+            {
+                var angParam = new MoAngleParameterModel("Angle@" + folder.DisplayName, chamferDef.EdgeChamferAngle.Value);
+                dims.Add(new FeatureDimension("Angle", chamferDef.EdgeChamferAngle.Value, SketchDimensionType.Angle, $"{(chamferDef.EdgeChamferAngle.Value * 180.0 / Math.PI):F2}°", angParam));
+            }
+        }
+        else if (folder.FeatureData is HoleWizardFeatureModel holeDef)
+        {
+            if (holeDef.Diameter.HasValue)
+            {
+                var diaParam = new MoLengthParameterModel("Diameter@" + folder.DisplayName, holeDef.Diameter.Value);
+                var diaDisp = new MoDisplayDiameterDimModel { Diameter = holeDef.Diameter.Value };
+                dims.Add(new FeatureDimension("Diameter", holeDef.Diameter.Value, SketchDimensionType.Diameter, (holeDef.Diameter.Value * 1000).ToString("F2") + "mm", diaParam, diaDisp));
+            }
+            if (holeDef.Depth.HasValue)
+            {
+                var depParam = new MoLengthParameterModel("Depth@" + folder.DisplayName, holeDef.Depth.Value);
+                dims.Add(new FeatureDimension("Depth", holeDef.Depth.Value, SketchDimensionType.Distance, (holeDef.Depth.Value * 1000).ToString("F2") + "mm", depParam));
+            }
+        }
+        else if (folder.FeatureData is ShellFeatureModel shellDef)
+        {
+            if (shellDef.Thickness.HasValue)
+            {
+                var thkParam = new MoLengthParameterModel("Thickness@" + folder.DisplayName, shellDef.Thickness.Value);
+                dims.Add(new FeatureDimension("Thickness", shellDef.Thickness.Value, SketchDimensionType.Distance, (shellDef.Thickness.Value * 1000).ToString("F2") + "mm", thkParam));
+            }
+        }
+        if (folder.ChildFeatureData != null)
+        {
+            foreach (var cd in folder.ChildFeatureData)
+            {
+                if (cd is LengthParameterData childLpd)
+                {
+                    var childParam = childLpd.ToParameterModel();
+                    dims.Add(new FeatureDimension("D", childLpd.ParamValue, SketchDimensionType.Distance, childLpd.ParamValue.ToString("F3"), childParam));
+                }
+            }
+        }
+        var children = new List<Feature>();
+        foreach (var child in folder.Children)
+        {
+            children.Add(MapFolder(child));
+        }
+
+        var attrs = new Dictionary<string, string>
+        {
+            ["ClassName"] = folder.ClassName,
+            ["TypeId"] = folder.Header.TypeId.ToString(),
+            ["TagOffset"] = $"0x{folder.TagOffset:X}"
+        };
+
+        return new Feature(folder.DisplayName, kind, folder.ClassName, (int)folder.Header.TypeId, attrs, dims.AsReadOnly(), children.AsReadOnly(), isSuppressed: false, isVisible: true, model: folder.FeatureData);
     }
 
     private void ThrowIfDisposed()

@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 using Xunit;
 
@@ -78,7 +77,7 @@ public class HoleWizardParameterizationTests
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
         {
             var part = Assert.IsType<SldPart>(sw);
-            var feature = part.AddHoleWizard(new HoleWizardFeatureDefinitionData
+            var feature = part.AddHoleWizard(new HoleWizardFeatureModel
             {
                 Type = 14,
                 ThruHoleDiameter = thru,
@@ -89,8 +88,8 @@ public class HoleWizardParameterizationTests
             part.Save();
         }
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
-        var read = Assert.IsType<HoleWizardFeatureDefinitionData>(
-            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.HoleWizard)).Definition);
+        var read = Assert.IsType<HoleWizardFeatureModel>(
+            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.HoleWizard)).Model);
         Assert.Equal(thru, read.ThruHoleDiameter!.Value, 12);
         Assert.Equal(bore, read.CounterBoreDiameter!.Value, 12);
         Assert.Equal(depth, read.CounterBoreDepth!.Value, 12);
@@ -105,7 +104,7 @@ public class HoleWizardParameterizationTests
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
         {
             var part = Assert.IsType<SldPart>(sw);
-            var feature = part.AddHoleWizard(new HoleWizardFeatureDefinitionData
+            var feature = part.AddHoleWizard(new HoleWizardFeatureModel
             {
                 Type = 44,
                 FastenerSize = "M6",
@@ -117,8 +116,8 @@ public class HoleWizardParameterizationTests
             part.Save();
         }
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
-        var read = Assert.IsType<HoleWizardFeatureDefinitionData>(
-            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.HoleWizard)).Definition);
+        var read = Assert.IsType<HoleWizardFeatureModel>(
+            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.HoleWizard)).Model);
         Assert.Equal(diameter, read.CounterSinkDiameter!.Value, 12);
         Assert.Equal(angle, read.CounterSinkAngle!.Value, 12);
         Assert.Equal(0.006, read.ThruHoleDiameter!.Value, 12);
@@ -133,13 +132,13 @@ public class HoleWizardParameterizationTests
         byte[] before = (byte[])part.RawStreams[StreamKey(part)].Clone();
         foreach (var definition in new[]
                  {
-                     new HoleWizardFeatureDefinitionData { Type = 14, ThruHoleDiameter = 0.007 },
-                     new HoleWizardFeatureDefinitionData { Type = 14, ThruHoleDiameter = 0.012 },
-                     new HoleWizardFeatureDefinitionData { Type = 14, CounterBoreDiameter = 0.012 },
-                     new HoleWizardFeatureDefinitionData { Type = 14, CounterBoreDiameter = 0.014 },
-                     new HoleWizardFeatureDefinitionData { Type = 14, CounterBoreDepth = 0.005 },
-                     new HoleWizardFeatureDefinitionData { Type = 14, CounterBoreDepth = 0.009 },
-                     new HoleWizardFeatureDefinitionData { Type = 14, ThruHoleDepth = 0.012 }
+                     new HoleWizardFeatureModel { Type = 14, ThruHoleDiameter = 0.007 },
+                     new HoleWizardFeatureModel { Type = 14, ThruHoleDiameter = 0.012 },
+                     new HoleWizardFeatureModel { Type = 14, CounterBoreDiameter = 0.012 },
+                     new HoleWizardFeatureModel { Type = 14, CounterBoreDiameter = 0.014 },
+                     new HoleWizardFeatureModel { Type = 14, CounterBoreDepth = 0.005 },
+                     new HoleWizardFeatureModel { Type = 14, CounterBoreDepth = 0.009 },
+                     new HoleWizardFeatureModel { Type = 14, ThruHoleDepth = 0.012 }
                  })
         {
             Assert.Throws<NotSupportedException>(() => part.AddHoleWizard(definition));
@@ -156,16 +155,16 @@ public class HoleWizardParameterizationTests
         byte[] before = (byte[])part.RawStreams[StreamKey(part)].Clone();
         foreach (var definition in new[]
                  {
-                     new HoleWizardFeatureDefinitionData { Type = 44, FastenerSize = "M6",
+                     new HoleWizardFeatureModel { Type = 44, FastenerSize = "M6",
                          ThruHoleDiameter = 0.006, CounterSinkDiameter = 0.012 },
-                     new HoleWizardFeatureDefinitionData { Type = 44, FastenerSize = "M6",
+                     new HoleWizardFeatureModel { Type = 44, FastenerSize = "M6",
                          ThruHoleDiameter = 0.006, CounterSinkDiameter = 0.014 },
-                     new HoleWizardFeatureDefinitionData { Type = 44, FastenerSize = "M6",
+                     new HoleWizardFeatureModel { Type = 44, FastenerSize = "M6",
                          ThruHoleDiameter = 0.006, CounterSinkDiameter = 0.019 },
-                     new HoleWizardFeatureDefinitionData { Type = 44, FastenerSize = "M6",
+                     new HoleWizardFeatureModel { Type = 44, FastenerSize = "M6",
                          ThruHoleDiameter = 0.006, CounterSinkDiameter = 0.013,
                          CounterSinkAngle = 95.0 * Math.PI / 180.0 },
-                     new HoleWizardFeatureDefinitionData { Type = 44, FastenerSize = "M6",
+                     new HoleWizardFeatureModel { Type = 44, FastenerSize = "M6",
                          ThruHoleDiameter = 0.006, CounterSinkDiameter = 0.013,
                          CounterSinkAngle = 130.0 * Math.PI / 180.0 }
                  })

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -6,8 +6,7 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SldFile;
-using SldFile.Drawing;
-using SldFile.Sketches;
+using SldFile.Mfc;
 using SldFileViewer.Models;
 using SldFileViewer.Services;
 
@@ -273,7 +272,7 @@ public partial class MainViewModel : ObservableObject
             case TreeNodeKind.FeatureData:
                 if (node.Tag is System.Collections.Generic.IReadOnlyList<Feature> featureList)
                 {
-                    var firstDefined = featureList.FirstOrDefault(f => f.Definition != null);
+                    var firstDefined = featureList.FirstOrDefault(f => f.Model != null);
                     if (firstDefined != null)
                     {
                         FeatureDetail.LoadFeature(firstDefined);
@@ -281,9 +280,9 @@ public partial class MainViewModel : ObservableObject
                     else
                     {
                         var firstRegistered = featureList.FirstOrDefault(f =>
-                            SldFile.Binary.FeatureDataRegistry.IsRegistered(
+                            SldFile.Mfc.MfcFeatureRegistry.IsRegistered(
                                 f.Attributes.TryGetValue("ClassName", out var c1) ? c1 : f.TypeName) ||
-                            SldFile.Binary.FeatureDataRegistry.IsFeatureRegistered(
+                            SldFile.Mfc.MfcFeatureRegistry.IsFeatureRegistered(
                                 f.Attributes.TryGetValue("ClassName", out var c2) ? c2 : f.TypeName));
                         if (firstRegistered != null)
                             FeatureDetail.LoadFeature(firstRegistered);
@@ -300,7 +299,7 @@ public partial class MainViewModel : ObservableObject
                 break;
 
             case TreeNodeKind.FeatureSketch:
-                if (node.Tag is SketchFeature sketch)
+                if (node.Tag is SketchFeatureModel sketch)
                 {
                     SketchCanvas.LoadSketch(sketch);
                     CurrentView = SketchCanvas;
@@ -317,7 +316,7 @@ public partial class MainViewModel : ObservableObject
                     }
                     else
                     {
-                        var syn = new SketchFeature(feat.Name)
+                        var syn = new SketchFeatureModel(feat.Name)
                         {
                             Id = feat.Id,
                             SourceStream = feat.Attributes.TryGetValue("ClassName", out var cls) ? cls : "swXmlContents/KeyWords"
@@ -336,7 +335,7 @@ public partial class MainViewModel : ObservableObject
                 if (node.Tag is DrawingSheetInfo sheet)
                 {
                     var sheetPng = sheet.PreviewPng;
-                    ImagePreview.LoadImage(sheetPng, $"工程图纸: {sheet.Name}");
+                    ImagePreview.LoadImage(sheetPng, $"工程图纸: {sheet.Name}", sheet.SheetIndex);
                     CurrentView = ImagePreview;
                 }
                 break;

@@ -1,17 +1,23 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using SldFile.Binary;
+using SldFile.Mfc;
 
 namespace SldFile;
 
-public class SldAssembly : SwFile
+public partial class SldAssembly : SwFile
 {
     private IReadOnlyList<AssemblyMateInfo>? _mates;
 
     public SldAssembly(string filePath, bool readOnly = true) : base(filePath, readOnly)
     {
     }
+
+    /// <summary>Components belonging to the active assembly configuration.</summary>
+    public IReadOnlyList<AssemblyComponentNode> Components => GetAssemblyTree();
+
+
 
     /// <summary>
     /// Structural mate entries parsed from <c>Contents/Config-0-MatesList</c>.
@@ -21,7 +27,7 @@ public class SldAssembly : SwFile
     /// unresolved; see <see cref="AssemblyMateInfo.Resolution"/>.
     /// </summary>
     public IReadOnlyList<AssemblyMateInfo> Mates =>
-        _mates ??= MatesList.Mates.Select(mate => new AssemblyMateInfo(mate)).ToArray();
+        _mates ??= MatesList.Mates.Select(mate => new AssemblyMateInfo(mate.ToMateEntry())).ToArray();
 
     /// <summary>
     /// Appends one Coincident mate between two RefPlane entities to a clean
@@ -44,7 +50,20 @@ public class SldAssembly : SwFile
     /// or the MatesList layout is unknown.
     /// </exception>
     public void AddCoincidentMate(string entity1, string entity2)
-        => MateAuthoringWriter.AddMate(this, MateAuthoringTemplates.CoincidentRecord, entity1, entity2, null);
+    {
+        if (IsReadOnly)
+            throw new InvalidOperationException("The assembly is opened in read-only mode.");
+        ValidatePlaneSelections(entity1, entity2);
+
+        var mate = new StandardMateModel("moMateCoincident", AssemblyMateType.Coincident)
+        {
+            DisplayName = "Coincident" + (MatesList.Mates.Count + 1),
+            Alignment = AssemblyMateAlignment.Aligned
+        };
+        mate.AddPlaneReference(entity1);
+        mate.AddPlaneReference(entity2);
+        AddMate(mate);
+    }
 
     /// <summary>
     /// Appends one Distance mate between two RefPlane entities to a clean 2026
@@ -53,7 +72,23 @@ public class SldAssembly : SwFile
     /// <see cref="AddCoincidentMate"/>.
     /// </summary>
     public void AddDistanceMate(string entity1, string entity2, double distance)
-        => MateAuthoringWriter.AddMate(this, MateAuthoringTemplates.DistanceRecord, entity1, entity2, distance);
+    {
+        if (IsReadOnly)
+            throw new InvalidOperationException("The assembly is opened in read-only mode.");
+        if (double.IsNaN(distance) || double.IsInfinity(distance) || distance <= 0 || distance > 1000)
+            throw new ArgumentOutOfRangeException(nameof(distance), "Distance must be a finite value in (0, 1000] meters.");
+        ValidatePlaneSelections(entity1, entity2);
+
+        var mate = new StandardMateModel("moMateDistanceDim_c", AssemblyMateType.Distance)
+        {
+            DisplayName = "Distance" + (MatesList.Mates.Count + 1),
+            Alignment = AssemblyMateAlignment.Aligned,
+            Distance = distance
+        };
+        mate.AddPlaneReference(entity1);
+        mate.AddPlaneReference(entity2);
+        AddMate(mate);
+    }
 
     /// <summary>
     /// Appends the natively verified dual-mate group to a clean 2026 assembly
@@ -80,28 +115,7 @@ public class SldAssembly : SwFile
     /// not the verified front/right plane pair on the cube-1/cylinder-1
     /// components.
     /// </exception>
-    public void AddCoincidentDistanceMates(
-        string coincidentEntity1,
-        string coincidentEntity2,
-        string distanceEntity1,
-        string distanceEntity2,
-        double distance)
-        => MateAuthoringWriter.AddMateGroup(
-            this, MateGroupAuthoringTemplates.DualCoincidentDistanceList,
-            coincidentEntity1, coincidentEntity2, distanceEntity1, distanceEntity2, distance);
 
-    /// <summary>
-    /// Appends the verified dual-mate group using the measured 0.01 m Distance
-    /// value. See the overload with an explicit distance for the supported
-    /// component/plane combination and exceptions.
-    /// </summary>
-    public void AddCoincidentDistanceMates(
-        string coincidentEntity1,
-        string coincidentEntity2,
-        string distanceEntity1,
-        string distanceEntity2)
-        => AddCoincidentDistanceMates(
-            coincidentEntity1, coincidentEntity2, distanceEntity1, distanceEntity2, 0.01);
 
     /// <summary>
     /// Appends one Gear mate between two cylindrical-face components to the
@@ -113,10 +127,20 @@ public class SldAssembly : SwFile
     {
         ValidatePositiveParameter(numerator, nameof(numerator));
         ValidatePositiveParameter(denominator, nameof(denominator));
-        MateAuthoringWriter.AddAdvancedMate(
-            this, MateAuthoringTemplates.GearRecord, MateAuthoringTemplates.GearStreamVersion,
-            "齿轮配合1", MateAuthoringWriter.MateAuthoringEntityLayout.ComponentInstances,
-            component1, component2, numerator, "moLengthParameter_c", denominator);
+        ValidateComponentSelections(component1, component2, "齿轮配合1");
+
+        MatesList.StreamVersion = 0x00BF;
+        var mate = new GearMateModel
+        {
+            DisplayName = "齿轮配合1",
+            Pinion1Component = component1,
+            Pinion2Component = component2,
+            GearRatioNumerator = numerator,
+            GearRatioDenominator = denominator
+        };
+        mate.AddPlaneReference(component1);
+        mate.AddPlaneReference(component2);
+        AddMate(mate);
     }
 
     /// <summary>
@@ -127,10 +151,19 @@ public class SldAssembly : SwFile
     public void AddScrewMate(string component1, string component2, double revolutionsPerUnit)
     {
         ValidatePositiveParameter(revolutionsPerUnit, nameof(revolutionsPerUnit));
-        MateAuthoringWriter.AddAdvancedMate(
-            this, MateAuthoringTemplates.ScrewRecord, MateAuthoringTemplates.ScrewStreamVersion,
-            "螺旋1", MateAuthoringWriter.MateAuthoringEntityLayout.ComponentInstances,
-            component1, component2, revolutionsPerUnit, "moScalerParameter_c", null);
+        ValidateComponentSelections(component1, component2, "螺旋1");
+
+        MatesList.StreamVersion = 0x00BF;
+        var mate = new ScrewMateModel
+        {
+            DisplayName = "螺旋1",
+            ScrewEntity1 = component1,
+            ScrewEntity2 = component2,
+            RevolutionVal = revolutionsPerUnit
+        };
+        mate.AddPlaneReference(component1);
+        mate.AddPlaneReference(component2);
+        AddMate(mate);
     }
 
     /// <summary>
@@ -139,10 +172,18 @@ public class SldAssembly : SwFile
     /// measured values are reused; no numeric parameter is written.
     /// </summary>
     public void AddUniversalJointMate(string component1, string component2)
-        => MateAuthoringWriter.AddAdvancedMate(
-            this, MateAuthoringTemplates.UniversalJointRecord, MateAuthoringTemplates.UniversalJointStreamVersion,
-            "万向节1", MateAuthoringWriter.MateAuthoringEntityLayout.None,
-            component1, component2, null, null, null);
+    {
+        ValidateComponentSelections(component1, component2, "万向节1");
+
+        MatesList.StreamVersion = 0x00BF;
+        var mate = new UniversalJointMateModel
+        {
+            DisplayName = "万向节1",
+            Shaft1Entity = component1,
+            Shaft2Entity = component2
+        };
+        AddMate(mate);
+    }
 
     /// <summary>
     /// Appends one LimitDistance mate between two RefPlane entities to the matching
@@ -153,10 +194,18 @@ public class SldAssembly : SwFile
     {
         if (double.IsNaN(distance) || double.IsInfinity(distance) || distance <= 0 || distance > 1000)
             throw new ArgumentOutOfRangeException(nameof(distance), "Distance must be a finite value in (0, 1000] meters.");
-        MateAuthoringWriter.AddAdvancedMate(
-            this, MateAuthoringTemplates.LimitDistanceRecord, MateAuthoringTemplates.LimitDistanceStreamVersion,
-            "LimitDistance1", MateAuthoringWriter.MateAuthoringEntityLayout.PlaneSelectionPairs,
-            entity1, entity2, distance, "moLengthParameter_c", null);
+        ValidatePlaneSelections(entity1, entity2);
+
+        var mate = new StandardMateModel("moMateLimitDistanceDim_c", AssemblyMateType.LimitDistance)
+        {
+            DisplayName = "LimitDistance1",
+            TypeId = 5u,
+            Alignment = AssemblyMateAlignment.Aligned,
+            Distance = distance
+        };
+        mate.AddPlaneReference(entity1);
+        mate.AddPlaneReference(entity2);
+        AddMate(mate);
     }
 
     /// <summary>
@@ -169,87 +218,233 @@ public class SldAssembly : SwFile
         if (double.IsNaN(angleRadians) || double.IsInfinity(angleRadians) ||
             angleRadians <= 0 || angleRadians >= 2 * Math.PI)
             throw new ArgumentOutOfRangeException(nameof(angleRadians), "Angle must be a finite value in (0, 2π) radians.");
-        MateAuthoringWriter.AddAdvancedMate(
-            this, MateAuthoringTemplates.LimitAngleRecord, MateAuthoringTemplates.LimitAngleStreamVersion,
-            "LimitAngle1", MateAuthoringWriter.MateAuthoringEntityLayout.PlaneSelectionPairs,
-            entity1, entity2, angleRadians, "moAngleParameter_c", null);
+        ValidatePlaneSelections(entity1, entity2);
+
+        var mate = new StandardMateModel("moMateLimitPlanarAngleDim_c", AssemblyMateType.LimitAngle)
+        {
+            DisplayName = "LimitAngle1",
+            TypeId = 6u,
+            Alignment = AssemblyMateAlignment.Aligned,
+            Angle = angleRadians
+        };
+        mate.AddPlaneReference(entity1);
+        mate.AddPlaneReference(entity2);
+        AddMate(mate);
     }
 
-    /// <summary>
-    /// Applies the measured Width mate template (ConstraintType = Dimension) with
-    /// DistanceFromEnd 0.01 m or 0.02 m and the requested FlipDimension. The base
-    /// must contain exactly one measured dimensioned <c>moMateWidth</c> mate
-    /// (display dimension + D1 length parameter + four deferred planar-face
-    /// references). The measured four-mate MatesList template for the requested
-    /// flip state is written and its D1 distance patched; other distances are
-    /// rejected. The width feature is known to carry a SOLIDWORKS warning
-    /// (code 1) after switching from Centered to Dimension; this is the measured
-    /// native state.
-    /// </summary>
-    public void SetWidthMateDimension(double distance, bool flipDimension)
-        => MateAuthoringWriter.SetWidthMateDimension(this, distance, flipDimension);
+
 
     /// <summary>
-    /// Adds a RackPinion mate to the measured clean three-mate rack-and-pinion
-    /// base by writing the natively verified four-mate MatesList template and
-    /// patching the RackPinion diameter option/value and reverse flag. Only the
-    /// measured <c>rack-1@rack and pinion</c> / <c>spurgear-1@rack and pinion</c>
-    /// pair is supported; the base must be the clean Coincident+Distance+Parallel
-    /// assembly with no existing RackPinion mate.
+    /// Builds a structured hierarchical and flat Bill of Materials using the specified options and path resolver.
     /// </summary>
-    public void AddRackPinionMate(
-        string rackComponent,
-        string pinionComponent,
-        AssemblyMateRackPinionDiameterType diameterType,
-        double diameterValue,
-        bool reverse)
+    public SldFile.Assembly.BomResult BuildBom(SldFile.Assembly.BomOptions? options = null) => SldFile.Assembly.BomTransformer.Transform(this, options);
+
+    /// <summary>
+    /// Adds a strongly-typed mate to the assembly using structured MFC serialization.
+    /// </summary>
+    internal void AddMate(IMfcMateModel mate)
     {
-        if (diameterType != AssemblyMateRackPinionDiameterType.PinionPitchDiameter &&
-            diameterType != AssemblyMateRackPinionDiameterType.RackTravelPerRevolution)
-            throw new ArgumentOutOfRangeException(nameof(diameterType), "A known RackPinion diameter option is required.");
-        MateAuthoringWriter.AddRackPinionMate(
-            this, rackComponent, pinionComponent,
-            diameterType == AssemblyMateRackPinionDiameterType.PinionPitchDiameter ? 0 : 1,
-            diameterValue, reverse);
+        if (mate == null) throw new ArgumentNullException(nameof(mate));
+        if (IsReadOnly)
+            throw new InvalidOperationException("The assembly is opened in read-only mode.");
+
+        MatesList.Mates.Add(mate);
+        _mates = null;
+
+        string streamPath = FindMatesListStreamPath();
+        byte[] serialized = SldFile.Mfc.MfcArchive.Serialize(MatesList);
+        SetPendingStream(streamPath, serialized);
     }
 
     /// <summary>
-    /// Writes the fixed measured motion_path_tutorial Path template: four free
-    /// Path mates (moMatePath_c) plus the tutorial Hinge/Concentric/Coincident/
-    /// Parallel mates. The base must be the measured clean tutorial assembly with
-    /// the four PathMate records removed (MatesList version 0x00E6, u16@4=12);
-    /// no Path parameters or entities are rewritten.
+    /// Adds a strongly-typed mate to the assembly using structured MFC serialization.
     /// </summary>
-    public void AddTutorialPathMates()
-        => MateAuthoringWriter.AddTutorialPathMates(this);
+    public void AddMate(AssemblyMateDefinitionData definition)
+    {
+        if (definition == null) throw new ArgumentNullException(nameof(definition));
+        var mate = SldFile.Mfc.MfcMateRegistry.CreateForDefinition(definition);
+        AddMate(mate);
+    }
+
+    internal string FindMatesListStreamPath()
+    {
+        return RawStreams.Keys.FirstOrDefault(p =>
+            p.EndsWith("-MatesList", StringComparison.OrdinalIgnoreCase) ||
+            p.Equals("Contents/Config-0-MatesList", StringComparison.OrdinalIgnoreCase))
+            ?? "Contents/Config-0-MatesList";
+    }
 
     /// <summary>
-    /// Writes the fixed measured chain_link1 Hinge template (four Hinge mates).
-    /// The base must be the measured clean chain_link1 assembly with its Hinge
-    /// mates removed (MatesList version 0x00E7, zero entries, 6 bytes).
+    /// Adds a Width mate constraining a tab between two width faces.
     /// </summary>
-    public void AddTutorialHingeMates()
-        => MateAuthoringWriter.AddTutorialHingeMates(this);
+    public void AddWidthMate(
+        string widthFace1, string widthFace2,
+        string tabFace1, string tabFace2,
+        AssemblyMateWidthConstraint constraintType = AssemblyMateWidthConstraint.Centered,
+        double distance = 0.0,
+        bool flipDimension = false)
+    {
+        var def = new WidthMateDefinitionData
+        {
+            DisplayName = "Width" + (MatesList.Mates.Count + 1),
+            ConstraintType = constraintType,
+            DistanceFromEnd = distance,
+            FlipDimension = flipDimension
+        };
+        def.EntitiesToMate.Add(widthFace1);
+        def.EntitiesToMate.Add(widthFace2);
+        def.EntitiesToMate.Add(tabFace1);
+        def.EntitiesToMate.Add(tabFace2);
+        AddMate(def);
+    }
 
     /// <summary>
-    /// Writes the fixed measured cam-follower Cam template (CamTangent and
-    /// CamCoincident plus the tutorial's other mates). The base must be the
-    /// measured clean cam-follower assembly with the CamMate features removed.
+    /// Adds a ProfileCenter mate between two planar faces.
     /// </summary>
-    public void AddTutorialCamMates()
-        => MateAuthoringWriter.AddTutorialCamMates(this);
+    public void AddProfileCenterMate(
+        string entity1, string entity2,
+        double offsetDistance = 0.0,
+        bool flipDimension = false,
+        bool lockRotation = false)
+    {
+        var def = new ProfileCenterMateDefinitionData
+        {
+            DisplayName = "ProfileCenter" + (MatesList.Mates.Count + 1),
+            OffsetDistance = offsetDistance,
+            FlipDimension = flipDimension,
+            LockRotation = lockRotation
+        };
+        def.EntitiesToMate.Add(entity1);
+        def.EntitiesToMate.Add(entity2);
+        AddMate(def);
+    }
 
     /// <summary>
-    /// Writes the fixed measured key pad PlanarAngle template (two measured
-    /// PlanarAngle mates plus the tutorial's other mates). The base must be the
-    /// measured clean key pad assembly with Angle1/Angle2 removed.
+    /// Adds a CamFollower mate between a follower entity and cam profile faces.
     /// </summary>
-    public void AddTutorialPlanarAngleMates()
-        => MateAuthoringWriter.AddTutorialPlanarAngleMates(this);
+    public void AddCamFollowerMate(
+        string followerEntity,
+        IEnumerable<string> camFaces,
+        bool isTangent = true)
+    {
+        var def = new CamFollowerMateDefinitionData
+        {
+            DisplayName = "CamFollower" + (MatesList.Mates.Count + 1),
+            IsTangent = isTangent,
+            FollowerEntity = followerEntity
+        };
+        if (camFaces != null)
+        {
+            foreach (var face in camFaces)
+                def.CamProfileFaces.Add(face);
+        }
+        AddMate(def);
+    }
 
     private static void ValidatePositiveParameter(double value, string parameterName)
     {
         if (double.IsNaN(value) || double.IsInfinity(value) || value <= 0)
             throw new ArgumentOutOfRangeException(parameterName, "The parameter must be a finite positive value.");
+    }
+
+    private void ValidateCleanBase(ushort? expectedVersion = null)
+    {
+        string streamPath = FindMatesListStreamPath();
+        byte[]? stream = GetStreamBytes(streamPath);
+        if (stream == null || stream.Length != 6)
+            throw new NotSupportedException("Only a clean assembly without mates is supported.");
+        ushort ver = BitConverter.ToUInt16(stream, 0);
+        if (expectedVersion.HasValue)
+        {
+            if (ver != expectedVersion.Value)
+                throw new NotSupportedException($"Unsupported MatesList stream version 0x{ver:X4}.");
+        }
+        else if (ver != 0x00AB && ver != 0x00BF)
+        {
+            throw new NotSupportedException($"Unsupported MatesList stream version 0x{ver:X4}.");
+        }
+        if (BitConverter.ToUInt16(stream, 2) != 0)
+            throw new NotSupportedException("Unsupported MatesList header layout.");
+        if (BitConverter.ToUInt16(stream, 4) != 0)
+            throw new NotSupportedException("The assembly already contains mate records.");
+
+        MatesList.StreamVersion = ver;
+    }
+
+    private void ValidatePlaneSelections(string entity1, string entity2)
+    {
+        ValidateCleanBase();
+        var p1 = ParseEntity(entity1, nameof(entity1));
+        var p2 = ParseEntity(entity2, nameof(entity2));
+        if (string.Equals(p1.Component, p2.Component, StringComparison.Ordinal))
+            throw new NotSupportedException("The two RefPlane entities must belong to different components.");
+        if (!string.Equals(p1.Assembly, p2.Assembly, StringComparison.Ordinal))
+            throw new NotSupportedException("The two RefPlane entities must belong to the same assembly instance.");
+        if (string.Equals(p1.Feature, p2.Feature, StringComparison.Ordinal) &&
+            string.Equals(p1.Component, p2.Component, StringComparison.Ordinal))
+            throw new NotSupportedException("The two entity selection names must differ.");
+
+        var headerStrings = ReadModelHeaderStrings();
+        if (!headerStrings.Contains(p1.Component) || !headerStrings.Contains(p2.Component))
+            throw new NotSupportedException("A selected component instance is not present in the target assembly tree.");
+        if (!headerStrings.Contains(p1.Assembly))
+            throw new NotSupportedException("The selection names do not match the target assembly instance name.");
+    }
+
+    private HashSet<string> ReadModelHeaderStrings()
+    {
+        var key = RawStreams.Keys.FirstOrDefault(k =>
+            k.EndsWith("Config-0-ModelHeader", StringComparison.OrdinalIgnoreCase));
+        if (key == null)
+            throw new NotSupportedException("The target assembly has no Config-0-ModelHeader stream.");
+        byte[] data = GetStreamBytes(key) ?? Array.Empty<byte>();
+        return new HashSet<string>(
+            MfcPrimitives.ScanWCharFields(data, 0, data.Length).Select(static f => f.Value),
+            StringComparer.Ordinal);
+    }
+
+    private static (string Feature, string Component, string Assembly) ParseEntity(string entity, string paramName)
+    {
+        if (string.IsNullOrWhiteSpace(entity))
+            throw new ArgumentException("A RefPlane selection name is required.", paramName);
+
+        var parts = entity.Split('@');
+        if (parts.Length != 3)
+            throw new NotSupportedException($"Only RefPlane selection names of the form feature@component@assembly are supported (was '{entity}').");
+        if (string.IsNullOrWhiteSpace(parts[0]) ||
+            string.IsNullOrWhiteSpace(parts[1]) ||
+            string.IsNullOrWhiteSpace(parts[2]))
+            throw new NotSupportedException($"The selection '{entity}' contains empty component/feature parts.");
+
+        return (parts[0], parts[1], parts[2]);
+    }
+
+    private void ValidateComponentSelections(string component1, string component2, string? modelHeaderMarker)
+    {
+        ValidateCleanBase();
+        var headerStrings = ReadModelHeaderStrings();
+        if (!string.IsNullOrEmpty(modelHeaderMarker) && !headerStrings.Contains(modelHeaderMarker!))
+            throw new NotSupportedException($"The base does not carry the matching ModelHeader template (missing '{modelHeaderMarker}').");
+
+        var p1 = ParseComponentInstance(component1, nameof(component1));
+        var p2 = ParseComponentInstance(component2, nameof(component2));
+        if (string.Equals(p1.Component, p2.Component, StringComparison.Ordinal))
+            throw new NotSupportedException("The two entities must belong to different components.");
+        if (!string.Equals(p1.Assembly, p2.Assembly, StringComparison.Ordinal))
+            throw new NotSupportedException("The two entities must belong to the same assembly instance.");
+        if (!headerStrings.Contains(p1.Component) || !headerStrings.Contains(p2.Component))
+            throw new NotSupportedException("A selected component instance is not present in the target assembly tree.");
+        if (!headerStrings.Contains(p1.Assembly))
+            throw new NotSupportedException("The selection names do not match the target assembly instance name.");
+    }
+
+    private static (string Component, string Assembly) ParseComponentInstance(string value, string paramName)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            throw new ArgumentException("A component instance name is required.", paramName);
+        var parts = value.Split('@');
+        if (parts.Length != 2 || parts.Any(string.IsNullOrWhiteSpace))
+            throw new NotSupportedException($"Only component instance names of the form component@assembly are supported (was '{value}').");
+        return (parts[0], parts[1]);
     }
 }

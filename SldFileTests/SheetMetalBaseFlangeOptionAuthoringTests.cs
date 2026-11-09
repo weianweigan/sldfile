@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 using Xunit;
 
@@ -58,24 +57,24 @@ public class SheetMetalBaseFlangeOptionAuthoringTests
         return temp;
     }
 
-    private static SheetMetalBaseFlangeDefinitionData Definition(string template) => template switch
+    private static SheetMetalBaseFlangeModel Definition(string template) => template switch
     {
-        "KFactor" => new SheetMetalBaseFlangeDefinitionData
+        "KFactor" => new SheetMetalBaseFlangeModel
         {
             Thickness = 0.001, BendRadius = 0.002, Depth = 0.010,
             BendAllowanceType = 2, KFactor = 0.3
         },
-        "Direct" => new SheetMetalBaseFlangeDefinitionData
+        "Direct" => new SheetMetalBaseFlangeModel
         {
             Thickness = 0.001, BendRadius = 0.002, Depth = 0.010,
             BendAllowanceType = 3, BendAllowance = 0.001
         },
-        "Deduction" => new SheetMetalBaseFlangeDefinitionData
+        "Deduction" => new SheetMetalBaseFlangeModel
         {
             Thickness = 0.001, BendRadius = 0.002, Depth = 0.010,
             BendAllowanceType = 4, BendDeduction = 0.001
         },
-        "GaugeTable" => new SheetMetalBaseFlangeDefinitionData
+        "GaugeTable" => new SheetMetalBaseFlangeModel
         {
             Thickness = 0.001, BendRadius = 0.001, Depth = 0.010,
             UseGaugeTable = true, GaugeTablePath = GaugePath,
@@ -135,7 +134,7 @@ public class SheetMetalBaseFlangeOptionAuthoringTests
         }
 
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
-        var definition = Assert.IsType<SheetMetalBaseFlangeDefinitionData>(
+        var definition = Assert.IsType<SheetMetalBaseFlangeModel>(
             reopened.ResolvedFeatures.Folders.Single(f => f.ClassName == "moSMBaseFlange_c").FeatureData);
         Assert.Equal(0.001, definition.Thickness, precision: 12);
         Assert.Equal(0.010, definition.Depth, precision: 12);
@@ -268,7 +267,7 @@ public class SheetMetalBaseFlangeOptionAuthoringTests
             Assert.Contains("GaugeTablePath", Assert.Throws<NotSupportedException>(() =>
                 part.AddSheetMetalBaseFlangeFromOptionTemplate(badPath)).Message);
 
-            var unsupported = new SheetMetalBaseFlangeDefinitionData
+            var unsupported = new SheetMetalBaseFlangeModel
             {
                 Thickness = 0.001, BendRadius = 0.001, Depth = 0.010
             };

@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
 using SldFile.Mfc;
 using Xunit;
 
@@ -56,7 +55,7 @@ public class LoftedBendFeatureTests
         Assert.Equal(0x72u, folder.Header.TypeId);
         Assert.Equal("LoftedBend", folder.DisplayName);
 
-        var definition = Assert.IsType<LoftedBendFeatureDefinitionData>(folder.FeatureData);
+        var definition = Assert.IsType<LoftedBendFeatureModel>(folder.FeatureData);
         Assert.Equal(0.001, definition.Thickness!.Value, 12);
         Assert.Equal(2, definition.NumberOfBendLines ?? -1);
         Assert.True(definition.ParameterResolution.Thickness);
@@ -93,7 +92,7 @@ public class LoftedBendFeatureTests
         var feature = Assert.Single(part.Features, f => f.Name == "LoftedBend");
         Assert.Equal(FeatureKind.LoftedBend, feature.Kind);
         Assert.Equal("moLoftedBend_c", feature.TypeName);
-        Assert.IsType<LoftedBendFeatureDefinitionData>(feature.Definition);
+        Assert.IsType<LoftedBendFeatureModel>(feature.Model);
     }
 
     [Fact]
@@ -104,7 +103,7 @@ public class LoftedBendFeatureTests
             using var file = SwFile.Open(SamplePath(fileName), readOnly: true);
             byte[] raw = (byte[])file.RawStreams[ResolvedStream].Clone();
             var doc = MfcDocument.Parse(raw);
-            ResolvedFeaturesSchemaMapper.Map(doc, new ResolvedFeaturesData());
+            ResolvedFeaturesModel.Map(doc, new ResolvedFeaturesModel());
             Assert.Equal(raw, doc.SourceData);
         }
     }

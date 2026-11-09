@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.Topology;
 using SldFile.Mfc;
 using Xunit;
 
@@ -162,12 +161,12 @@ public class TopologyFromSktMappingTests
     {
         using var file = SwFile.Open(SamplePath(relativePath), readOnly: true);
         var feature = file.Features.FirstOrDefault(f =>
-            f.Definition is ExtrudeFeatureDefinitionData || f.Definition is SheetMetalBaseFlangeDefinitionData);
+            f.Model is ExtrudeFeatureModel || f.Model is SheetMetalBaseFlangeModel);
         Assert.NotNull(feature);
-        string? sketchName = feature!.Definition switch
+        string? sketchName = feature!.Model switch
         {
-            ExtrudeFeatureDefinitionData ext => ext.SketchName,
-            SheetMetalBaseFlangeDefinitionData sm => sm.SketchName,
+            ExtrudeFeatureModel ext => ext.SketchName,
+            SheetMetalBaseFlangeModel sm => sm.SketchName,
             _ => null
         };
         Assert.Equal(expectedName, sketchName);
@@ -216,8 +215,8 @@ public class TopologyFromSktMappingTests
         Assert.Empty(faceRef.FaceIds);
         Assert.Equal(raw.Length - 4, faceRef.TopologyData.Length);
 
-        var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(
-            Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Definition);
+        var definition = Assert.IsType<ExtrudeFeatureModel>(
+            Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Model);
         Assert.Equal(0u, definition.EndCondition); // Blind: no terminating entity.
         Assert.Null(definition.EndConditionEntity);
 

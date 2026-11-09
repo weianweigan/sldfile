@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using SldFile;
@@ -44,9 +44,9 @@ public class ThinExtrudeAuthoringTests
         return temp;
     }
 
-    private static ExtrudeFeatureDefinitionData Definition(bool capEnds, double depth = 0.010, double wall = 0.001)
+    private static ExtrudeFeatureModel Definition(bool capEnds, double depth = 0.010, double wall = 0.001)
     {
-        return new ExtrudeFeatureDefinitionData
+        return new ExtrudeFeatureModel
         {
             IsThinFeature = true,
             ThinWallType = 0,
@@ -75,8 +75,8 @@ public class ThinExtrudeAuthoringTests
 
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         Assert.Equal(nativeStream, reopened.RawStreams[ResolvedStream]);
-        var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(
-            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Definition);
+        var definition = Assert.IsType<ExtrudeFeatureModel>(
+            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Model);
         Assert.True(definition.IsThinFeature);
         Assert.Equal(0.010, definition.Depth, 12);
         Assert.Equal(0.001, definition.WallThickness, 12);
@@ -95,8 +95,8 @@ public class ThinExtrudeAuthoringTests
         }
 
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
-        var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(
-            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Definition);
+        var definition = Assert.IsType<ExtrudeFeatureModel>(
+            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Model);
         Assert.Equal(0.020, definition.Depth, 12);
         Assert.Equal(0.002, definition.WallThickness, 12);
         Assert.True(definition.IsThinFeature);
@@ -133,7 +133,7 @@ public class ThinExtrudeAuthoringTests
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
         {
             var part = Assert.IsType<SldPart>(sw);
-            part.AddExtrude(new ExtrudeFeatureDefinitionData
+            part.AddExtrude(new ExtrudeFeatureModel
             {
                 IsThinFeature = true,
                 ThinWallType = 2,
@@ -145,8 +145,8 @@ public class ThinExtrudeAuthoringTests
         }
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         Assert.Equal(nativeStream, reopened.RawStreams[ResolvedStream]);
-        var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(
-            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Definition);
+        var definition = Assert.IsType<ExtrudeFeatureModel>(
+            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Model);
         Assert.Equal(2u, definition.ThinWallType);
         Assert.Equal(0.010, definition.Depth, 12);
         Assert.Equal(0.001, definition.WallThickness, 12);
@@ -159,7 +159,7 @@ public class ThinExtrudeAuthoringTests
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
         {
             var part = Assert.IsType<SldPart>(sw);
-            part.AddExtrude(new ExtrudeFeatureDefinitionData
+            part.AddExtrude(new ExtrudeFeatureModel
             {
                 IsThinFeature = true,
                 ThinWallType = 3,
@@ -174,8 +174,8 @@ public class ThinExtrudeAuthoringTests
         }
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         Assert.Equal(nativeStream, reopened.RawStreams[ResolvedStream]);
-        var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(
-            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Definition);
+        var definition = Assert.IsType<ExtrudeFeatureModel>(
+            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Model);
         Assert.Equal(3u, definition.ThinWallType);
         Assert.True(definition.BothDirections);
         Assert.Equal(0.010, definition.Depth, 12);
@@ -191,7 +191,7 @@ public class ThinExtrudeAuthoringTests
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
         {
             var part = Assert.IsType<SldPart>(sw);
-            part.AddExtrude(new ExtrudeFeatureDefinitionData
+            part.AddExtrude(new ExtrudeFeatureModel
             {
                 IsThinFeature = true,
                 ThinWallType = 2,
@@ -203,8 +203,8 @@ public class ThinExtrudeAuthoringTests
         }
         using (var reopened = SwFile.Open(temp.FilePath, readOnly: true))
         {
-            var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(
-                Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Definition);
+            var definition = Assert.IsType<ExtrudeFeatureModel>(
+                Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Model);
             Assert.Equal(2u, definition.ThinWallType);
             Assert.Equal(0.020, definition.Depth, 12);
             Assert.Equal(0.002, definition.WallThickness, 12);
@@ -227,7 +227,7 @@ public class ThinExtrudeAuthoringTests
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
         {
             var part = Assert.IsType<SldPart>(sw);
-            part.AddExtrude(new ExtrudeFeatureDefinitionData
+            part.AddExtrude(new ExtrudeFeatureModel
             {
                 IsThinFeature = true,
                 ThinWallType = 3,
@@ -242,8 +242,8 @@ public class ThinExtrudeAuthoringTests
         }
         using (var reopened = SwFile.Open(temp.FilePath, readOnly: true))
         {
-            var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(
-                Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Definition);
+            var definition = Assert.IsType<ExtrudeFeatureModel>(
+                Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Model);
             Assert.Equal(3u, definition.ThinWallType);
             Assert.True(definition.BothDirections);
             Assert.Equal(0.015, definition.Depth, 12);
@@ -270,7 +270,7 @@ public class ThinExtrudeAuthoringTests
         {
             var part = Assert.IsType<SldPart>(sw);
             var original = (byte[])part.RawStreams[ResolvedStream].Clone();
-            var cap = new ExtrudeFeatureDefinitionData
+            var cap = new ExtrudeFeatureModel
             {
                 IsThinFeature = true, ThinWallType = 2, Depth = .01, WallThickness = .001, CapEnds = true, Merge = true
             };
@@ -285,7 +285,7 @@ public class ThinExtrudeAuthoringTests
             var part = Assert.IsType<SldPart>(sw);
             var original = (byte[])part.RawStreams[ResolvedStream].Clone();
 
-            var notBoth = new ExtrudeFeatureDefinitionData
+            var notBoth = new ExtrudeFeatureModel
             {
                 IsThinFeature = true, ThinWallType = 3, Depth = .01, DepthDirection2 = .005,
                 WallThickness = .001, WallThicknessDirection2 = .002, Merge = true
@@ -293,7 +293,7 @@ public class ThinExtrudeAuthoringTests
             var bothError = Assert.Throws<NotSupportedException>(() => part.AddExtrude(notBoth));
             Assert.Contains("BothDirections", bothError.Message);
 
-            var noDirection2 = new ExtrudeFeatureDefinitionData
+            var noDirection2 = new ExtrudeFeatureModel
             {
                 IsThinFeature = true, ThinWallType = 3, Depth = .01,
                 WallThickness = .001, WallThicknessDirection2 = .002, BothDirections = true, Merge = true
@@ -302,7 +302,7 @@ public class ThinExtrudeAuthoringTests
             var depthError = Assert.Throws<ArgumentOutOfRangeException>(() => part.AddExtrude(noDirection2));
             Assert.Contains("DepthDirection2", depthError.Message);
 
-            var noWall2 = new ExtrudeFeatureDefinitionData
+            var noWall2 = new ExtrudeFeatureModel
             {
                 IsThinFeature = true, ThinWallType = 3, Depth = .01, DepthDirection2 = .005,
                 WallThickness = .001, BothDirections = true, Merge = true
@@ -334,7 +334,7 @@ public class ThinExtrudeAuthoringTests
         using (var sw = SwFile.Open(midTemp.FilePath, readOnly: false))
         {
             var part = Assert.IsType<SldPart>(sw);
-            var two = new ExtrudeFeatureDefinitionData
+            var two = new ExtrudeFeatureModel
             {
                 IsThinFeature = true, ThinWallType = 3, Depth = .01, DepthDirection2 = .005,
                 WallThickness = .001, WallThicknessDirection2 = .002, BothDirections = true, Merge = true

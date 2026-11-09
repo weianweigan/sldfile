@@ -37,7 +37,7 @@ public class SketchSelectionModeTests
         using var file = SwFile.Open(path, readOnly: true);
         Assert.Equal((ushort)(name.StartsWith("whole") ? 0x71 : 0x70), file.ResolvedFeatures.StreamVersion);
         var feature = Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Extrusion));
-        var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<ExtrudeFeatureModel>(feature.Model);
         Assert.Equal(expectedMode, definition.SketchSelectionMode);
         Assert.Equal("SelectionSeed", definition.SketchName);
         Assert.NotEmpty(definition.AvailableSketchRegions);
@@ -76,8 +76,8 @@ public class SketchSelectionModeTests
         var results = new[] { "whole", "whole_resave" }.Select(name =>
         {
             using var file = SwFile.Open(Path.Combine(directory, name + ".SLDPRT"), readOnly: true);
-            var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(
-                Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Definition);
+            var definition = Assert.IsType<ExtrudeFeatureModel>(
+                Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Model);
             return definition;
         }).ToArray();
 
@@ -107,8 +107,8 @@ public class SketchSelectionModeTests
 
         using var file = SwFile.Open(path, readOnly: true);
         Assert.Equal((ushort)0x70, file.ResolvedFeatures.StreamVersion);
-        var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(
-            Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Definition);
+        var definition = Assert.IsType<ExtrudeFeatureModel>(
+            Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Model);
         Assert.Equal(SketchSelectionMode.ExplicitSelection, definition.SketchSelectionMode);
         Assert.Empty(definition.SelectedContours);
         var region = Assert.Single(definition.SelectedRegions);
@@ -126,9 +126,9 @@ public class SketchSelectionModeTests
         var chooser = Assert.Single(doc0.AllElements.Where(e => e.ClassName == "moContourChooser_c"));
         // Corrupt the 0x80EC class reference of the region chooser prefix.
         stream[chooser.DataStart + 3] = 0x00;
-        var model = new ResolvedFeaturesData();
-        ResolvedFeaturesSchemaMapper.Map(MfcDocument.Parse(stream), model);
-        var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(
+        var model = new ResolvedFeaturesModel();
+        ResolvedFeaturesModel.Map(MfcDocument.Parse(stream), model);
+        var definition = Assert.IsType<ExtrudeFeatureModel>(
             Assert.Single(model.Folders.Where(f => f.ClassName == "moExtrusion_c")).FeatureData);
         Assert.Equal(SketchSelectionMode.Unknown, definition.SketchSelectionMode);
         Assert.Empty(definition.SelectedContours);
@@ -138,10 +138,10 @@ public class SketchSelectionModeTests
     [Fact]
     public void UnestablishedSelectionStrategy_DefaultsToUnknown()
     {
-        Assert.Equal(SketchSelectionMode.Unknown, new ExtrudeFeatureDefinitionData().SketchSelectionMode);
+        Assert.Equal(SketchSelectionMode.Unknown, new ExtrudeFeatureModel().SketchSelectionMode);
         string path = Path.Combine(AppContext.BaseDirectory, "TestFiles", "Features2026", "extrude_cut_5mm.SLDPRT");
         using var file = SwFile.Open(path, readOnly: true);
-        var cuts = file.Features.Select(f => f.Definition).OfType<ExtrudeFeatureDefinitionData>().Where(d => d.IsCut).ToArray();
+        var cuts = file.Features.Select(f => f.Model).OfType<ExtrudeFeatureModel>().Where(d => d.IsCut).ToArray();
         Assert.NotEmpty(cuts);
         foreach (var definition in cuts)
         {
@@ -161,9 +161,9 @@ public class SketchSelectionModeTests
         using var file = SwFile.Open(path, readOnly: true);
         byte[] stream = (byte[])file.RawStreams["Contents/Config-0-ResolvedFeatures"].Clone();
         BitConverter.GetBytes((ushort)version).CopyTo(stream, 0);
-        var model = new ResolvedFeaturesData();
-        ResolvedFeaturesSchemaMapper.Map(MfcDocument.Parse(stream), model);
-        var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(
+        var model = new ResolvedFeaturesModel();
+        ResolvedFeaturesModel.Map(MfcDocument.Parse(stream), model);
+        var definition = Assert.IsType<ExtrudeFeatureModel>(
             Assert.Single(model.Folders.Where(f => f.ClassName == "moExtrusion_c")).FeatureData);
         Assert.Equal(SketchSelectionMode.Unknown, definition.SketchSelectionMode);
         Assert.Empty(definition.SelectedContours);

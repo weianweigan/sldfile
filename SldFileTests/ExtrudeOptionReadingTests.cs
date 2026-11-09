@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using SldFile;
@@ -23,7 +23,7 @@ public class ExtrudeOptionReadingTests
         string path = Path.Combine(AppContext.BaseDirectory, "TestFiles", "Features2026", "ExtrudeOptions", sample + ".SLDPRT");
         using var file = SwFile.Open(path, readOnly: true);
         var feature = Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Extrusion));
-        var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<ExtrudeFeatureModel>(feature.Model);
         Assert.Equal(expected, definition.ReverseDirection);
         Assert.Equal(.01, definition.Depth, 12);
     }
@@ -42,7 +42,7 @@ public class ExtrudeOptionReadingTests
         string path = Path.Combine(AppContext.BaseDirectory, "TestFiles", "Features2026", "ExtrudeOptions", sample + ".SLDPRT");
         using var file = SwFile.Open(path, readOnly: true);
         var feature = Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Extrusion));
-        var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<ExtrudeFeatureModel>(feature.Model);
         Assert.Equal(draftDegrees > 0, definition.DraftWhileExtruding);
         Assert.Equal(draftDegrees * Math.PI / 180, definition.DraftAngle, 12);
         Assert.Equal(offset > 0 ? 3u : 0u, definition.FromType);
@@ -59,7 +59,7 @@ public class ExtrudeOptionReadingTests
         string path = Path.Combine(AppContext.BaseDirectory, "TestFiles", "Features2026", "ExtrudeOptions", sample + ".SLDPRT");
         using var file = SwFile.Open(path, readOnly: true);
         var feature = Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Extrusion));
-        var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<ExtrudeFeatureModel>(feature.Model);
         Assert.True(definition.BothDirections);
         Assert.Equal(.01, definition.GetDepth(true), 12);
         Assert.Equal(secondDepth, definition.GetDepth(false), 12);
@@ -76,7 +76,7 @@ public class ExtrudeOptionReadingTests
         var favorite = Assert.Single(doc.AllElements.Where(e => e.ClassName == "moFavoriteHandle_c"));
         var feature = Assert.Single(doc.AllElements.Where(e => e.ClassName == "moExtrusion_c"));
         stream[favorite.DataStart + 436] = 12;
-        var definition = new ExtrudeFeatureDefinitionData();
+        var definition = new ExtrudeFeatureModel();
         ExtrudeAdditionalOptionParser.Apply(SldFile.Mfc.MfcDocument.Parse(stream), feature.ClassName, feature.TagOffset, stream.Length, definition);
         Assert.False(definition.BothDirections);
         Assert.Equal(0, definition.DepthDirection2);
@@ -111,7 +111,7 @@ public class ExtrudeOptionReadingTests
         var display = Assert.Single(doc.AllElements.Where(e => e.ClassName == "moDisplayAngularDim_c"));
         var feature = Assert.Single(doc.AllElements.Where(e => e.ClassName == "moExtrusion_c"));
         stream[display.TagOffset - 24] = 0;
-        var definition = new ExtrudeFeatureDefinitionData();
+        var definition = new ExtrudeFeatureModel();
         ExtrudeAdditionalOptionParser.Apply(SldFile.Mfc.MfcDocument.Parse(stream), feature.ClassName, feature.TagOffset, stream.Length, definition);
         Assert.False(definition.DraftWhileExtruding);
         Assert.Equal(0, definition.DraftAngle);

@@ -6,7 +6,6 @@ using System.Text;
 using System.Text.Json;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.Topology;
 using SldFile.Mfc;
 using Xunit;
 
@@ -72,8 +71,8 @@ public class SelectedSketchContourTests
         Assert.Equal(expected, nativeIds);
 
         using var file = SwFile.Open(path, readOnly: true);
-        var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(
-            Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Definition);
+        var definition = Assert.IsType<ExtrudeFeatureModel>(
+            Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Model);
         var contour = Assert.Single(definition.SelectedContours);
         Assert.Equal(SketchSelectionMode.ExplicitSelection, definition.SketchSelectionMode);
         Assert.Equal(nativeIds, contour.EntityIndices);
@@ -95,8 +94,8 @@ public class SelectedSketchContourTests
         // (compare contour_second chain [5,8,7,6] = same rectangle).
         string path = Path.Combine(AppContext.BaseDirectory, "TestFiles", "Features2026", "SelectionModes", "region.SLDPRT");
         using var file = SwFile.Open(path, readOnly: true);
-        var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(
-            Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Definition);
+        var definition = Assert.IsType<ExtrudeFeatureModel>(
+            Assert.Single(file.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Model);
         Assert.Equal(SketchSelectionMode.ExplicitSelection, definition.SketchSelectionMode);
         Assert.Empty(definition.SelectedContours);
         var region = Assert.Single(definition.SelectedRegions);

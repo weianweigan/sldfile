@@ -3,7 +3,7 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
+using SldFile.Mfc;
 using Xunit;
 
 namespace SldFileTests;
@@ -59,7 +59,7 @@ public class FreshEdgeFlangeTests
         var folder = Assert.Single(file.ResolvedFeatures.Folders,
             f => f.ClassName == "moEdgeFlange_c");
         Assert.Equal(0x75u, folder.Header.TypeId);
-        var def = Assert.IsType<EdgeFlangeFeatureDefinitionData>(folder.FeatureData);
+        var def = Assert.IsType<EdgeFlangeFeatureModel>(folder.FeatureData);
         Assert.Equal(0x75u, def.TypeId);
         Assert.Equal(1, def.EdgeCount ?? -1);
         Assert.Equal(0.002, def.BendRadius!.Value, 12);
@@ -108,7 +108,7 @@ public class FreshEdgeFlangeTests
         using var file = SwFile.Open(SamplePath(fileName), readOnly: true);
         var folder = Assert.Single(file.ResolvedFeatures.Folders,
             f => f.ClassName == "moEdgeFlange_c");
-        var def = Assert.IsType<EdgeFlangeFeatureDefinitionData>(folder.FeatureData);
+        var def = Assert.IsType<EdgeFlangeFeatureModel>(folder.FeatureData);
         Assert.Equal(defaultRadius, def.UseDefaultBendRadius ?? !defaultRadius);
         Assert.Equal(radius, def.BendRadius!.Value, 12);
         Assert.Equal(defaultRelief, def.UseDefaultBendRelief ?? !defaultRelief);
@@ -130,7 +130,7 @@ public class FreshEdgeFlangeTests
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
         {
             var part = Assert.IsType<SldPart>(sw);
-            var feature = part.AddFreshEdgeFlange(new EdgeFlangeFeatureDefinitionData());
+            var feature = part.AddFreshEdgeFlange(new EdgeFlangeFeatureModel());
             part.Save();
             Assert.Equal("边线-法兰2", feature.Name);
         }
@@ -149,7 +149,7 @@ public class FreshEdgeFlangeTests
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
         {
             var part = Assert.IsType<SldPart>(sw);
-            part.AddFreshEdgeFlange(new EdgeFlangeFeatureDefinitionData
+            part.AddFreshEdgeFlange(new EdgeFlangeFeatureModel
             {
                 ReliefWidth = 0.0015,
                 ReliefDepth = 0.0025,
@@ -162,7 +162,7 @@ public class FreshEdgeFlangeTests
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         var folder = Assert.Single(reopened.ResolvedFeatures.Folders,
             f => f.ClassName == "moEdgeFlange_c");
-        var def = Assert.IsType<EdgeFlangeFeatureDefinitionData>(folder.FeatureData);
+        var def = Assert.IsType<EdgeFlangeFeatureModel>(folder.FeatureData);
         Assert.True(def.UseDefaultBendRadius ?? false);
         Assert.Equal(0.002, def.BendRadius!.Value, 12);
         Assert.False(def.UseDefaultBendRelief ?? true);
@@ -180,7 +180,7 @@ public class FreshEdgeFlangeTests
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
         {
             var part = Assert.IsType<SldPart>(sw);
-            part.AddFreshEdgeFlange(new EdgeFlangeFeatureDefinitionData
+            part.AddFreshEdgeFlange(new EdgeFlangeFeatureModel
             {
                 UseDefaultBendRadius = false,
                 BendRadius = 0.003,
@@ -195,7 +195,7 @@ public class FreshEdgeFlangeTests
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         var folder = Assert.Single(reopened.ResolvedFeatures.Folders,
             f => f.ClassName == "moEdgeFlange_c");
-        var def = Assert.IsType<EdgeFlangeFeatureDefinitionData>(folder.FeatureData);
+        var def = Assert.IsType<EdgeFlangeFeatureModel>(folder.FeatureData);
         Assert.False(def.UseDefaultBendRadius ?? true);
         Assert.Equal(0.003, def.BendRadius!.Value, 12);
         Assert.False(def.UseDefaultBendRelief ?? true);
@@ -211,7 +211,7 @@ public class FreshEdgeFlangeTests
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))
         {
             var part = Assert.IsType<SldPart>(sw);
-            part.AddFreshEdgeFlange(new EdgeFlangeFeatureDefinitionData
+            part.AddFreshEdgeFlange(new EdgeFlangeFeatureModel
             {
                 ReliefWidth = 0.0015,
                 ReliefDepth = 0.0025,
@@ -226,7 +226,7 @@ public class FreshEdgeFlangeTests
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         var folder = Assert.Single(reopened.ResolvedFeatures.Folders,
             f => f.ClassName == "moEdgeFlange_c");
-        var def = Assert.IsType<EdgeFlangeFeatureDefinitionData>(folder.FeatureData);
+        var def = Assert.IsType<EdgeFlangeFeatureModel>(folder.FeatureData);
         Assert.True(def.UseDefaultBendRadius ?? false);
         Assert.Equal(0.002, def.BendRadius!.Value, 12);
         Assert.False(def.UseDefaultBendRelief ?? true);
@@ -245,7 +245,7 @@ public class FreshEdgeFlangeTests
         {
             var part = Assert.IsType<SldPart>(sw);
             var error = Assert.Throws<NotSupportedException>(() =>
-                part.AddFreshEdgeFlange(new EdgeFlangeFeatureDefinitionData
+                part.AddFreshEdgeFlange(new EdgeFlangeFeatureModel
                 {
                     PositionOffsetType = 2
                 }));
@@ -258,7 +258,7 @@ public class FreshEdgeFlangeTests
         {
             var part = Assert.IsType<SldPart>(sw);
             var error = Assert.Throws<NotSupportedException>(() =>
-                part.AddFreshEdgeFlange(new EdgeFlangeFeatureDefinitionData()));
+                part.AddFreshEdgeFlange(new EdgeFlangeFeatureModel()));
             Assert.Contains("stripped base", error.Message);
         }
 
@@ -275,7 +275,7 @@ public class FreshEdgeFlangeTests
             {
                 var part = Assert.IsType<SldPart>(sw);
                 var error = Assert.Throws<NotSupportedException>(() =>
-                    part.AddFreshEdgeFlange(new EdgeFlangeFeatureDefinitionData()));
+                    part.AddFreshEdgeFlange(new EdgeFlangeFeatureModel()));
                 Assert.Contains("normalized prefix SHA-256", error.Message);
             }
         }

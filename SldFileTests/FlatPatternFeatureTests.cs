@@ -57,7 +57,7 @@ public class FlatPatternFeatureTests
         using var file = SwFile.Open(SamplePath(relative), readOnly: true);
         var folder = Assert.Single(file.ResolvedFeatures.Folders, f => f.ClassName == "moFlatPattern_c");
         Assert.Equal(typeId, folder.Header.TypeId);
-        var definition = Assert.IsType<FlatPatternFeatureDefinitionData>(folder.FeatureData);
+        var definition = Assert.IsType<FlatPatternFeatureModel>(folder.FeatureData);
 
         Assert.Equal(typeId, definition.TypeId);
         Assert.NotNull(definition.FixedFace);
@@ -127,7 +127,7 @@ public class FlatPatternFeatureTests
         using var file = SwFile.Open(SamplePath("FlatPatternOptions/" + fileName), readOnly: true);
         var folder = Assert.Single(file.ResolvedFeatures.Folders, f => f.ClassName == "moFlatPattern_c");
         Assert.Equal(0x5Du, folder.Header.TypeId);
-        var definition = Assert.IsType<FlatPatternFeatureDefinitionData>(folder.FeatureData);
+        var definition = Assert.IsType<FlatPatternFeatureModel>(folder.FeatureData);
 
         Assert.Equal(merge, definition.MergeFace ?? !merge);
         Assert.Equal(simplify, definition.SimplifyBends ?? !simplify);
@@ -164,7 +164,7 @@ public class FlatPatternFeatureTests
 
         var template = Assert.Single(part.ResolvedFeatures.Folders,
             f => f.ClassName == "moTemplateFlatPattern_c");
-        Assert.False(template.FeatureData is FlatPatternFeatureDefinitionData);
+        Assert.False(template.FeatureData is FlatPatternFeatureModel);
     }
 
     [Fact]
@@ -180,7 +180,7 @@ public class FlatPatternFeatureTests
             using var file = SwFile.Open(SamplePath(relative), readOnly: true);
             byte[] raw = (byte[])file.RawStreams[ResolvedStream].Clone();
             var doc = MfcDocument.Parse(raw);
-            ResolvedFeaturesSchemaMapper.Map(doc, new ResolvedFeaturesData());
+            ResolvedFeaturesModel.Map(doc, new ResolvedFeaturesModel());
             Assert.Equal(raw, doc.SourceData);
         }
     }
@@ -196,7 +196,7 @@ public class FlatPatternFeatureTests
             var folder = Assert.Single(afterFillet.ResolvedFeatures.Folders,
                 f => f.ClassName == "moFlatPattern_c");
             Assert.Equal(0x66u, folder.Header.TypeId);
-            var data = Assert.IsType<FlatPatternFeatureDefinitionData>(folder.FeatureData);
+            var data = Assert.IsType<FlatPatternFeatureModel>(folder.FeatureData);
             Assert.Equal(0x66u, data.TypeId);
         }
 
@@ -246,7 +246,7 @@ public class FlatPatternFeatureTests
         // the end of moFaceRef_c; it resolves the defaults without changing the
         // class payload bytes compared above.
         using var file = SwFile.Open(SamplePath("SheetMetalOptions/sm_l_d10.SLDPRT"), readOnly: true);
-        var definition = Assert.IsType<FlatPatternFeatureDefinitionData>(
+        var definition = Assert.IsType<FlatPatternFeatureModel>(
             file.ResolvedFeatures.Folders.Single(f => f.ClassName == "moFlatPattern_c").FeatureData);
         Assert.True(definition.MergeFace ?? false);
         Assert.True(definition.SimplifyBends ?? false);

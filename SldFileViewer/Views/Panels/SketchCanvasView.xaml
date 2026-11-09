@@ -155,13 +155,14 @@
                               CanUserAddRows="False"
                               SelectedItem="{Binding SelectedSegment, Mode=TwoWay}">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="图元 ID" Binding="{Binding Id}" Width="80" />
-                            <DataGridTextColumn Header="类别 (Kind)" Binding="{Binding Kind}" Width="120" />
-                            <DataGridCheckBoxColumn Header="辅助线 (Construction)" Binding="{Binding IsConstruction}" Width="140" />
-                            <DataGridTextColumn Header="起点" Binding="{Binding Start.Id, StringFormat='#{0}'}" Width="80" />
-                            <DataGridTextColumn Header="终点" Binding="{Binding End.Id, StringFormat='#{0}'}" Width="80" />
-                            <DataGridTextColumn Header="圆心" Binding="{Binding Center.Id, StringFormat='#{0}'}" Width="80" />
-                            <DataGridTextColumn Header="半径" Binding="{Binding Radius, Converter={StaticResource DimensionDisplayConverter}}" Width="120" />
+                            <DataGridTextColumn Header="图元 ID" Binding="{Binding Id}" Width="75" />
+                            <DataGridTextColumn Header="类别" Binding="{Binding KindName}" Width="110" />
+                            <DataGridCheckBoxColumn Header="辅助线" Binding="{Binding IsConstruction}" Width="65" />
+                            <DataGridTextColumn Header="起点" Binding="{Binding StartPointDisplay}" Width="170" />
+                            <DataGridTextColumn Header="终点" Binding="{Binding EndPointDisplay}" Width="170" />
+                            <DataGridTextColumn Header="长度" Binding="{Binding LengthDisplay}" Width="95" />
+                            <DataGridTextColumn Header="圆心" Binding="{Binding CenterPointDisplay}" Width="160" />
+                            <DataGridTextColumn Header="半径" Binding="{Binding RadiusDisplay}" Width="95" />
                             <DataGridTextColumn Header="说明 / 文本" Binding="{Binding Text}" Width="*" />
                         </DataGrid.Columns>
                     </DataGrid>
@@ -174,43 +175,48 @@
                               CanUserAddRows="False"
                               SelectedItem="{Binding SelectedPoint, Mode=TwoWay}">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="点 ID" Binding="{Binding Id}" Width="80" />
-                            <DataGridTextColumn Header="表索引 (Index)" Binding="{Binding TableIndex}" Width="100" />
-                            <DataGridTextColumn Header="X (m)" Binding="{Binding WorldX, StringFormat='F6'}" Width="120" />
-                            <DataGridTextColumn Header="Y (m)" Binding="{Binding WorldY, StringFormat='F6'}" Width="120" />
-                            <DataGridTextColumn Header="Z (m)" Binding="{Binding WorldZ, StringFormat='F6'}" Width="120" />
-                            <DataGridTextColumn Header="X (mm)" Binding="{Binding WorldX, Converter={StaticResource DimensionDisplayConverter}}" Width="120" />
-                            <DataGridTextColumn Header="Y (mm)" Binding="{Binding WorldY, Converter={StaticResource DimensionDisplayConverter}}" Width="120" />
+                            <DataGridTextColumn Header="点 ID" Binding="{Binding Id}" Width="75" />
+                            <DataGridTextColumn Header="表索引" Binding="{Binding TableIndex}" Width="80" />
+                            <DataGridTextColumn Header="坐标 (X, Y) mm" Binding="{Binding CoordMm}" Width="180" />
+                            <DataGridTextColumn Header="X (mm)" Binding="{Binding XInMm}" Width="95" />
+                            <DataGridTextColumn Header="Y (mm)" Binding="{Binding YInMm}" Width="95" />
+                            <DataGridTextColumn Header="Z (mm)" Binding="{Binding ZInMm}" Width="95" />
+                            <DataGridTextColumn Header="X (m)" Binding="{Binding WorldX, StringFormat='F6'}" Width="110" />
+                            <DataGridTextColumn Header="Y (m)" Binding="{Binding WorldY, StringFormat='F6'}" Width="110" />
+                            <DataGridTextColumn Header="Z (m)" Binding="{Binding WorldZ, StringFormat='F6'}" Width="110" />
                         </DataGrid.Columns>
                     </DataGrid>
                 </TabItem>
 
                 <!-- Constraints Table -->
                 <TabItem Header="约束关系 (Relations)">
-                    <DataGrid ItemsSource="{Binding Sketch.Relations}"
+                    <DataGrid ItemsSource="{Binding Relations}"
                               AutoGenerateColumns="False"
                               CanUserAddRows="False">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="约束类型" Binding="{Binding Kind, Converter={StaticResource RelationKindToStringConverter}}" Width="180" />
+                            <DataGridTextColumn Header="约束类型" Binding="{Binding TypeName}" Width="170" />
                             <DataGridTextColumn Header="代码 (TypeCode)" Binding="{Binding TypeCode}" Width="110" />
-                            <DataGridTextColumn Header="布局 (Layout)" Binding="{Binding Layout}" Width="150" />
-                            <DataGridTextColumn Header="关联实体数" Binding="{Binding References.Count}" Width="100" />
-                            <DataGridTextColumn Header="流偏移 (Offset)" Binding="{Binding SourceOffset, StringFormat='0x{0:X}'}" Width="120" />
+                            <DataGridTextColumn Header="关联实体" Binding="{Binding EntitiesText}" Width="*" />
+                            <DataGridTextColumn Header="关联数" Binding="{Binding EntityCount}" Width="80" />
+                            <DataGridTextColumn Header="布局 (Layout)" Binding="{Binding Layout}" Width="130" />
                         </DataGrid.Columns>
                     </DataGrid>
                 </TabItem>
 
                 <!-- Dimensions Table -->
                 <TabItem Header="尺寸 (Dimensions)">
-                    <DataGrid ItemsSource="{Binding Sketch.Dimensions}"
+                    <DataGrid ItemsSource="{Binding Dimensions}"
                               AutoGenerateColumns="False"
                               CanUserAddRows="False">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="尺寸名称" Binding="{Binding Name}" Width="150" />
-                            <DataGridTextColumn Header="系统值 (mm)" Binding="{Binding SystemValue, Converter={StaticResource DimensionDisplayConverter}}" Width="140" />
-                            <DataGridTextColumn Header="显示值" Binding="{Binding DisplayValue}" Width="140" />
-                            <DataGridTextColumn Header="数值来源" Binding="{Binding ValueSource}" Width="180" />
-                            <DataGridTextColumn Header="流偏移" Binding="{Binding SourceOffset, StringFormat='0x{0:X}'}" Width="120" />
+                            <DataGridTextColumn Header="尺寸名称" Binding="{Binding Name}" Width="120" />
+                            <DataGridTextColumn Header="类别" Binding="{Binding DimensionType}" Width="100" />
+                            <DataGridTextColumn Header="数值 / 标注" Binding="{Binding FormattedValue}" Width="130" />
+                            <DataGridTextColumn Header="关联图元" Binding="{Binding TargetEntity}" Width="160" />
+                            <DataGridTextColumn Header="系统原始值 (m)" Binding="{Binding ValueInMeters, StringFormat='F6'}" Width="120" />
+                            <DataGridTextColumn Header="定位坐标 (mm)" Binding="{Binding TextPositionDisplay}" Width="150" />
+                            <DataGridTextColumn Header="方向向量" Binding="{Binding DirectionDisplay}" Width="120" />
+                            <DataGridTextColumn Header="数值来源" Binding="{Binding ValueSource}" Width="150" />
                         </DataGrid.Columns>
                     </DataGrid>
                 </TabItem>

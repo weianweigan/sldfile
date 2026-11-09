@@ -188,8 +188,8 @@ public class MateControlledDecodingTests
         stream[at] = (byte)'#';
         stream[at + 1] = 0;
 
-        var model = new MatesListData();
-        MatesListSchemaMapper.Map(stream, model);
+        var model = new MatesListModel();
+        MfcArchive.DeserializeInto(stream, model);
         var entry = Assert.Single(model.Mates);
         Assert.NotNull(entry.Structure);
 
@@ -217,8 +217,8 @@ public class MateControlledDecodingTests
         // Corrupt the fixed 2.0 metadata word of the D1 record (offset +10).
         BitConverter.GetBytes(3.0).CopyTo(stream, d1 + 10);
 
-        var model = new MatesListData();
-        MatesListSchemaMapper.Map(stream, model);
+        var model = new MatesListModel();
+        MfcArchive.DeserializeInto(stream, model);
         var entry = Assert.Single(model.Mates);
         var info = new AssemblyMateInfo(entry);
 
@@ -243,8 +243,8 @@ public class MateControlledDecodingTests
         var mate = Assert.Single(doc.AllElements.Where(e => e.ClassName == "moMateCoincident"));
         Assert.NotNull(MateStructureDecoder.Decode(mate));
 
-        var model = new MatesListData();
-        MatesListSchemaMapper.Map(stream, model);
+        var model = new MatesListModel();
+        MfcArchive.DeserializeInto(stream, model);
 
         Assert.Equal(before, stream);
     }

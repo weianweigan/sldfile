@@ -3,8 +3,6 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Binary.FeatureData;
-using SldFile.Binary.Topology;
 using SldFile.Mfc;
 using Xunit;
 
@@ -50,9 +48,9 @@ public class ExtrudeExplicitSelectionAuthoringTests
         return temp;
     }
 
-    private static ExtrudeFeatureDefinitionData Definition(params uint[][] contours)
+    private static ExtrudeFeatureModel Definition(params uint[][] contours)
     {
-        return new ExtrudeFeatureDefinitionData
+        return new ExtrudeFeatureModel
         {
             Depth = 0.010,
             SketchSelectionMode = SketchSelectionMode.ExplicitSelection,
@@ -104,7 +102,7 @@ public class ExtrudeExplicitSelectionAuthoringTests
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         var feature = Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Extrusion));
         Assert.Equal("ExplicitExtrude", feature.Name);
-        var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(feature.Definition);
+        var definition = Assert.IsType<ExtrudeFeatureModel>(feature.Model);
         Assert.Equal(SketchSelectionMode.ExplicitSelection, definition.SketchSelectionMode);
         Assert.Equal(0.010, definition.Depth, 12);
         Assert.Equal(contours.Length, definition.SelectedContours.Count);
@@ -189,8 +187,8 @@ public class ExtrudeExplicitSelectionAuthoringTests
 
         using var reopened = SwFile.Open(temp.FilePath, readOnly: true);
         Assert.Equal(before, reopened.RawStreams[ResolvedStream]);
-        var definition = Assert.IsType<ExtrudeFeatureDefinitionData>(
-            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Definition);
+        var definition = Assert.IsType<ExtrudeFeatureModel>(
+            Assert.Single(reopened.Features.Where(f => f.Kind == FeatureKind.Extrusion)).Model);
         Assert.Equal(SketchSelectionMode.ExplicitSelection, definition.SketchSelectionMode);
         Assert.Equal(2, definition.SelectedContours.Count);
         Assert.Equal(FirstContour, definition.SelectedContours[0].EntityIndices.ToArray());
@@ -238,7 +236,7 @@ public class ExtrudeExplicitSelectionAuthoringTests
     public void ExplicitSelection_RejectsRegionsCandidatesAndInvalidIds()
     {
         using var temp = CreateStrippedExplicitBase(OneContourSample, out _, out _);
-        AssertExplicitAddRejected(temp, new ExtrudeFeatureDefinitionData
+        AssertExplicitAddRejected(temp, new ExtrudeFeatureModel
         {
             Depth = 0.010,
             SketchSelectionMode = SketchSelectionMode.ExplicitSelection,
@@ -246,20 +244,20 @@ public class ExtrudeExplicitSelectionAuthoringTests
             SelectedRegions = new[] { new SketchRegionReference { RegionIndex = 1 } }
         }, "SelectedRegions");
 
-        AssertExplicitAddRejected(temp, new ExtrudeFeatureDefinitionData
+        AssertExplicitAddRejected(temp, new ExtrudeFeatureModel
         {
             Depth = 0.010,
             SketchSelectionMode = SketchSelectionMode.ExplicitSelection,
             SelectedContours = new[] { new SketchContourReference { EntityIndices = FirstContour, IsCandidateOnly = true } }
         }, "Candidate-only");
 
-        Assert.Throws<ArgumentException>(() => ExtrudeFeatureBuilder.ValidateDefinition(new ExtrudeFeatureDefinitionData
+        Assert.Throws<ArgumentException>(() => ExtrudeFeatureBuilder.ValidateDefinition(new ExtrudeFeatureModel
         {
             Depth = 0.010,
             SketchSelectionMode = SketchSelectionMode.ExplicitSelection,
             SelectedContours = new[] { new SketchContourReference { EntityIndices = new uint[] { 1, 0, 3, 2 } } }
         }));
-        Assert.Throws<ArgumentException>(() => ExtrudeFeatureBuilder.ValidateDefinition(new ExtrudeFeatureDefinitionData
+        Assert.Throws<ArgumentException>(() => ExtrudeFeatureBuilder.ValidateDefinition(new ExtrudeFeatureModel
         {
             Depth = 0.010,
             SketchSelectionMode = SketchSelectionMode.ExplicitSelection,
@@ -271,28 +269,28 @@ public class ExtrudeExplicitSelectionAuthoringTests
     public void ExplicitSelection_RejectsUnsupportedOptionsAndDepth()
     {
         using var temp = CreateStrippedExplicitBase(OneContourSample, out _, out _);
-        AssertExplicitAddRejected(temp, new ExtrudeFeatureDefinitionData
+        AssertExplicitAddRejected(temp, new ExtrudeFeatureModel
         {
             Depth = 0.020,
             SketchSelectionMode = SketchSelectionMode.ExplicitSelection,
             SelectedContours = new[] { new SketchContourReference { EntityIndices = FirstContour } }
         }, "template depth");
 
-        AssertExplicitAddRejected(temp, new ExtrudeFeatureDefinitionData
+        AssertExplicitAddRejected(temp, new ExtrudeFeatureModel
         {
             Depth = 0.010, IsCut = true,
             SketchSelectionMode = SketchSelectionMode.ExplicitSelection,
             SelectedContours = new[] { new SketchContourReference { EntityIndices = FirstContour } }
         }, "IsCut");
 
-        AssertExplicitAddRejected(temp, new ExtrudeFeatureDefinitionData
+        AssertExplicitAddRejected(temp, new ExtrudeFeatureModel
         {
             Depth = 0.010, BothDirections = true, DepthDirection2 = 0.005,
             SketchSelectionMode = SketchSelectionMode.ExplicitSelection,
             SelectedContours = new[] { new SketchContourReference { EntityIndices = FirstContour } }
         }, "BothDirections");
 
-        AssertExplicitAddRejected(temp, new ExtrudeFeatureDefinitionData
+        AssertExplicitAddRejected(temp, new ExtrudeFeatureModel
         {
             Depth = 0.010, ReverseDirection = true,
             SketchSelectionMode = SketchSelectionMode.ExplicitSelection,
@@ -386,7 +384,7 @@ public class ExtrudeExplicitSelectionAuthoringTests
     }
 
     private static void AssertExplicitAddRejected(
-        TempTestFile temp, ExtrudeFeatureDefinitionData definition, string expectedMessage)
+        TempTestFile temp, ExtrudeFeatureModel definition, string expectedMessage)
     {
         byte[] before = ReadStream(temp.FilePath);
         using (var sw = SwFile.Open(temp.FilePath, readOnly: false))

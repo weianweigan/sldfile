@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 using System.IO;
 
@@ -1402,6 +1402,24 @@ _dialogService.ShowError("导出失败", ex.Message);
 }
 
 [RelayCommand]
+private void ExportStep()
+{
+    if (_docService.CurrentFile == null) return;
+    if (_dialogService.ShowSaveFileDialog(GetDefaultFileName(".step"), "STEP AP214 标准 CAD 交换模型 (*.step;*.stp)|*.step;*.stp", out var savePath))
+    {
+        try
+        {
+            _exportService.ExportStep(_docService.CurrentFile, savePath);
+            _dialogService.ShowInformation("导出成功", $"STEP AP214 高精度模型已成功导出至:\n{savePath}");
+        }
+        catch (Exception ex)
+        {
+            _dialogService.ShowError("导出失败", ex.Message);
+        }
+    }
+}
+
+[RelayCommand]
 
 private void ExportStl()
 
@@ -1498,6 +1516,8 @@ catch (Exception ex)
 _dialogService.ShowError("导出失败", ex.Message);
 
 }
+
+
 
 }
 
