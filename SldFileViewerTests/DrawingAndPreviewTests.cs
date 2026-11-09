@@ -38,6 +38,52 @@ public class DrawingAndPreviewTests
     private readonly string _cubePart = ViewerIntegrationTests.ResolveModelPath("cube.SLDPRT");
 
     [Fact]
+    public async Task Drawing_RealDrawingAndPartFiles_LoadWithoutErrorsOrGhosting()
+    {
+        string prtPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDPRT";
+        string drwPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
+
+        async Task TestFile(string path, bool isDrawing)
+        {
+            if (!File.Exists(path)) return;
+            var docService = new SwDocumentService();
+            var dialogService = new MockDialogService();
+            var exportService = new ExportService();
+
+            var treeVm = new DocumentTreeViewModel(docService);
+            var sketchVm = new SketchCanvasViewModel();
+            var propsVm = new CustomPropsViewModel(docService, dialogService);
+            var eqVm = new EquationsViewModel(docService);
+            var bomVm = new BomViewModel(docService, exportService, dialogService);
+            var meshVm = new MeshViewerViewModel(docService, exportService, dialogService);
+            var imgVm = new ImagePreviewViewModel(docService);
+            var featVm = new FeatureDetailViewModel();
+
+            var mainVm = new MainViewModel(docService, dialogService, treeVm, sketchVm, propsVm, eqVm, bomVm, meshVm, imgVm, featVm);
+
+            await mainVm.LoadDocumentAsync(path);
+
+            Assert.Empty(dialogService.Errors);
+
+            foreach (var cfg in mainVm.Configurations)
+            {
+                mainVm.SelectedConfiguration = cfg;
+            }
+
+            if (isDrawing)
+            {
+                Assert.True(imgVm.HasImage);
+                Assert.True(imgVm.IsRasterImageVisible);
+                Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.SheetNotesOnly, imgVm.OverlayMode);
+            }
+        }
+
+        await TestFile(prtPath, false);
+        await TestFile(drwPath, true);
+    }
+
+
+    [Fact]
     public async Task Drawing_OpensWithHighResolutionPreviewAndCanvasZoomCommands()
     {
         var docService = new SwDocumentService();

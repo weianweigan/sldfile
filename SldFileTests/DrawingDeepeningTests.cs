@@ -9,6 +9,44 @@ namespace SldFileTests;
 public class DrawingDeepeningTests
 {
     private static readonly byte[] PngMagic = { 0x89, 0x50, 0x4E, 0x47 };
+    private readonly Xunit.Abstractions.ITestOutputHelper _output;
+
+    public DrawingDeepeningTests(Xunit.Abstractions.ITestOutputHelper output)
+    {
+        _output = output;
+    }
+
+    [Fact]
+    public void Drawing_RealDrawingFile_D8001507933_VerifiesMfcViewsAndHighDefPreview()
+    {
+        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
+        if (!File.Exists(realPath)) return;
+
+        using var swFile = SwFile.Open(realPath, readOnly: true);
+        
+        // 1. Verify Definition stream contains MFC drawing views
+        Assert.True(swFile.RawStreams.TryGetValue("Contents/Definition", out var defBytes));
+        var doc = SldFile.Mfc.MfcDocument.Parse(defBytes);
+        Assert.NotEmpty(doc.FindAll("moDrSheet"));
+        Assert.NotEmpty(doc.FindAll("moAbsoluteView"));
+        Assert.NotEmpty(doc.FindAll("moUnfoldedView"));
+        Assert.NotEmpty(doc.FindAll("moDetailView"));
+        Assert.NotEmpty(doc.FindAll("moView_c"));
+
+        // 2. Verify Preview DIB stream dimensions (1420 x 710)
+        var bestSheet = swFile.GetBestSheetPreviewImage(0);
+        Assert.NotNull(bestSheet);
+        var (sw, sh) = SwFile.GetImageDimensions(bestSheet);
+        Assert.Equal(1420, sw);
+        Assert.Equal(710, sh);
+
+        // 3. Verify Sheets and Views extraction
+        var sheets = swFile.GetDrawingSheets();
+        Assert.NotEmpty(sheets);
+        var sheet0 = sheets[0];
+        Assert.Equal("图纸1", sheet0.Name);
+        Assert.True(sheet0.Views.Count >= 4);
+    }
 
     [Fact]
     public void Drawing_2026_GetDrawingSheets_ReturnsSheetsAndViews()
