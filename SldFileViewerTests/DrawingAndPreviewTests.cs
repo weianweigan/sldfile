@@ -348,6 +348,104 @@ public class DrawingAndPreviewTests
         Assert.Equal(expectedSheetNote, texts[0].IsSheetLevelNote);
     }
 
+    [Fact]
+    public void RenderDrawingWpfCanvasToPng()
+    {
+        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
+        if (!File.Exists(realPath)) return;
+
+        Exception? threadEx = null;
+        var thread = new System.Threading.Thread(() =>
+        {
+            try
+            {
+                var docService = new SwDocumentService();
+                var imgVm = new ImagePreviewViewModel(docService);
+
+                using var swFile = SwFile.Open(realPath, readOnly: true);
+                var sheets = swFile.GetDrawingSheets();
+                Assert.NotEmpty(sheets);
+
+                var sheet0 = sheets[0];
+                var bestImg = swFile.GetBestSheetPreviewImage(0) ?? sheet0.BestPreview ?? swFile.GetBestPreviewImage(0);
+                Assert.NotNull(bestImg);
+
+                imgVm.LoadImage(bestImg, $"工程图纸: {sheet0.Name}", sheet0.VectorData);
+                Assert.True(imgVm.HasImage);
+                Assert.NotNull(imgVm.ImageSource);
+
+                int w = imgVm.PixelWidth > 0 ? imgVm.PixelWidth : 1420;
+                int h = imgVm.PixelHeight > 0 ? imgVm.PixelHeight : 710;
+
+                // 1. Render AllAnnotations (Default mode: High-res background + full vector annotations)
+                var grid = new System.Windows.Controls.Grid { Width = w, Height = h };
+                var imgCtrl = new System.Windows.Controls.Image
+                {
+                    Source = imgVm.ImageSource,
+                    Stretch = System.Windows.Media.Stretch.None,
+                    Visibility = System.Windows.Visibility.Visible
+                };
+                grid.Children.Add(imgCtrl);
+
+                var canvas = new SldFileViewer.Views.Controls.DrawingVectorCanvas
+                {
+                    Width = w,
+                    Height = h,
+                    VectorData = imgVm.VectorData,
+                    OverlayMode = SldFileViewer.Views.Controls.DrawingOverlayMode.AllAnnotations,
+                    IsOverlayEnabled = true
+                };
+                grid.Children.Add(canvas);
+
+                grid.Measure(new System.Windows.Size(w, h));
+                grid.Arrange(new System.Windows.Rect(0, 0, w, h));
+                grid.UpdateLayout();
+
+                var rtb = new System.Windows.Media.Imaging.RenderTargetBitmap(w, h, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+                rtb.Render(grid);
+
+                string outDir = @"C:\Users\HP\.gemini\antigravity\brain\eed5a36f-5e8b-4a85-bde9-407779624be2";
+                string outPath = Path.Combine(outDir, "viewer_actual_render.png");
+
+                var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+                encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(rtb));
+                using (var fs = File.Create(outPath))
+                {
+                    encoder.Save(fs);
+                }
+
+                // 2. Also render PureVectorCad mode
+                imgCtrl.Visibility = System.Windows.Visibility.Collapsed;
+                canvas.OverlayMode = SldFileViewer.Views.Controls.DrawingOverlayMode.PureVectorCad;
+                grid.UpdateLayout();
+
+                var rtbPure = new System.Windows.Media.Imaging.RenderTargetBitmap(w, h, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+                rtbPure.Render(grid);
+
+                string outPurePath = Path.Combine(outDir, "viewer_pure_vector_render.png");
+                var encoderPure = new System.Windows.Media.Imaging.PngBitmapEncoder();
+                encoderPure.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(rtbPure));
+                using (var fs = File.Create(outPurePath))
+                {
+                    encoderPure.Save(fs);
+                }
+            }
+            catch (Exception ex)
+            {
+                threadEx = ex;
+            }
+        });
+
+        thread.SetApartmentState(System.Threading.ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (threadEx != null)
+        {
+            throw new InvalidOperationException($"STA rendering failed: {threadEx.Message}", threadEx);
+        }
+    }
+
     private class DuplicateSketchDocService : SldFileViewer.Services.ISwDocumentService
     {
         public SwFile? CurrentFile => null;
