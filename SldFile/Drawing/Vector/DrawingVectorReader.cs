@@ -42,32 +42,55 @@ public static class DrawingVectorReader
         // 1. Parse sheet metadata from KeyWords XML
         ParseSheetMetadata(keywordsXml, sheetIndex, vectorData);
 
-        // 2. Parse vector text annotations from Definition stream
+        // 2. Parse vector text annotations from Definition and DisplayLists streams
+        var allTexts = new List<DrawingVectorText>();
         if (definitionStream != null && definitionStream.Length > 0)
         {
-            var rawTexts = ParseTextsFromDefinition(definitionStream);
-
-            // Refine paper dimensions only if not explicitly identified from template/XML
-            if (string.IsNullOrEmpty(vectorData.PaperSizeName) && rawTexts.Count > 0)
-            {
-                double maxX = rawTexts.Max(t => t.X);
-                double maxY = rawTexts.Max(t => t.Y);
-
-                if (vectorData.PaperWidthMm < maxX)
-                {
-                    vectorData.PaperWidthMm = (maxX > 300) ? 420.0 : 297.0;
-                }
-                if (vectorData.PaperHeightMm < maxY)
-                {
-                    vectorData.PaperHeightMm = (maxY > 220) ? 297.0 : 210.0;
-                }
-            }
-
-            // Classify texts into SheetFormat, TitleBlock, ToleranceTable, TechnicalNote vs ViewAnnotation
-            ClassifyTexts(rawTexts, vectorData.PaperWidthMm, vectorData.PaperHeightMm);
-
-            vectorData.Texts = rawTexts;
+            var defnTexts = ParseTextsFromDefinition(definitionStream);
+            allTexts.AddRange(defnTexts);
         }
+
+        // Refine paper dimensions only if not explicitly identified from template/XML
+        if (string.IsNullOrEmpty(vectorData.PaperSizeName) && allTexts.Count > 0)
+        {
+            double maxX = allTexts.Max(t => t.X);
+            double maxY = allTexts.Max(t => t.Y);
+
+            if (vectorData.PaperWidthMm < maxX)
+            {
+                vectorData.PaperWidthMm = (maxX > 300) ? 420.0 : 297.0;
+            }
+            if (vectorData.PaperHeightMm < maxY)
+            {
+                vectorData.PaperHeightMm = (maxY > 220) ? 297.0 : 210.0;
+            }
+        }
+
+        // Also extract full 2D CAD dimensions and view annotations from DisplayLists stream
+        if (displayListsStream != null && displayListsStream.Length > 0)
+        {
+            var dlTexts = SldFile.Binary.DisplayListsSchemaMapper.ExtractCadTexts(
+                displayListsStream,
+                vectorData.PaperWidthMm,
+                vectorData.PaperHeightMm);
+            allTexts.AddRange(dlTexts);
+        }
+
+        // Deduplicate texts by CleanText and physical coordinate (rounded to 1mm)
+        var seenTexts = new HashSet<string>(StringComparer.Ordinal);
+        var dedupedTexts = new List<DrawingVectorText>();
+        foreach (var t in allTexts)
+        {
+            if (string.IsNullOrWhiteSpace(t.CleanText)) continue;
+            string key = $"{t.CleanText}_{Math.Round(t.X, 1)}_{Math.Round(t.Y, 1)}";
+            if (seenTexts.Add(key))
+            {
+                dedupedTexts.Add(t);
+            }
+        }
+
+        ClassifyTexts(dedupedTexts, vectorData.PaperWidthMm, vectorData.PaperHeightMm);
+        vectorData.Texts = dedupedTexts;
 
         // 3. Extract 2D CAD vector line geometry (sheet borders, title block, view geometry wireframes)
         if ((displayListsStream != null && displayListsStream.Length > 0) ||
@@ -137,8 +160,12 @@ public static class DrawingVectorReader
             // If in bottom zone (Y <= sheetNoteMaxY)
             if (text.Y <= sheetNoteMaxY)
             {
-                // Lower-right quadrant: Check if it's tolerance table or title block
-                if (text.X >= paperWidth * 0.45)
+                // Lower-right quadrant or explicit title block/tolerance table keywords
+                if (text.X >= paperWidth * 0.45 ||
+                    text.CleanText.Contains("公差") || text.CleanText.Contains("Tolerance") ||
+                    text.CleanText.Contains("Drawing") || text.CleanText.Contains("图号") ||
+                    text.CleanText.Contains("Part Name") || text.CleanText.Contains("零部件名称") ||
+                    text.CleanText.Contains("Material") || text.CleanText.Contains("材料"))
                 {
                     if (text.CleanText.Contains("公差") || text.CleanText.Contains("Tolerance") ||
                         text.CleanText == "±" || text.CleanText == "≤" || text.CleanText == "＞" ||

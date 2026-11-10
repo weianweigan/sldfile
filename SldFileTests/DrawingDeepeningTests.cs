@@ -801,4 +801,34 @@ public class DrawingDeepeningTests
         BitConverter.GetBytes(240).CopyTo(bmpHeader, 22);
         Assert.Equal((320, 240), SwFile.GetImageDimensions(bmpHeader));
     }
+
+    [Fact]
+    public void Drawing_D8001507933_ExtractsFullViewDimensionsFromDisplayLists()
+    {
+        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
+        if (!File.Exists(realPath)) return;
+
+        using var swFile = SwFile.Open(realPath, readOnly: true);
+        var sheets = swFile.GetDrawingSheets();
+        Assert.NotEmpty(sheets);
+
+        var sheet0 = sheets[0];
+        var vd = sheet0.VectorData;
+        Assert.NotNull(vd);
+        Assert.True(vd.Texts.Count >= 100, $"Expected >=100 texts, got {vd.Texts.Count}");
+
+        // Validate view dimensions are present in extracted vector texts
+        Assert.Contains(vd.Texts, t => t.CleanText == "215.0" && t.Category == SldFile.Drawing.Vector.DrawingVectorTextCategory.ViewAnnotation);
+        Assert.Contains(vd.Texts, t => t.CleanText == "396.0" && t.Category == SldFile.Drawing.Vector.DrawingVectorTextCategory.ViewAnnotation);
+        Assert.Contains(vd.Texts, t => t.CleanText == "375.0" && t.Category == SldFile.Drawing.Vector.DrawingVectorTextCategory.ViewAnnotation);
+        Assert.Contains(vd.Texts, t => t.CleanText == "33.0" && t.Category == SldFile.Drawing.Vector.DrawingVectorTextCategory.ViewAnnotation);
+        Assert.Contains(vd.Texts, t => t.CleanText == "220.0" && t.Category == SldFile.Drawing.Vector.DrawingVectorTextCategory.ViewAnnotation);
+        Assert.Contains(vd.Texts, t => t.CleanText == "30°" && t.Category == SldFile.Drawing.Vector.DrawingVectorTextCategory.ViewAnnotation);
+        Assert.Contains(vd.Texts, t => t.CleanText == "5-15*25" && t.Category == SldFile.Drawing.Vector.DrawingVectorTextCategory.ViewAnnotation);
+        Assert.Contains(vd.Texts, t => t.CleanText == "2-10*50" && t.Category == SldFile.Drawing.Vector.DrawingVectorTextCategory.ViewAnnotation);
+
+        // Validate title block and technical notes are categorized correctly
+        Assert.Contains(vd.Texts, t => t.CleanText.Contains("技术要求") && t.Category == SldFile.Drawing.Vector.DrawingVectorTextCategory.TechnicalNote);
+        Assert.Contains(vd.Texts, t => t.CleanText.Contains("D8001507933") && t.Category == SldFile.Drawing.Vector.DrawingVectorTextCategory.TitleBlock);
+    }
 }

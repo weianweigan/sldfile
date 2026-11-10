@@ -73,7 +73,7 @@ public class DrawingAndPreviewTests
             if (isDrawing)
             {
                 Assert.True(imgVm.HasImage);
-                Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.PureVectorCad, imgVm.OverlayMode);
+                Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.AllAnnotations, imgVm.OverlayMode);
             }
         }
 

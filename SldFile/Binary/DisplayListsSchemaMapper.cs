@@ -243,6 +243,74 @@ internal static class DisplayListsSchemaMapper
         return lines;
     }
 
+    /// <summary>
+    /// Deserializes 2D CAD vector annotations and dimension texts from the Contents/DisplayLists stream.
+    /// Extracts model view dimensions, angles, tolerances, and view callouts with physical coordinates in millimeters.
+    /// </summary>
+    public static List<DrawingVectorText> ExtractCadTexts(
+        byte[] data,
+        double paperWidthMm = 420.0,
+        double paperHeightMm = 297.0)
+    {
+        var texts = new List<DrawingVectorText>();
+        if (data == null || data.Length < 64) return texts;
+
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        int maxLen = data.Length;
+
+        for (int i = 40; i <= maxLen - 8; i++)
+        {
+            if (data[i] == 0xFF && data[i + 1] == 0xFE && data[i + 2] == 0xFF)
+            {
+                int charLen = data[i + 3];
+                if (charLen <= 0 || charLen > 120) continue;
+
+                int textStart = i + 4;
+                int byteLen = charLen * 2;
+                if (textStart + byteLen > maxLen) continue;
+
+                string rawText;
+                try
+                {
+                    rawText = System.Text.Encoding.Unicode.GetString(data, textStart, byteLen).Trim();
+                }
+                catch { continue; }
+
+                if (string.IsNullOrEmpty(rawText) || rawText.EndsWith("_c", StringComparison.Ordinal))
+                    continue;
+
+                // Exclude system style and layer tokens
+                if (rawText is "CONTINUOUS" or "HIDDEN" or "PHANTOM" or "CHAIN" or "CENTER" or "STITCH" or "CHAIN_THICK" or
+                    "粗实线" or "细/粗_点画线" or "点画线" or "双点画线" or "中心线" or "2细线层" or "裁剪线" or "实线" or "虚线")
+                    continue;
+
+                // Physical coordinates (meters -> millimeters) are stored at i - 40 (X) and i - 32 (Y)
+                double x = BitConverter.ToDouble(data, i - 40);
+                double y = BitConverter.ToDouble(data, i - 32);
+
+                if (double.IsNaN(x) || double.IsInfinity(x) || double.IsNaN(y) || double.IsInfinity(y))
+                    continue;
+
+                if (x < 0.001 || x > 1.5 || y < 0.001 || y > 1.5)
+                    continue;
+
+                double xMm = x * 1000.0;
+                double yMm = y * 1000.0;
+
+                if (xMm < 1.0 || xMm > paperWidthMm || yMm < 1.0 || yMm > paperHeightMm)
+                    continue;
+
+                string key = $"{rawText}_{Math.Round(xMm, 1)}_{Math.Round(yMm, 1)}";
+                if (seen.Add(key))
+                {
+                    texts.Add(new DrawingVectorText(rawText, xMm, yMm, 0.0, "SimSun", 2.5, 0.0));
+                }
+            }
+        }
+
+        return texts;
+    }
+
     private static void ExtractWChars(MfcElement element, List<string> result)
     {
         var reader = element.CreateReader();
