@@ -73,7 +73,7 @@ public class DrawingAndPreviewTests
             if (isDrawing)
             {
                 Assert.True(imgVm.HasImage);
-                Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.AllAnnotations, imgVm.OverlayMode);
+                Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.Off, imgVm.OverlayMode);
             }
         }
 
@@ -192,11 +192,11 @@ public class DrawingAndPreviewTests
         imgVm.LoadImage(bmp, "测试工程图", vectorData);
 
         Assert.True(imgVm.HasVectorData);
-        Assert.True(imgVm.IsVectorOverlayEnabled);
-        Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.SheetNotesOnly, imgVm.OverlayMode);
-        Assert.Equal("🔤 矢量增强: 图纸注释", imgVm.VectorOverlayButtonText);
+        Assert.False(imgVm.IsVectorOverlayEnabled);
+        Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.Off, imgVm.OverlayMode);
+        Assert.Equal("📐 原生工程图", imgVm.VectorOverlayButtonText);
         Assert.True(imgVm.IsRasterImageVisible);
-        Assert.Contains("矢量注释", imgVm.VectorStatusText);
+        Assert.Contains("原生工程图", imgVm.VectorStatusText);
 
         // Switch to PureVectorCad
         imgVm.SetPureVectorCadMode();
@@ -207,7 +207,7 @@ public class DrawingAndPreviewTests
         // Toggle
         imgVm.ToggleVectorOverlayCommand.Execute(null);
         Assert.False(imgVm.IsVectorOverlayEnabled);
-        Assert.Equal("🖼️ 矢量增强: 关", imgVm.VectorOverlayButtonText);
+        Assert.Equal("📐 原生工程图", imgVm.VectorOverlayButtonText);
         Assert.True(imgVm.IsRasterImageVisible);
 
         imgVm.ToggleVectorOverlayCommand.Execute(null);
@@ -401,12 +401,30 @@ public class DrawingAndPreviewTests
                 grid.Arrange(new System.Windows.Rect(0, 0, w, h));
                 grid.UpdateLayout();
 
+                string outDir = @"C:\Users\HP\.gemini\antigravity\brain\eed5a36f-5e8b-4a85-bde9-407779624be2";
+
+                // 1. Render Native CAD (Default mode: 100% official SolidWorks rendering, zero ghosting)
+                canvas.OverlayMode = SldFileViewer.Views.Controls.DrawingOverlayMode.Off;
+                canvas.IsOverlayEnabled = false;
+                grid.UpdateLayout();
+                var rtbNative = new System.Windows.Media.Imaging.RenderTargetBitmap(w, h, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+                rtbNative.Render(grid);
+                string outNativePath = Path.Combine(outDir, "viewer_native_cad_render.png");
+                var encoderNative = new System.Windows.Media.Imaging.PngBitmapEncoder();
+                encoderNative.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(rtbNative));
+                using (var fs = File.Create(outNativePath))
+                {
+                    encoderNative.Save(fs);
+                }
+
+                // 2. Render AllAnnotations (Vector annotation overlay mode)
+                canvas.OverlayMode = SldFileViewer.Views.Controls.DrawingOverlayMode.AllAnnotations;
+                canvas.IsOverlayEnabled = true;
+                grid.UpdateLayout();
                 var rtb = new System.Windows.Media.Imaging.RenderTargetBitmap(w, h, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
                 rtb.Render(grid);
 
-                string outDir = @"C:\Users\HP\.gemini\antigravity\brain\eed5a36f-5e8b-4a85-bde9-407779624be2";
                 string outPath = Path.Combine(outDir, "viewer_actual_render.png");
-
                 var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
                 encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(rtb));
                 using (var fs = File.Create(outPath))
@@ -414,7 +432,7 @@ public class DrawingAndPreviewTests
                     encoder.Save(fs);
                 }
 
-                // 2. Also render PureVectorCad mode
+                // 3. Render PureVectorCad mode
                 imgCtrl.Visibility = System.Windows.Visibility.Collapsed;
                 canvas.OverlayMode = SldFileViewer.Views.Controls.DrawingOverlayMode.PureVectorCad;
                 grid.UpdateLayout();

@@ -58,7 +58,7 @@ public partial class ImagePreviewViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(VectorStatusText))]
     [NotifyPropertyChangedFor(nameof(IsVectorOverlayEnabled))]
     [NotifyPropertyChangedFor(nameof(IsRasterImageVisible))]
-    private DrawingOverlayMode _overlayMode = DrawingOverlayMode.SheetNotesOnly;
+    private DrawingOverlayMode _overlayMode = DrawingOverlayMode.Off;
 
     public bool IsRasterImageVisible =>
         OverlayMode != DrawingOverlayMode.PureVectorCad ||
@@ -73,7 +73,7 @@ public partial class ImagePreviewViewModel : ObservableObject
         {
             if (value && OverlayMode == DrawingOverlayMode.Off)
             {
-                OverlayMode = DrawingOverlayMode.SheetNotesOnly;
+                OverlayMode = DrawingOverlayMode.AllAnnotations;
             }
             else if (!value)
             {
@@ -96,7 +96,7 @@ public partial class ImagePreviewViewModel : ObservableObject
                 DrawingOverlayMode.PureVectorCad => $"纯矢量 CAD ({lineCount} 线条 + {textCount} 注释)",
                 DrawingOverlayMode.SheetNotesOnly => $"矢量注释 ({(VectorData!.Texts != null ? VectorData!.Texts.Count(t => t.IsSheetLevelNote) : 0)} 项图纸文字)",
                 DrawingOverlayMode.AllAnnotations => $"全图 CAD ({textCount} 图元)",
-                _ => "矢量增强: 关"
+                _ => "原生工程图 (100% 官方渲染)"
             };
         }
     }
@@ -106,7 +106,7 @@ public partial class ImagePreviewViewModel : ObservableObject
         DrawingOverlayMode.PureVectorCad => "🎨 纯矢量 CAD",
         DrawingOverlayMode.SheetNotesOnly => "🔤 矢量增强: 图纸注释",
         DrawingOverlayMode.AllAnnotations => "📐 矢量增强: 全图 CAD",
-        _ => "🖼️ 矢量增强: 关"
+        _ => "📐 原生工程图"
     };
 
     public BitmapScalingMode ScalingMode => IsSmoothFilter ? BitmapScalingMode.Fant : BitmapScalingMode.NearestNeighbor;
@@ -175,10 +175,10 @@ public partial class ImagePreviewViewModel : ObservableObject
     {
         OverlayMode = OverlayMode switch
         {
-            DrawingOverlayMode.SheetNotesOnly => DrawingOverlayMode.PureVectorCad,
-            DrawingOverlayMode.PureVectorCad => DrawingOverlayMode.AllAnnotations,
-            DrawingOverlayMode.AllAnnotations => DrawingOverlayMode.Off,
-            _ => DrawingOverlayMode.SheetNotesOnly
+            DrawingOverlayMode.Off => DrawingOverlayMode.AllAnnotations,
+            DrawingOverlayMode.AllAnnotations => DrawingOverlayMode.PureVectorCad,
+            DrawingOverlayMode.PureVectorCad => DrawingOverlayMode.SheetNotesOnly,
+            _ => DrawingOverlayMode.Off
         };
     }
 
@@ -261,7 +261,11 @@ public partial class ImagePreviewViewModel : ObservableObject
             if (VectorData != null && VectorData.HasVectorData)
             {
                 VectorData.CalculatePixelCoordinates(bmp.PixelWidth, bmp.PixelHeight);
-                OverlayMode = VectorData.HasLines ? DrawingOverlayMode.AllAnnotations : DrawingOverlayMode.SheetNotesOnly;
+                OverlayMode = DrawingOverlayMode.Off;
+            }
+            else
+            {
+                OverlayMode = DrawingOverlayMode.Off;
             }
 
             string hdTag = IsHighDefinition ? " [高清]" : "";

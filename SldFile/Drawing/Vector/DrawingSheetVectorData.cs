@@ -50,8 +50,8 @@ public sealed class DrawingSheetVectorData
         double sheetAspect = (PaperHeightMm > 0) ? (PaperWidthMm / PaperHeightMm) : (297.0 / 210.0);
         if (sheetAspect <= 0.1 || double.IsNaN(sheetAspect)) sheetAspect = 297.0 / 210.0;
 
-        // SolidWorks drawing preview images embed the paper sheet with standard vertical margins (~8-16px)
-        double marginY = Math.Max(4.0, imageHeight * 0.018);
+        // SolidWorks drawing preview images embed the paper sheet with standard sheet border margins (~3.4%)
+        double marginY = Math.Round(Math.Max(4.0, imageHeight * 0.034));
         double paperH = imageHeight - 2 * marginY;
         double paperW = paperH * sheetAspect;
 

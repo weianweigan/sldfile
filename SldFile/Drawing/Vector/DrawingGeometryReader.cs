@@ -60,7 +60,7 @@ public static class DrawingGeometryReader
                     hasModelWireframes = true;
                 }
             }
-            if (!hasModelWireframes && !hasDisplayListLines)
+            if (!hasModelWireframes)
             {
                 var viewLines = ExtractViewGeometryFromVBLists(vbListsStream, views, w, h);
                 allLines.AddRange(viewLines);
@@ -488,65 +488,7 @@ public static class DrawingGeometryReader
             }
         }
 
-        // 1. Guaranteed primary bounding outlines for all views (ensures complete continuous beam frames)
-        // 1.1 Front View outer frame (156.0mm x 18.8mm)
-        double fLeft = cxFront - wFront / 2.0;
-        double fRight = cxFront + wFront / 2.0;
-        double fTop = cyFront + hFront / 2.0;
-        double fBottom = cyFront - hFront / 2.0;
-        AddProjectedLine(fLeft, fBottom, fRight, fBottom, DrawingLineKind.SolidOutline, 0.40);
-        AddProjectedLine(fLeft, fTop, fRight, fTop, DrawingLineKind.SolidOutline, 0.40);
-        AddProjectedLine(fLeft, fBottom, fLeft, fTop, DrawingLineKind.SolidOutline, 0.40);
-        AddProjectedLine(fRight, fBottom, fRight, fTop, DrawingLineKind.SolidOutline, 0.40);
-
-        // 1.2 Top View outer frame and centerline
-        double tLeft = cxTop - wTop / 2.0;
-        double tRight = cxTop + wTop / 2.0;
-        double tH = Math.Max(hTop, 1.65);
-        double tTop = cyTop + tH / 2.0;
-        double tBottom = cyTop - tH / 2.0;
-        AddProjectedLine(tLeft, tBottom, tRight, tBottom, DrawingLineKind.SolidOutline, 0.35);
-        AddProjectedLine(tLeft, tTop, tRight, tTop, DrawingLineKind.SolidOutline, 0.35);
-        AddProjectedLine(tLeft, tBottom, tLeft, tTop, DrawingLineKind.SolidOutline, 0.35);
-        AddProjectedLine(tRight, tBottom, tRight, tTop, DrawingLineKind.SolidOutline, 0.35);
-        AddProjectedLine(tLeft - 3.0, cyTop, tRight + 3.0, cyTop, DrawingLineKind.Centerline, 0.25);
-
-        // 1.3 Bottom View outer frame and centerline
-        double bLeft = cxBottom - wBottom / 2.0;
-        double bRight = cxBottom + wBottom / 2.0;
-        double bH = Math.Max(hBottom, 1.65);
-        double bTop = cyBottom + bH / 2.0;
-        double bBottom = cyBottom - bH / 2.0;
-        AddProjectedLine(bLeft, bBottom, bRight, bBottom, DrawingLineKind.SolidOutline, 0.35);
-        AddProjectedLine(bLeft, bTop, bRight, bTop, DrawingLineKind.SolidOutline, 0.35);
-        AddProjectedLine(bLeft, bBottom, bLeft, bTop, DrawingLineKind.SolidOutline, 0.35);
-        AddProjectedLine(bRight, bBottom, bRight, bTop, DrawingLineKind.SolidOutline, 0.35);
-        AddProjectedLine(bLeft - 3.0, cyBottom, bRight + 3.0, cyBottom, DrawingLineKind.Centerline, 0.25);
-
-        // 1.4 Section View C-channel cross-section profile (33.0mm flange x 375.0mm web at 1:20 scale)
-        double secW = Math.Max(spanY * scaleXSection, 1.65);
-        double secH = Math.Max(spanZ * scaleYSection, 18.75);
-        double tSec = Math.Max(secW * 0.08, 0.15); // sheet metal thickness on paper (~0.15mm)
-        double xLeftOuter = cxSection - secW / 2.0;
-        double xRightOuter = cxSection + secW / 2.0;
-        double xLeftInner = xLeftOuter + tSec;
-        double yBottomOuter = cySection - secH / 2.0;
-        double yTopOuter = cySection + secH / 2.0;
-        double yBottomInner = yBottomOuter + tSec;
-        double yTopInner = yTopOuter - tSec;
-
-        // Outer web and inner web
-        AddProjectedLine(xLeftOuter, yBottomOuter, xLeftOuter, yTopOuter, DrawingLineKind.SolidOutline, 0.40);
-        AddProjectedLine(xLeftInner, yBottomInner, xLeftInner, yTopInner, DrawingLineKind.SolidOutline, 0.35);
-        // Top flange (outer, inner, lip closure)
-        AddProjectedLine(xLeftOuter, yTopOuter, xRightOuter, yTopOuter, DrawingLineKind.SolidOutline, 0.40);
-        AddProjectedLine(xLeftInner, yTopInner, xRightOuter, yTopInner, DrawingLineKind.SolidOutline, 0.35);
-        AddProjectedLine(xRightOuter, yTopInner, xRightOuter, yTopOuter, DrawingLineKind.SolidOutline, 0.35);
-        // Bottom flange (outer, inner, lip closure)
-        AddProjectedLine(xLeftOuter, yBottomOuter, xRightOuter, yBottomOuter, DrawingLineKind.SolidOutline, 0.40);
-        AddProjectedLine(xLeftInner, yBottomInner, xRightOuter, yBottomInner, DrawingLineKind.SolidOutline, 0.35);
-        AddProjectedLine(xRightOuter, yBottomInner, xRightOuter, yBottomOuter, DrawingLineKind.SolidOutline, 0.35);
-
+        // Project true 3D model silhouette outline edges into view coordinates without synthetic bounding boxes
         foreach (var edge in mesh.OutlineEdges)
         {
             if (edge.Start < 0 || edge.Start >= mesh.Positions.Count ||

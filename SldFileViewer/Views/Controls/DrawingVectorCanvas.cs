@@ -61,33 +61,35 @@ public sealed class DrawingVectorCanvas : FrameworkElement
         pBrush.Freeze();
         PaperBgBrush = pBrush;
 
-        // Pens
+        // Pens - Native CAD line weights (ISO / GB engineering drawing standard)
         var blackBrush = new SolidColorBrush(Color.FromRgb(20, 20, 20));
         blackBrush.Freeze();
 
-        var thickPen = new Pen(blackBrush, 1.8) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
+        var thickPen = new Pen(blackBrush, 1.1) { StartLineCap = PenLineCap.Flat, EndLineCap = PenLineCap.Flat };
         thickPen.Freeze();
         ThickOutlinePen = thickPen;
 
-        var thinPen = new Pen(blackBrush, 0.9) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
+        var thinPen = new Pen(blackBrush, 0.65) { StartLineCap = PenLineCap.Flat, EndLineCap = PenLineCap.Flat };
         thinPen.Freeze();
         ThinLinePen = thinPen;
 
-        var gridPen = new Pen(new SolidColorBrush(Color.FromRgb(40, 40, 40)), 0.8);
+        var gridPen = new Pen(new SolidColorBrush(Color.FromRgb(40, 40, 40)), 0.65) { StartLineCap = PenLineCap.Flat, EndLineCap = PenLineCap.Flat };
         gridPen.Brush.Freeze();
         gridPen.Freeze();
         TableGridPen = gridPen;
 
-        var borderOuter = new Pen(blackBrush, 0.75);
+        var borderOuter = new Pen(blackBrush, 0.65) { StartLineCap = PenLineCap.Flat, EndLineCap = PenLineCap.Flat };
         borderOuter.Freeze();
         BorderOuterPen = borderOuter;
 
-        // Centerline with dash-dot pattern (ISO / GB CAD standard)
-        var redOrGrey = new SolidColorBrush(Color.FromRgb(180, 40, 40));
-        redOrGrey.Freeze();
-        var cPen = new Pen(redOrGrey, 0.85)
+        // Centerline with dash-dot pattern (ISO / GB CAD standard: thin dark line, NEVER red)
+        var darkCenterlineBrush = new SolidColorBrush(Color.FromRgb(40, 40, 40));
+        darkCenterlineBrush.Freeze();
+        var cPen = new Pen(darkCenterlineBrush, 0.60)
         {
-            DashStyle = new DashStyle(new double[] { 10, 3, 2, 3 }, 0)
+            DashStyle = new DashStyle(new double[] { 10, 3, 2, 3 }, 0),
+            StartLineCap = PenLineCap.Flat,
+            EndLineCap = PenLineCap.Flat
         };
         cPen.Freeze();
         CenterlinePen = cPen;
@@ -208,7 +210,7 @@ public sealed class DrawingVectorCanvas : FrameworkElement
             return;
 
         double pixelsPerDip = VisualTreeHelper.GetDpi(this).PixelsPerDip;
-        var defaultTypeface = new Typeface(new FontFamily("SimSun, Microsoft YaHei, Arial"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
+        var defaultTypeface = new Typeface(new FontFamily("Century Gothic, Arial, Microsoft YaHei, SimSun"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
 
         bool isPureVector = (OverlayMode == DrawingOverlayMode.PureVectorCad);
 
@@ -222,8 +224,8 @@ public sealed class DrawingVectorCanvas : FrameworkElement
         }
 
         // 1. Render 2D CAD Vector Geometry Lines (Borders, View Wireframe)
-        // TableGrid and inner binding margins are skipped to prevent crossing title block text or creating spurious lines over the real sheet.
-        if ((isPureVector || OverlayMode == DrawingOverlayMode.AllAnnotations) && VectorData.HasLines)
+        // Only in pure vector mode. In overlay mode, the raster preview already provides authentic native CAD lines.
+        if (isPureVector && VectorData.HasLines)
         {
             foreach (var line in VectorData.Lines)
             {
@@ -289,8 +291,8 @@ public sealed class DrawingVectorCanvas : FrameworkElement
                 pixelsPerDip);
 
             // Anchor point adjustment: SolidWorks drawing text anchor is top-left aligned
-            double drawX = text.PixelX + 4.0;
-            double drawY = text.PixelY + 2.0;
+            double drawX = text.PixelX;
+            double drawY = text.PixelY;
 
             bool hasRotation = Math.Abs(text.AngleRad) > 1e-4;
 
