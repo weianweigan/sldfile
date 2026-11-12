@@ -76,14 +76,35 @@ public static class DrawingVectorReader
             allTexts.AddRange(dlTexts);
         }
 
-        // Deduplicate texts by CleanText and physical coordinate (rounded to 1mm)
-        var seenTexts = new HashSet<string>(StringComparer.Ordinal);
+        // Deduplicate texts: filter unplaced tokens at (0,0) and merge identical texts within 12mm from Definition and DisplayLists streams
         var dedupedTexts = new List<DrawingVectorText>();
         foreach (var t in allTexts)
         {
             if (string.IsNullOrWhiteSpace(t.CleanText)) continue;
-            string key = $"{t.CleanText}_{Math.Round(t.X, 1)}_{Math.Round(t.Y, 1)}";
-            if (seenTexts.Add(key))
+
+            // Skip unplaced system placeholder tokens located at (0, 0)
+            if (Math.Abs(t.X) < 1e-2 && Math.Abs(t.Y) < 1e-2)
+                continue;
+
+            bool isDuplicate = false;
+            for (int i = 0; i < dedupedTexts.Count; i++)
+            {
+                var existing = dedupedTexts[i];
+                if (string.Equals(existing.CleanText, t.CleanText, StringComparison.Ordinal) &&
+                    Math.Abs(existing.X - t.X) < 12.0 &&
+                    Math.Abs(existing.Y - t.Y) < 12.0)
+                {
+                    isDuplicate = true;
+                    // Keep the text with valid font name or better placed coordinates
+                    if (string.IsNullOrEmpty(existing.FontName) && !string.IsNullOrEmpty(t.FontName))
+                    {
+                        dedupedTexts[i] = t;
+                    }
+                    break;
+                }
+            }
+
+            if (!isDuplicate)
             {
                 dedupedTexts.Add(t);
             }

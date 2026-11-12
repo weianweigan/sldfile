@@ -65,11 +65,11 @@ public sealed class DrawingVectorCanvas : FrameworkElement
         var blackBrush = new SolidColorBrush(Color.FromRgb(20, 20, 20));
         blackBrush.Freeze();
 
-        var thickPen = new Pen(blackBrush, 1.1) { StartLineCap = PenLineCap.Flat, EndLineCap = PenLineCap.Flat };
+        var thickPen = new Pen(blackBrush, 0.70) { StartLineCap = PenLineCap.Flat, EndLineCap = PenLineCap.Flat };
         thickPen.Freeze();
         ThickOutlinePen = thickPen;
 
-        var thinPen = new Pen(blackBrush, 0.65) { StartLineCap = PenLineCap.Flat, EndLineCap = PenLineCap.Flat };
+        var thinPen = new Pen(blackBrush, 0.40) { StartLineCap = PenLineCap.Flat, EndLineCap = PenLineCap.Flat };
         thinPen.Freeze();
         ThinLinePen = thinPen;
 
@@ -108,7 +108,7 @@ public sealed class DrawingVectorCanvas : FrameworkElement
             typeof(DrawingOverlayMode),
             typeof(DrawingVectorCanvas),
             new FrameworkPropertyMetadata(
-                DrawingOverlayMode.PureVectorCad,
+                DrawingOverlayMode.Off,
                 FrameworkPropertyMetadataOptions.AffectsRender,
                 OnOverlayModeChanged));
 
@@ -118,7 +118,7 @@ public sealed class DrawingVectorCanvas : FrameworkElement
             typeof(bool),
             typeof(DrawingVectorCanvas),
             new FrameworkPropertyMetadata(
-                true,
+                false,
                 FrameworkPropertyMetadataOptions.AffectsRender,
                 OnIsOverlayEnabledChanged));
 
@@ -187,10 +187,6 @@ public sealed class DrawingVectorCanvas : FrameworkElement
             if (!isEnabled && canvas.OverlayMode != DrawingOverlayMode.Off)
             {
                 canvas.OverlayMode = DrawingOverlayMode.Off;
-            }
-            else if (isEnabled && canvas.OverlayMode == DrawingOverlayMode.Off)
-            {
-                canvas.OverlayMode = DrawingOverlayMode.PureVectorCad;
             }
         }
     }
