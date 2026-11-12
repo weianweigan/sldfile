@@ -302,8 +302,8 @@ public sealed class DrawingVectorCanvas : FrameworkElement
                 dc.PushTransform(new RotateTransform(angleDeg, text.PixelX, text.PixelY));
             }
 
-            // In overlay mode, erase blurry raster text from preview bitmap underneath
-            if (!isPureVector && EnableBackgroundErasing && text.IsSheetLevelNote)
+            // In overlay mode, cleanly erase blurry raster text from preview bitmap underneath before drawing sharp vector text
+            if (!isPureVector && EnableBackgroundErasing)
             {
                 Brush bgBrush = (text.Category == DrawingVectorTextCategory.TitleBlock) ? TitleBlockBgBrush : PaperBgBrush;
                 double padX = 1.5;
