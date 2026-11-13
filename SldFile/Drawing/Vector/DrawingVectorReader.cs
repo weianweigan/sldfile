@@ -91,8 +91,8 @@ public static class DrawingVectorReader
             {
                 var existing = dedupedTexts[i];
                 if (string.Equals(existing.CleanText, t.CleanText, StringComparison.Ordinal) &&
-                    Math.Abs(existing.X - t.X) < 12.0 &&
-                    Math.Abs(existing.Y - t.Y) < 12.0)
+                    Math.Abs(existing.X - t.X) < 3.8 &&
+                    Math.Abs(existing.Y - t.Y) < 3.8)
                 {
                     isDuplicate = true;
                     // Keep the text with valid font name or better placed coordinates
@@ -151,21 +151,24 @@ public static class DrawingVectorReader
                 continue;
             }
 
-            // CAD layer or system tokens
+            // 优先检查：是否属于视图内部的尺寸、视图标号、孔标注等（防止与底图产生重影，例如 5-15*25, 2-10*50, A, 375.0 等）
+            if (IsLikelyViewAnnotation(text.CleanText))
+            {
+                text.Category = DrawingVectorTextCategory.ViewAnnotation;
+                continue;
+            }
+
+            // CAD layer or system tokens, view internal identifiers
             if (text.CleanText == "mm" || text.CleanText == "m" || text.CleanText == "cm" || text.CleanText == "km" ||
                 text.CleanText == "CENTER" || text.CleanText == "HIDDEN" || text.CleanText == "CONTINUOUS" ||
                 text.CleanText == "PHANTOM" || text.CleanText == "粗实线" || text.CleanText == "细/粗_点画线" ||
                 text.CleanText == "点画线" || text.CleanText == "双点画线" || text.CleanText == "中心线" ||
-                text.CleanText == "2细线层" || text.CleanText == "DUMMYTHREAD" || text.CleanText.StartsWith("细节项目", StringComparison.Ordinal))
+                text.CleanText == "2细线层" || text.CleanText == "DUMMYTHREAD" || text.CleanText.StartsWith("细节项目", StringComparison.Ordinal) ||
+                text.CleanText.Contains("工程图视图") || text.CleanText.StartsWith("细节", StringComparison.Ordinal) ||
+                text.CleanText.Contains("#") || text.CleanText.Contains("@") ||
+                Regex.IsMatch(text.CleanText, @"^[A-Z0-9]+-\d+$"))
             {
                 text.Category = DrawingVectorTextCategory.Metadata;
-                continue;
-            }
-
-            // 优先检查：是否属于视图内部的尺寸、视图标号、孔标注等（防止与底图产生重影）
-            if (IsLikelyViewAnnotation(text.CleanText))
-            {
-                text.Category = DrawingVectorTextCategory.ViewAnnotation;
                 continue;
             }
 

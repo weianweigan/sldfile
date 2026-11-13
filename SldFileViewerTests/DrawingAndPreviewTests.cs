@@ -73,7 +73,7 @@ public class DrawingAndPreviewTests
             if (isDrawing)
             {
                 Assert.True(imgVm.HasImage);
-                Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.Off, imgVm.OverlayMode);
+                Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.PureVectorCad, imgVm.OverlayMode);
             }
         }
 
@@ -192,24 +192,19 @@ public class DrawingAndPreviewTests
         imgVm.LoadImage(bmp, "测试工程图", vectorData);
 
         Assert.True(imgVm.HasVectorData);
-        Assert.False(imgVm.IsVectorOverlayEnabled);
-        Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.Off, imgVm.OverlayMode);
-        Assert.Equal("📐 原生工程图", imgVm.VectorOverlayButtonText);
-        Assert.True(imgVm.IsRasterImageVisible);
-        Assert.Contains("原生工程图", imgVm.VectorStatusText);
-
-        // Switch to PureVectorCad
-        imgVm.SetPureVectorCadMode();
+        Assert.True(imgVm.IsVectorOverlayEnabled);
         Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.PureVectorCad, imgVm.OverlayMode);
         Assert.Equal("🎨 纯矢量 CAD", imgVm.VectorOverlayButtonText);
+        Assert.False(imgVm.IsRasterImageVisible);
         Assert.Contains("纯矢量 CAD", imgVm.VectorStatusText);
 
-        // Toggle
+        // Toggle from PureVectorCad to Off
         imgVm.ToggleVectorOverlayCommand.Execute(null);
         Assert.False(imgVm.IsVectorOverlayEnabled);
         Assert.Equal("📐 原生工程图", imgVm.VectorOverlayButtonText);
         Assert.True(imgVm.IsRasterImageVisible);
 
+        // Toggle from Off to SheetNotesOnly
         imgVm.ToggleVectorOverlayCommand.Execute(null);
         Assert.True(imgVm.IsVectorOverlayEnabled);
         Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.SheetNotesOnly, imgVm.OverlayMode);
@@ -369,6 +364,15 @@ public class DrawingAndPreviewTests
                 var sheet0 = sheets[0];
                 var bestImg = swFile.GetBestSheetPreviewImage(0) ?? sheet0.BestPreview ?? swFile.GetBestPreviewImage(0);
                 Assert.NotNull(bestImg);
+
+                // Dump all texts
+                using (var sw = new StreamWriter(@"C:\Users\HP\.gemini\antigravity\brain\eed5a36f-5e8b-4a85-bde9-407779624be2\all_texts_dump.txt"))
+                {
+                    foreach (var t in sheet0.VectorData.Texts)
+                    {
+                        sw.WriteLine($"Text: '{t.CleanText}', X={t.X:F2}, Y={t.Y:F2}, Ang={t.AngleRad:F2}, Cat={t.Category}, Note={t.IsSheetLevelNote}");
+                    }
+                }
 
                 imgVm.LoadImage(bestImg, $"工程图纸: {sheet0.Name}", sheet0.VectorData);
                 Assert.True(imgVm.HasImage);

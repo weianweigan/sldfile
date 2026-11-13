@@ -62,9 +62,7 @@ public partial class ImagePreviewViewModel : ObservableObject
 
     public bool IsRasterImageVisible =>
         OverlayMode != DrawingOverlayMode.PureVectorCad ||
-        VectorData == null ||
-        !VectorData.HasLines ||
-        VectorData.Lines.Count < 2000;
+        VectorData == null;
 
     public bool IsVectorOverlayEnabled
     {
@@ -261,7 +259,7 @@ public partial class ImagePreviewViewModel : ObservableObject
             if (VectorData != null && VectorData.HasVectorData)
             {
                 VectorData.CalculatePixelCoordinates(bmp.PixelWidth, bmp.PixelHeight);
-                OverlayMode = DrawingOverlayMode.Off;
+                OverlayMode = DrawingOverlayMode.PureVectorCad;
             }
             else
             {

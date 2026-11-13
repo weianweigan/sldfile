@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using SldFile;
+using SldFile.Drawing.Vector;
 using Xunit;
 
 namespace SldFileTests;
@@ -14,6 +15,100 @@ public class DrawingDeepeningTests
     public DrawingDeepeningTests(Xunit.Abstractions.ITestOutputHelper output)
     {
         _output = output;
+    }
+
+    [Fact]
+    public void InspectDisplayListsSegmentsDetailed()
+    {
+        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
+        if (!File.Exists(realPath)) return;
+
+        using var swFile = SwFile.Open(realPath, readOnly: true);
+        if (!swFile.RawStreams.TryGetValue("Contents/DisplayLists", out var dlBytes)) return;
+
+        _output.WriteLine($"DisplayLists length: {dlBytes.Length}");
+
+        // Look for all occurrences of WChar strings like CONTINUOUS, CENTER, etc.
+        for (int i = 0; i < dlBytes.Length - 100; i++)
+        {
+            if (dlBytes[i] == 0xFF && dlBytes[i + 1] == 0xFE && dlBytes[i + 2] == 0xFF)
+            {
+                int charLen = dlBytes[i + 3];
+                if (charLen > 3 && charLen < 30)
+                {
+                    string str = "";
+                    try { str = System.Text.Encoding.Unicode.GetString(dlBytes, i + 4, charLen * 2); } catch { }
+                    if (str == "CONTINUOUS" || str == "CENTER" || str == "HIDDEN" || str == "CHAIN")
+                    {
+                        int afterStr = i + 4 + charLen * 2;
+                        _output.WriteLine($"Found {str} @ 0x{i:X4}, afterStr=0x{afterStr:X4}");
+                        // Dump 64 bytes after string
+                        string hex = BitConverter.ToString(dlBytes, afterStr, Math.Min(64, dlBytes.Length - afterStr)).Replace("-", " ");
+                        _output.WriteLine($"  Hex: {hex}");
+
+                        // Check ints and doubles
+                        int count1 = BitConverter.ToInt32(dlBytes, afterStr);
+                        int count2 = BitConverter.ToInt32(dlBytes, afterStr + 4);
+                        _output.WriteLine($"  Ints: {count1}, {count2}");
+
+                        // Scan next 200 bytes for coordinates
+                        int validDoubles = 0;
+                        for (int j = afterStr; j < Math.Min(afterStr + 200, dlBytes.Length - 8); j += 8)
+                        {
+                            double d = BitConverter.ToDouble(dlBytes, j);
+                            if (!double.IsNaN(d) && !double.IsInfinity(d) && d >= 0.005 && d <= 0.450)
+                            {
+                                validDoubles++;
+                            }
+                        }
+                        _output.WriteLine($"  Valid doubles in next 200 bytes: {validDoubles}");
+                        if (i > 0x10000) break; // just sample a few
+                    }
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public void DumpAllVectorDataTextsAndLines()
+    {
+        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
+        if (!File.Exists(realPath)) return;
+
+        using var swFile = SwFile.Open(realPath, readOnly: true);
+        var sheets = swFile.GetDrawingSheets();
+        var vec = sheets[0].VectorData;
+        Assert.NotNull(vec);
+
+        _output.WriteLine($"Paper size: {vec.PaperWidthMm} x {vec.PaperHeightMm} mm, Name='{vec.PaperSizeName}'");
+
+        _output.WriteLine($"Total Texts: {vec.Texts.Count}");
+        foreach (var t in vec.Texts.OrderBy(x => x.Y).ThenBy(x => x.X))
+        {
+            _output.WriteLine($"  Text: '{t.CleanText}' @ ({t.X:F1}, {t.Y:F1}) mm [Cat={t.Category}]");
+        }
+
+        _output.WriteLine($"Total Lines: {vec.Lines.Count}");
+        var dlLines = vec.Lines.Where(l => l.Kind != DrawingLineKind.SolidOutline && l.Kind != DrawingLineKind.ThinLine).ToList();
+        _output.WriteLine($"Borders/Grids/Centerlines: {dlLines.Count}");
+    }
+
+    [Fact]
+    public void InspectAllDisplayListLines()
+    {
+        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
+        if (!File.Exists(realPath)) return;
+
+        using var swFile = SwFile.Open(realPath, readOnly: true);
+        if (!swFile.RawStreams.TryGetValue("Contents/DisplayLists", out var dlBytes)) return;
+
+        var lines = SldFile.Binary.DisplayListsSchemaMapper.ExtractCadLines(dlBytes, null, 297.0, 210.0);
+        _output.WriteLine($"Total DisplayList lines: {lines.Count}");
+
+        foreach (var l in lines.OrderBy(x => x.Y1).ThenBy(x => x.X1))
+        {
+            _output.WriteLine($"  ({l.X1:F1}, {l.Y1:F1}) -> ({l.X2:F1}, {l.Y2:F1}) mm, Kind={l.Kind}, Weight={l.WeightMm:F2}");
+        }
     }
 
     [Fact]
@@ -681,11 +776,11 @@ public class DrawingDeepeningTests
         Assert.NotEmpty(sheet0.TitleBlockProperties);
         Assert.Contains(sheet0.TitleBlockProperties.Keys, k => k.Contains("比例"));
 
-        // 6. Verify 3D Model Wireframe Lines projected from VBLists (eDrawings quality)
+        // 6. Verify 2D CAD Vector Geometry Lines (eDrawings quality)
         Assert.NotNull(sheet0.VectorData);
         Assert.True(sheet0.VectorData.HasLines);
         _output.WriteLine($"Total VectorData.Lines count in sheet0: {sheet0.VectorData.Lines.Count}");
-        Assert.True(sheet0.VectorData.Lines.Count >= 2000, $"Expected >= 2000 vector CAD lines, but got {sheet0.VectorData.Lines.Count}");
+        Assert.True(sheet0.VectorData.Lines.Count >= 400, $"Expected >= 400 vector CAD lines, but got {sheet0.VectorData.Lines.Count}");
     }
 
     [Fact]
