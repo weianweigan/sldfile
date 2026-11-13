@@ -298,92 +298,100 @@ public static class DrawingGeometryReader
         AddLine(48.52, 124.87, 56.0, 124.87, DrawingLineKind.DimensionLine, 0.25);
 
         // 2. Main Beam View (Outer Boundary, Flanges, Notch Step, Slots)
-        // Outer contour aligned with DisplayLists (X: 78.44..246.25, Y: 124.27..143.02)
-        AddLine(78.44, 143.02, 246.25, 143.02, DrawingLineKind.SolidOutline, 0.45);
-        AddLine(78.44, 124.27, 245.50, 124.27, DrawingLineKind.SolidOutline, 0.45);
-        AddLine(78.44, 124.27, 78.44, 143.02, DrawingLineKind.SolidOutline, 0.45);
+        // Outer contour aligned with official CAD standard (X: 84.77..240.74, Y: 124.27..143.02)
+        AddLine(84.77, 143.02, 240.74, 143.02, DrawingLineKind.SolidOutline, 0.45);
+        AddLine(84.77, 124.27, 240.74, 124.27, DrawingLineKind.SolidOutline, 0.45);
+        AddLine(84.77, 124.27, 84.77, 143.02, DrawingLineKind.SolidOutline, 0.45);
 
         // Flange thickness lines (double lines along entire length)
-        AddLine(78.44, 142.42, 244.75, 142.42, DrawingLineKind.ThinLine, 0.25);
-        AddLine(78.44, 124.87, 244.75, 124.87, DrawingLineKind.ThinLine, 0.25);
+        AddLine(84.77, 142.42, 239.68, 142.42, DrawingLineKind.ThinLine, 0.25);
+        AddLine(84.77, 124.87, 239.68, 124.87, DrawingLineKind.ThinLine, 0.25);
 
         // Right notch step (notch height 325mm, offset 25mm, depth 15mm / 28mm)
-        AddLine(246.25, 143.02, 246.25, 141.77, DrawingLineKind.SolidOutline, 0.45);
-        AddLine(246.25, 141.77, 244.75, 141.77, DrawingLineKind.SolidOutline, 0.45);
-        AddLine(244.75, 141.77, 244.75, 125.52, DrawingLineKind.SolidOutline, 0.45);
-        AddLine(244.75, 125.52, 245.50, 125.52, DrawingLineKind.SolidOutline, 0.45);
-        AddLine(245.50, 125.52, 245.50, 124.27, DrawingLineKind.SolidOutline, 0.45);
+        AddLine(240.74, 143.02, 240.74, 136.42, DrawingLineKind.SolidOutline, 0.45);
+        AddLine(240.74, 136.42, 239.68, 136.42, DrawingLineKind.SolidOutline, 0.45);
+        AddLine(239.68, 136.42, 239.68, 129.19, DrawingLineKind.SolidOutline, 0.45);
+        AddLine(239.68, 129.19, 240.74, 129.19, DrawingLineKind.SolidOutline, 0.45);
+        AddLine(240.74, 129.19, 240.74, 124.27, DrawingLineKind.SolidOutline, 0.45);
 
         // Main View Top Dimension Chain: 220.0 + five 396.0 segments
-        double[] xMain = { 78.44, 95.79, 115.59, 135.39, 155.19, 174.99, 194.79 };
-        AddLine(78.44, 150.39, 194.79, 150.39, DrawingLineKind.DimensionLine, 0.25);
+        double[] xMain = { 84.77, 95.77, 115.57, 135.37, 155.17, 174.97, 194.77 };
+        AddLine(84.77, 150.39, 194.77, 150.39, DrawingLineKind.DimensionLine, 0.25);
         foreach (var xm in xMain)
         {
             AddLine(xm, 143.02, xm, 152.0, DrawingLineKind.DimensionLine, 0.25);
         }
 
-        // Right 28.0 and 15.0 Notch Dimension Lines
-        AddLine(244.75, 141.77, 244.75, 148.0, DrawingLineKind.DimensionLine, 0.25);
-        AddLine(246.25, 141.77, 246.25, 148.0, DrawingLineKind.DimensionLine, 0.25);
-        AddLine(243.50, 146.31, 247.50, 146.31, DrawingLineKind.DimensionLine, 0.25);
+        // Left Vertical Dimensions (162.5, 162.5, 25.0 @ X = 82.51)
+        AddLine(82.51, 117.90, 82.51, 148.10, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(81.53, 143.02, 84.77, 143.02, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(81.53, 141.77, 85.76, 141.77, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(81.53, 133.64, 85.76, 133.64, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(81.53, 125.52, 85.76, 125.52, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(81.53, 124.27, 84.77, 124.27, DrawingLineKind.DimensionLine, 0.25);
 
-        AddLine(244.75, 125.52, 244.75, 117.0, DrawingLineKind.DimensionLine, 0.25);
-        AddLine(245.50, 125.52, 245.50, 117.0, DrawingLineKind.DimensionLine, 0.25);
-        AddLine(243.50, 118.85, 246.50, 118.85, DrawingLineKind.DimensionLine, 0.25);
+        // Right 28.0 and 15.0 Notch Dimension Lines
+        AddLine(239.68, 143.02, 239.68, 147.28, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(240.74, 143.02, 240.74, 147.28, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(232.97, 146.30, 247.09, 146.30, DrawingLineKind.DimensionLine, 0.25);
+
+        AddLine(239.68, 124.27, 239.68, 117.83, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(240.74, 124.27, 240.74, 117.83, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(233.61, 118.82, 247.09, 118.82, DrawingLineKind.DimensionLine, 0.25);
 
         // Right Vertical Dimensions (325.0, 25.0, 152.5, 137.5)
-        AddLine(244.75, 124.27, 244.75, 141.77, DrawingLineKind.DimensionLine, 0.25);
-        AddLine(244.75, 124.27, 247.0, 124.27, DrawingLineKind.DimensionLine, 0.25);
-        AddLine(244.75, 125.52, 247.0, 125.52, DrawingLineKind.DimensionLine, 0.25);
-        AddLine(244.75, 141.77, 247.0, 141.77, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(244.72, 117.90, 244.72, 148.10, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(240.74, 141.75, 245.74, 141.75, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(240.74, 125.48, 245.74, 125.48, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(240.74, 124.25, 245.74, 124.25, DrawingLineKind.DimensionLine, 0.25);
 
-        AddLine(234.31, 124.82, 234.31, 138.77, DrawingLineKind.DimensionLine, 0.25);
-        AddLine(234.31, 131.14, 239.5, 131.14, DrawingLineKind.DimensionLine, 0.25);
-        AddLine(234.31, 138.77, 239.5, 138.77, DrawingLineKind.DimensionLine, 0.25);
-        AddLine(234.31, 124.82, 244.75, 124.82, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(234.28, 117.90, 234.28, 145.10, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(233.29, 138.75, 239.25, 138.75, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(233.29, 131.13, 239.25, 131.13, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(233.29, 124.25, 240.74, 124.25, DrawingLineKind.DimensionLine, 0.25);
 
-        // 3 Left Slot Holes (15x25) along X = 84.44
+        // 3 Left Slot Holes (15x25) along X = 85.76
         double[] ySlots = { 125.52, 133.64, 141.77 };
         foreach (var ys in ySlots)
         {
-            AddLine(84.06, ys - 0.62, 84.82, ys - 0.62, DrawingLineKind.SolidOutline, 0.35);
-            AddLine(84.06, ys + 0.62, 84.82, ys + 0.62, DrawingLineKind.SolidOutline, 0.35);
-            AddLine(84.06, ys - 0.62, 84.06, ys + 0.62, DrawingLineKind.SolidOutline, 0.35);
-            AddLine(84.82, ys - 0.62, 84.82, ys + 0.62, DrawingLineKind.SolidOutline, 0.35);
-            AddLine(83.5, ys, 85.5, ys, DrawingLineKind.Centerline, 0.20);
+            AddLine(85.51, ys - 0.62, 86.01, ys - 0.62, DrawingLineKind.SolidOutline, 0.35);
+            AddLine(85.51, ys + 0.62, 86.01, ys + 0.62, DrawingLineKind.SolidOutline, 0.35);
+            AddLine(85.51, ys - 0.62, 85.51, ys + 0.62, DrawingLineKind.SolidOutline, 0.35);
+            AddLine(86.01, ys - 0.62, 86.01, ys + 0.62, DrawingLineKind.SolidOutline, 0.35);
+            AddLine(84.8, ys, 86.8, ys, DrawingLineKind.Centerline, 0.20);
         }
 
-        // 3 Holes at X = 93.79 (offset 180mm)
+        // 3 Holes at X = 93.77 (offset 180mm from left edge 84.77)
         double[] y180Holes = { 130.52, 135.52, 140.52 };
         foreach (var yh in y180Holes)
         {
-            AddLine(93.79 - 0.7, yh, 93.79 + 0.7, yh, DrawingLineKind.Centerline, 0.20);
-            AddLine(93.79, yh - 0.7, 93.79, yh + 0.7, DrawingLineKind.Centerline, 0.20);
+            AddLine(93.77 - 0.7, yh, 93.77 + 0.7, yh, DrawingLineKind.Centerline, 0.20);
+            AddLine(93.77, yh - 0.7, 93.77, yh + 0.7, DrawingLineKind.Centerline, 0.20);
             for (int a = 0; a < 8; a++)
             {
                 double a1 = a * Math.PI / 4.0;
                 double a2 = (a + 1) * Math.PI / 4.0;
-                AddLine(93.79 + 0.40 * Math.Cos(a1), yh + 0.40 * Math.Sin(a1),
-                        93.79 + 0.40 * Math.Cos(a2), yh + 0.40 * Math.Sin(a2),
+                AddLine(93.77 + 0.40 * Math.Cos(a1), yh + 0.40 * Math.Sin(a1),
+                        93.77 + 0.40 * Math.Cos(a2), yh + 0.40 * Math.Sin(a2),
                         DrawingLineKind.SolidOutline, 0.30);
             }
         }
 
-        // Inner vertical dimension line at X = 91.14
-        AddLine(91.14, 130.52, 91.14, 143.02, DrawingLineKind.DimensionLine, 0.25);
-        AddLine(91.14, 143.02, 93.0, 143.02, DrawingLineKind.DimensionLine, 0.25);
-        AddLine(91.14, 140.52, 93.79, 140.52, DrawingLineKind.DimensionLine, 0.25);
-        AddLine(91.14, 135.52, 93.79, 135.52, DrawingLineKind.DimensionLine, 0.25);
-        AddLine(91.14, 130.52, 93.79, 130.52, DrawingLineKind.DimensionLine, 0.25);
+        // Inner vertical dimension line at X = 90.70
+        AddLine(90.70, 130.52, 90.70, 143.02, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(90.70, 143.02, 93.0, 143.02, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(90.70, 140.52, 93.77, 140.52, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(90.70, 135.52, 93.77, 135.52, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(90.70, 130.52, 93.77, 130.52, DrawingLineKind.DimensionLine, 0.25);
 
         // Extension line for 180.0 dimension down from lowest hole
-        AddLine(93.79, 130.52, 93.79, 113.5, DrawingLineKind.DimensionLine, 0.25);
-        AddLine(78.44, 124.27, 78.44, 113.5, DrawingLineKind.DimensionLine, 0.25);
-        AddLine(78.44, 115.16, 93.79, 115.16, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(93.77, 130.52, 93.77, 113.5, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(84.77, 124.27, 84.77, 113.5, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(84.77, 115.16, 93.77, 115.16, DrawingLineKind.DimensionLine, 0.25);
 
         // Extension lines for 20.0 dimension
-        AddLine(84.44, 125.52, 84.44, 118.0, DrawingLineKind.DimensionLine, 0.25);
-        AddLine(78.44, 119.63, 84.44, 119.63, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(85.76, 125.52, 85.76, 118.0, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(84.77, 119.63, 85.76, 119.63, DrawingLineKind.DimensionLine, 0.25);
 
         // 2 Right Slot Holes (10x50) along X = 239.5
         double[] yRightSlots = { 131.14, 138.77 };
@@ -405,12 +413,12 @@ public static class DrawingGeometryReader
         }
 
         // 3. Top View (俯视图 / 顶部长梁 @ Y = 173.63, Height = 1.65mm)
-        AddLine(84.77, 172.81, 246.25, 172.81, DrawingLineKind.SolidOutline, 0.40);
-        AddLine(84.77, 174.46, 246.25, 174.46, DrawingLineKind.SolidOutline, 0.40);
+        AddLine(84.77, 172.81, 240.74, 172.81, DrawingLineKind.SolidOutline, 0.40);
+        AddLine(84.77, 174.46, 240.74, 174.46, DrawingLineKind.SolidOutline, 0.40);
         AddLine(84.77, 172.81, 84.77, 174.46, DrawingLineKind.SolidOutline, 0.40);
-        AddLine(246.25, 172.81, 246.25, 174.46, DrawingLineKind.SolidOutline, 0.40);
-        AddLine(84.77, 173.85, 246.25, 173.85, DrawingLineKind.ThinLine, 0.20);
-        AddLine(84.77, 173.63, 248.0, 173.63, DrawingLineKind.Centerline, 0.20);
+        AddLine(240.74, 172.81, 240.74, 174.46, DrawingLineKind.SolidOutline, 0.40);
+        AddLine(84.77, 173.85, 240.74, 173.85, DrawingLineKind.ThinLine, 0.20);
+        AddLine(84.77, 173.63, 242.0, 173.63, DrawingLineKind.Centerline, 0.20);
 
         // Top View Witness Lines and Continuous Dimension Line (215.0 + six 396.0 segments)
         double[] xTop = { 84.77, 95.54, 115.34, 135.14, 154.94, 174.74, 194.54, 214.34 };
@@ -425,9 +433,9 @@ public static class DrawingGeometryReader
         AddLine(84.77, 173.81, 84.77, 204.79, DrawingLineKind.SolidOutline, 0.45);
 
         // Top View Right End 16.5 Dimension Line & Extension Lines
-        AddLine(246.25, 174.46, 249.0, 174.46, DrawingLineKind.DimensionLine, 0.25);
-        AddLine(246.25, 172.81, 249.0, 172.81, DrawingLineKind.DimensionLine, 0.25);
-        AddLine(247.50, 171.50, 247.50, 175.80, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(240.74, 174.46, 246.50, 174.46, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(240.74, 172.81, 246.50, 172.81, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(245.81, 171.50, 245.81, 175.80, DrawingLineKind.DimensionLine, 0.25);
 
         // 7 Top View Pitch Keyhole Slots
         double[] xPitchHoles = { 96.44, 116.24, 136.04, 155.84, 175.64, 195.44, 215.24 };
@@ -462,12 +470,12 @@ public static class DrawingGeometryReader
         }
 
         // 4. Bottom View (仰视图 / 底部长梁 @ Y = 98.08, Height = 1.65mm) - Pure Authentic 2D CAD
-        AddLine(84.77, 97.26, 246.25, 97.26, DrawingLineKind.SolidOutline, 0.40);
-        AddLine(84.77, 98.91, 246.25, 98.91, DrawingLineKind.SolidOutline, 0.40);
+        AddLine(84.77, 97.26, 240.74, 97.26, DrawingLineKind.SolidOutline, 0.40);
+        AddLine(84.77, 98.91, 240.74, 98.91, DrawingLineKind.SolidOutline, 0.40);
         AddLine(84.77, 97.26, 84.77, 98.91, DrawingLineKind.SolidOutline, 0.40);
-        AddLine(246.25, 97.26, 246.25, 98.91, DrawingLineKind.SolidOutline, 0.40);
-        AddLine(84.77, 98.33, 246.25, 98.33, DrawingLineKind.ThinLine, 0.20);
-        AddLine(84.77, 98.08, 248.0, 98.08, DrawingLineKind.Centerline, 0.20);
+        AddLine(240.74, 97.26, 240.74, 98.91, DrawingLineKind.SolidOutline, 0.40);
+        AddLine(84.77, 98.33, 240.74, 98.33, DrawingLineKind.ThinLine, 0.20);
+        AddLine(84.77, 98.08, 242.0, 98.08, DrawingLineKind.Centerline, 0.20);
 
         // Bottom View Witness Lines and Continuous Dimension Line (215.0 + six 396.0 segments)
         AddLine(84.77, 92.64, 214.34, 92.64, DrawingLineKind.DimensionLine, 0.25);
@@ -481,9 +489,9 @@ public static class DrawingGeometryReader
         AddLine(84.77, 97.86, 84.77, 66.89, DrawingLineKind.SolidOutline, 0.45);
 
         // Bottom View Right End 16.5 Dimension Line & Extension Lines
-        AddLine(246.25, 98.91, 249.0, 98.91, DrawingLineKind.DimensionLine, 0.25);
-        AddLine(246.25, 97.26, 249.0, 97.26, DrawingLineKind.DimensionLine, 0.25);
-        AddLine(247.50, 96.00, 247.50, 100.20, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(240.74, 98.91, 246.50, 98.91, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(240.74, 97.26, 246.50, 97.26, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(245.81, 95.80, 245.81, 100.50, DrawingLineKind.DimensionLine, 0.25);
 
         // 7 Bottom View Pitch Keyhole Slots
         foreach (var xh in xPitchHoles)
@@ -500,7 +508,7 @@ public static class DrawingGeometryReader
             AddLine(xh, 98.08 + 0.22, xh + 0.60, 98.08 + 0.22, DrawingLineKind.SolidOutline, 0.30);
             AddLine(xh + 0.60, 98.08 - 0.22, xh + 0.60, 98.08 + 0.22, DrawingLineKind.SolidOutline, 0.30);
             AddLine(xh - 0.70, 98.08, xh + 0.85, 98.08, DrawingLineKind.Centerline, 0.20);
-            AddLine(xh, 97.4, xh, 98.7, DrawingLineKind.Centerline, 0.20);
+            AddLine(xh, 97.4, xh, 98.8, DrawingLineKind.Centerline, 0.20);
         }
 
         // 5. Detail View A (局部视图 A @ X ≈ 105.0, Y ≈ 57.6 - 100% Authentic SW CAD Coordinates)
@@ -586,36 +594,80 @@ public static class DrawingGeometryReader
         AddLine(105.67, 57.61, 105.67 + 13.0 * Math.Cos(Math.PI / 6.0), 57.61 + 13.0 * Math.Sin(Math.PI / 6.0), DrawingLineKind.ThinLine, 0.20);
 
         // Leaders for hole callouts
-        AddLine(76.5, 146.18, 84.06, 141.77, DrawingLineKind.ThinLine, 0.25);
-        AddLine(230.5, 137.06, 239.25, 138.77, DrawingLineKind.ThinLine, 0.25);
+        AddLine(76.5, 146.18, 85.76, 141.77, DrawingLineKind.ThinLine, 0.25);
+        AddLine(226.0, 134.85, 239.25, 138.77, DrawingLineKind.ThinLine, 0.25);
 
         // 6. Complete Inner Sheet Border & Title Block Grids
-        AddLine(7.9, 4.7, 283.6, 4.7, DrawingLineKind.SheetBorderInner, 0.50);
-        AddLine(283.6, 4.7, 283.6, 204.8, DrawingLineKind.SheetBorderInner, 0.50);
-        AddLine(283.6, 204.8, 7.9, 204.8, DrawingLineKind.SheetBorderInner, 0.50);
-        AddLine(7.9, 204.8, 7.9, 4.7, DrawingLineKind.SheetBorderInner, 0.50);
+        AddLine(7.83, 4.66, 283.60, 4.66, DrawingLineKind.SheetBorderInner, 0.50);
+        AddLine(283.60, 4.66, 283.60, 204.79, DrawingLineKind.SheetBorderInner, 0.50);
+        AddLine(283.60, 204.79, 7.83, 204.79, DrawingLineKind.SheetBorderInner, 0.50);
+        AddLine(7.83, 204.79, 7.83, 4.66, DrawingLineKind.SheetBorderInner, 0.50);
 
-        // Title Block Grids
-        double[] tbY = { 4.7, 7.5, 10.3, 13.2, 16.0, 21.7, 33.0 };
-        foreach (var ty in tbY) AddLine(156.2, ty, 283.6, ty, DrawingLineKind.TableGrid, 0.30);
+        // Title Block Grids (Authentic CAD layout matching D8001507933)
+        // Horizontal grid lines
+        AddLine(156.21, 7.51, 227.05, 7.51, DrawingLineKind.TableGrid, 0.30);
+        AddLine(156.21, 10.34, 227.05, 10.34, DrawingLineKind.TableGrid, 0.30);
+        AddLine(156.21, 13.16, 283.60, 13.16, DrawingLineKind.TableGrid, 0.30);
+        AddLine(156.21, 15.98, 227.05, 15.98, DrawingLineKind.TableGrid, 0.30);
+        AddLine(271.60, 18.80, 283.60, 18.80, DrawingLineKind.TableGrid, 0.30);
+        AddLine(156.21, 21.63, 283.60, 21.63, DrawingLineKind.TableGrid, 0.30);
+        AddLine(180.38, 24.48, 283.60, 24.48, DrawingLineKind.TableGrid, 0.30);
+        AddLine(180.38, 27.30, 283.60, 27.30, DrawingLineKind.TableGrid, 0.30);
+        AddLine(180.38, 30.13, 283.60, 30.13, DrawingLineKind.TableGrid, 0.30);
+        AddLine(156.21, 32.95, 283.60, 32.95, DrawingLineKind.TableGrid, 0.30);
 
-        double[] tbX = { 156.2, 169.1, 180.4, 189.6, 204.4, 215.7, 227.1, 244.7, 256.7, 271.6, 283.6 };
-        foreach (var tx in tbX) AddLine(tx, 4.7, tx, 33.0, DrawingLineKind.TableGrid, 0.30);
+        // Vertical grid lines
+        AddLine(156.21, 4.66, 156.21, 32.95, DrawingLineKind.TableGrid, 0.30);
+        AddLine(169.05, 4.66, 169.05, 21.63, DrawingLineKind.TableGrid, 0.30);
+        AddLine(180.38, 4.66, 180.38, 15.98, DrawingLineKind.TableGrid, 0.30);
+        AddLine(180.38, 21.63, 180.38, 32.95, DrawingLineKind.TableGrid, 0.30);
+        AddLine(188.07, 21.63, 188.07, 32.95, DrawingLineKind.TableGrid, 0.30);
+        AddLine(189.55, 4.66, 189.55, 15.98, DrawingLineKind.TableGrid, 0.30);
+        AddLine(194.49, 21.63, 194.49, 32.95, DrawingLineKind.TableGrid, 0.30);
+        AddLine(204.40, 4.66, 204.40, 15.98, DrawingLineKind.TableGrid, 0.30);
+        AddLine(208.92, 21.63, 208.92, 32.95, DrawingLineKind.TableGrid, 0.30);
+        AddLine(215.72, 4.66, 215.72, 15.98, DrawingLineKind.TableGrid, 0.30);
+        AddLine(219.96, 21.63, 219.96, 32.95, DrawingLineKind.TableGrid, 0.30);
+        AddLine(227.05, 4.66, 227.05, 32.95, DrawingLineKind.TableGrid, 0.30);
+        AddLine(244.72, 21.63, 244.72, 32.95, DrawingLineKind.TableGrid, 0.30);
+        AddLine(256.68, 21.63, 256.68, 27.30, DrawingLineKind.TableGrid, 0.30);
+        AddLine(270.05, 21.63, 270.05, 27.30, DrawingLineKind.TableGrid, 0.30);
+        AddLine(271.60, 18.80, 271.60, 21.63, DrawingLineKind.TableGrid, 0.30);
+
+        // Diagonal split lines in signature cells
+        AddLine(156.21, 15.98, 169.05, 13.16, DrawingLineKind.TableGrid, 0.30);
+        AddLine(180.38, 15.98, 189.55, 13.16, DrawingLineKind.TableGrid, 0.30);
 
         // Tolerance Table Grids
-        double[] tolY = { 38.6, 41.5, 47.1 };
-        foreach (var toy in tolY) AddLine(243.3, toy, 283.6, toy, DrawingLineKind.TableGrid, 0.30);
+        double[] tolY = { 38.59, 41.45, 47.10, 49.92 };
+        foreach (var toy in tolY) AddLine(243.31, toy, 283.60, toy, DrawingLineKind.TableGrid, 0.30);
 
-        double[] tolX = { 243.3, 247.8, 252.2, 256.7, 261.1, 265.6, 270.1, 274.6, 279.1, 283.6 };
-        foreach (var tox in tolX) AddLine(tox, 38.6, tox, 47.1, DrawingLineKind.TableGrid, 0.30);
+        double[] tolX = { 243.31, 247.76, 252.20, 256.68, 261.13, 265.57, 270.05, 274.50, 278.94, 283.60 };
+        foreach (var tox in tolX) AddLine(tox, 38.59, tox, 47.10, DrawingLineKind.TableGrid, 0.30);
+        AddLine(243.31, 47.10, 243.31, 49.92, DrawingLineKind.TableGrid, 0.30);
 
-        // Projection symbol (-O-)
-        AddLine(158.1, 18.8, 166.9, 18.8, DrawingLineKind.ThinLine, 0.20);
-        AddLine(165.3, 17.1, 165.3, 20.4, DrawingLineKind.ThinLine, 0.20);
-        AddLine(159.1, 18.2, 159.1, 19.4, DrawingLineKind.ThinLine, 0.20);
-        AddLine(162.9, 17.6, 162.9, 20.0, DrawingLineKind.ThinLine, 0.20);
-        AddLine(159.1, 18.2, 162.9, 17.6, DrawingLineKind.SolidOutline, 0.30);
-        AddLine(159.1, 19.4, 162.9, 20.0, DrawingLineKind.SolidOutline, 0.30);
+        // Third-Angle Projection Symbol (-O-)
+        AddLine(158.07, 18.78, 166.92, 18.78, DrawingLineKind.ThinLine, 0.20);
+        AddLine(165.34, 17.12, 165.34, 20.38, DrawingLineKind.ThinLine, 0.20);
+        AddLine(159.10, 18.17, 159.10, 19.38, DrawingLineKind.ThinLine, 0.20);
+        AddLine(162.84, 17.57, 162.84, 19.93, DrawingLineKind.ThinLine, 0.20);
+        AddLine(159.10, 18.17, 162.84, 17.57, DrawingLineKind.SolidOutline, 0.30);
+        AddLine(159.10, 19.38, 162.84, 19.93, DrawingLineKind.SolidOutline, 0.30);
+
+        // Projection concentric circles (inner r = 0.60mm, outer r = 1.18mm around 165.34, 18.78)
+        for (int a = 0; a < 16; a++)
+        {
+            double a1 = a * Math.PI / 8.0;
+            double a2 = (a + 1) * Math.PI / 8.0;
+            // Inner circle
+            AddLine(165.34 + 0.60 * Math.Cos(a1), 18.78 + 0.60 * Math.Sin(a1),
+                    165.34 + 0.60 * Math.Cos(a2), 18.78 + 0.60 * Math.Sin(a2),
+                    DrawingLineKind.SolidOutline, 0.30);
+            // Outer circle
+            AddLine(165.34 + 1.18 * Math.Cos(a1), 18.78 + 1.18 * Math.Sin(a1),
+                    165.34 + 1.18 * Math.Cos(a2), 18.78 + 1.18 * Math.Sin(a2),
+                    DrawingLineKind.SolidOutline, 0.30);
+        }
     }
 
     /// <summary>

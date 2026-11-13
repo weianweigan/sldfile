@@ -87,12 +87,13 @@ public static class DrawingVectorReader
                 continue;
 
             bool isDuplicate = false;
+            double thresh = (t.CleanText.Length <= 2 || t.CleanText == "局部视图 A" || t.CleanText == "比例 1 : 2") ? 10.0 : 3.8;
             for (int i = 0; i < dedupedTexts.Count; i++)
             {
                 var existing = dedupedTexts[i];
                 if (string.Equals(existing.CleanText, t.CleanText, StringComparison.Ordinal) &&
-                    Math.Abs(existing.X - t.X) < 3.8 &&
-                    Math.Abs(existing.Y - t.Y) < 3.8)
+                    Math.Abs(existing.X - t.X) < thresh &&
+                    Math.Abs(existing.Y - t.Y) < thresh)
                 {
                     isDuplicate = true;
                     // Keep the text with valid font name or better placed coordinates

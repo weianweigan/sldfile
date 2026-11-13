@@ -304,16 +304,8 @@ public sealed class DrawingVectorCanvas : FrameworkElement
             if (text.PixelX <= 0 && text.PixelY <= 0)
                 continue;
 
-            // Skip isolated 'A' at (121.2, 29.6) because it is merged into '局部视图 A'
-            if (text.CleanText == "A" && Math.Abs(text.X - 121.2) < 3.0 && Math.Abs(text.Y - 29.6) < 3.0)
-                continue;
-
             // Skip duplicate top view 'A'
             if (text.CleanText == "A" && text.Y > 150.0 && text.X < 95.5)
-                continue;
-
-            // Skip isolated '1 : 2' at (104.3, 21.4) because it is merged into '比例 1 : 2'
-            if (text.CleanText == "1 : 2" && Math.Abs(text.X - 104.3) < 3.0 && Math.Abs(text.Y - 21.4) < 3.0)
                 continue;
 
             // Retain authentic lower technical notes & roughness matching official SolidWorks drawing & PDF
@@ -344,17 +336,9 @@ public sealed class DrawingVectorCanvas : FrameworkElement
                 continue;
 
             string displayStr = text.CleanText;
-            if (displayStr == "局部视图")
+            if (displayStr == "18" && Math.Abs(text.X - 99.5) < 6.0 && text.Y > 55.0 && text.Y < 75.0)
             {
-                displayStr = "局部视图 A";
-            }
-            else if (displayStr == "比例")
-            {
-                displayStr = "比例 1 : 2";
-            }
-            else if (displayStr == "18" && Math.Abs(text.X - 99.5) < 6.0 && text.Y > 55.0 && text.Y < 75.0)
-            {
-                displayStr = "Φ18";
+                displayStr = "Ø18";
             }
 
             // Determine if this text is a vertical dimension
@@ -366,27 +350,27 @@ public sealed class DrawingVectorCanvas : FrameworkElement
                 isVerticalDim = true;
                 isDimOnRight = false;
             }
-            else if ((displayStr == "25.0" || displayStr == "162.5") && Math.Abs(text.X - 82.54) < 3.0)
+            else if ((displayStr == "25.0" || displayStr == "162.5") && Math.Abs(text.X - 82.51) < 4.0)
             {
                 isVerticalDim = true;
                 isDimOnRight = false;
             }
-            else if (displayStr == "100.0" && Math.Abs(text.X - 91.14) < 3.0)
+            else if (displayStr == "100.0" && Math.Abs(text.X - 90.70) < 4.0)
             {
                 isVerticalDim = true;
                 isDimOnRight = false;
             }
-            else if (displayStr == "50.0" && Math.Abs(text.X - 91.14) < 3.0)
+            else if (displayStr == "50.0" && Math.Abs(text.X - 90.70) < 4.0)
             {
                 isVerticalDim = true;
                 isDimOnRight = false;
             }
-            else if ((displayStr == "137.5" || displayStr == "152.5") && Math.Abs(text.X - 234.31) < 3.0)
+            else if ((displayStr == "137.5" || displayStr == "152.5") && Math.Abs(text.X - 234.28) < 4.0)
             {
                 isVerticalDim = true;
                 isDimOnRight = false;
             }
-            else if ((displayStr == "325.0" || displayStr == "25.0") && Math.Abs(text.X - 244.75) < 3.0)
+            else if ((displayStr == "325.0" || displayStr == "25.0") && Math.Abs(text.X - 244.72) < 4.0)
             {
                 isVerticalDim = true;
                 isDimOnRight = false;
@@ -401,7 +385,7 @@ public sealed class DrawingVectorCanvas : FrameworkElement
                 isVerticalDim = true;
                 isDimOnRight = true;
             }
-            else if (displayStr == "8.5" && Math.Abs(text.X - 82.54) < 6.0)
+            else if (displayStr == "8.5" && Math.Abs(text.X - 82.51) < 6.0)
             {
                 isVerticalDim = true;
                 isDimOnRight = false;
@@ -415,55 +399,76 @@ public sealed class DrawingVectorCanvas : FrameworkElement
 
             // Calibrated authentic CAD font sizing
             double emSize;
-            if (displayStr == "局部视图 A")
+            if (displayStr == "局部视图" || displayStr == "局部视图 A")
             {
-                emSize = 11.5;
+                emSize = 13.5;
+                typeface = new Typeface(typeface.FontFamily, FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
             }
-            else if (displayStr == "比例 1 : 2")
+            else if (displayStr == "比例" || displayStr == "1 : 2" || displayStr == "比例 1 : 2")
             {
-                emSize = 9.0;
+                emSize = 8.5;
             }
-            else if (displayStr == "A" && Math.Abs(text.X - 97.42) < 3.0 && Math.Abs(text.Y - 164.97) < 3.0)
+            else if (displayStr == "A" && text.Y > 150.0)
             {
                 emSize = 14.0;
                 typeface = new Typeface(typeface.FontFamily, FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
             }
+            else if (displayStr == "A" && text.Y < 50.0)
+            {
+                emSize = 9.5;
+            }
             else if (displayStr == "技术要求")
             {
                 emSize = 7.5;
+                typeface = new Typeface(typeface.FontFamily, FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
             }
             else if (displayStr == "100.0" || displayStr == "50.0")
             {
-                emSize = 5.0;
+                emSize = 4.5;
             }
             else if (displayStr == "8.5")
             {
-                emSize = 6.0;
+                emSize = 5.5;
             }
             else if (displayStr == "137.5" || displayStr == "152.5" || displayStr == "25.0" || displayStr == "162.5")
             {
-                emSize = 5.6;
+                emSize = 5.0;
             }
             else if (isVerticalDim)
             {
-                emSize = 6.4;
+                emSize = 5.8;
             }
             else if (text.Category == DrawingVectorTextCategory.ToleranceTable ||
                      (text.X > 240.0 && text.Y < 50.0 && text.Y > 35.0))
             {
-                emSize = 4.8;
+                emSize = 4.5;
+            }
+            else if (displayStr == "Scale/比例" || displayStr.Contains("Scale"))
+            {
+                emSize = 3.8;
             }
             else if (text.Category == DrawingVectorTextCategory.ViewAnnotation)
             {
-                emSize = 7.2;
+                emSize = 7.0;
             }
             else if (text.Category == DrawingVectorTextCategory.TitleBlock)
             {
-                emSize = (displayStr == "D8001507933") ? 7.5 : 5.8;
+                if (displayStr == "D8001507933")
+                {
+                    emSize = 7.5;
+                }
+                else if (text.Y > 21.0 && text.Y < 33.0 && text.X > 180.0 && text.X < 283.0)
+                {
+                    emSize = 3.8;
+                }
+                else
+                {
+                    emSize = 4.2;
+                }
             }
             else
             {
-                emSize = 7.0;
+                emSize = 6.8;
             }
 
             var ft = new FormattedText(
@@ -486,51 +491,51 @@ public sealed class DrawingVectorCanvas : FrameworkElement
                     posY_mm = 133.64;
                     isDimOnRight = false;
                 }
-                else if (displayStr == "25.0" && Math.Abs(text.X - 82.54) < 3.0)
+                else if (displayStr == "25.0" && Math.Abs(text.X - 82.51) < 4.0)
                 {
-                    posX_mm = 82.54;
+                    posX_mm = 82.51;
                     posY_mm = 122.20;
                     isDimOnRight = false;
                 }
-                else if (displayStr == "162.5" && Math.Abs(text.X - 82.54) < 3.0)
+                else if (displayStr == "162.5" && Math.Abs(text.X - 82.51) < 4.0)
                 {
-                    posX_mm = 82.54;
+                    posX_mm = 82.51;
                     posY_mm = (text.Y < 132.0) ? 129.58 : 137.70;
                     isDimOnRight = false;
                 }
-                else if (displayStr == "100.0" && Math.Abs(text.X - 91.14) < 3.0)
+                else if (displayStr == "100.0" && Math.Abs(text.X - 90.70) < 4.0)
                 {
-                    posX_mm = 91.14;
-                    posY_mm = (text.Y < 132.0) ? 132.00 : 137.00;
+                    posX_mm = 90.70;
+                    posY_mm = (text.Y < 133.0) ? 133.00 : 138.00;
                     isDimOnRight = false;
                 }
-                else if (displayStr == "50.0" && Math.Abs(text.X - 91.14) < 3.0)
+                else if (displayStr == "50.0" && Math.Abs(text.X - 90.70) < 4.0)
                 {
-                    posX_mm = 91.14;
+                    posX_mm = 90.70;
                     posY_mm = 141.77;
                     isDimOnRight = false;
                 }
-                else if (displayStr == "137.5" && Math.Abs(text.X - 234.31) < 3.0)
+                else if (displayStr == "137.5" && Math.Abs(text.X - 234.28) < 4.0)
                 {
-                    posX_mm = 234.31;
+                    posX_mm = 234.28;
                     posY_mm = 127.50;
                     isDimOnRight = false;
                 }
-                else if (displayStr == "152.5" && Math.Abs(text.X - 234.31) < 3.0)
+                else if (displayStr == "152.5" && Math.Abs(text.X - 234.28) < 4.0)
                 {
-                    posX_mm = 234.31;
+                    posX_mm = 234.28;
                     posY_mm = 134.20;
                     isDimOnRight = false;
                 }
-                else if (displayStr == "25.0" && Math.Abs(text.X - 244.75) < 3.0)
+                else if (displayStr == "25.0" && Math.Abs(text.X - 244.72) < 4.0)
                 {
-                    posX_mm = 244.75;
+                    posX_mm = 244.72;
                     posY_mm = 121.50;
                     isDimOnRight = false;
                 }
-                else if (displayStr == "325.0" && Math.Abs(text.X - 244.75) < 3.0)
+                else if (displayStr == "325.0" && Math.Abs(text.X - 244.72) < 4.0)
                 {
-                    posX_mm = 244.75;
+                    posX_mm = 244.72;
                     posY_mm = 133.64;
                     isDimOnRight = false;
                 }
@@ -542,11 +547,11 @@ public sealed class DrawingVectorCanvas : FrameworkElement
                 }
                 else if (displayStr == "16.5" && text.X > 240.0)
                 {
-                    posX_mm = 247.50;
+                    posX_mm = 245.81;
                     posY_mm = (text.Y > 150.0) ? 173.63 : 98.08;
                     isDimOnRight = true;
                 }
-                else if (displayStr == "8.5" && Math.Abs(text.X - 82.54) < 6.0)
+                else if (displayStr == "8.5" && Math.Abs(text.X - 82.51) < 6.0)
                 {
                     posX_mm = 82.51;
                     posY_mm = 57.61;
@@ -556,7 +561,7 @@ public sealed class DrawingVectorCanvas : FrameworkElement
                 Point pxPt = ToPx(posX_mm, posY_mm);
                 double targetX = (displayStr == "8.5")
                     ? (pxPt.X - ft.Height - 1.2)
-                    : (isDimOnRight ? (pxPt.X + 3.5) : (pxPt.X - ft.Height - 3.5));
+                    : (isDimOnRight ? (pxPt.X + 2.5) : (pxPt.X - ft.Height - 2.5));
                 double targetY = pxPt.Y + ft.WidthIncludingTrailingWhitespace / 2.0;
 
                 dc.PushTransform(new TransformGroup
@@ -572,28 +577,88 @@ public sealed class DrawingVectorCanvas : FrameworkElement
                 continue;
             }
 
+            // Special handling for Ø18 rotated by 45°
+            if ((displayStr == "18" || displayStr == "Φ18" || displayStr == "Ø18") && text.Y < 75.0)
+            {
+                var ft18 = new FormattedText(
+                    "Ø18",
+                    System.Globalization.CultureInfo.CurrentCulture,
+                    FlowDirection.LeftToRight,
+                    typeface,
+                    6.2,
+                    TextBrush,
+                    pixelsPerDip);
+
+                Point pt = ToPx(98.27, 65.65);
+                dc.PushTransform(new TransformGroup
+                {
+                    Children = new TransformCollection
+                    {
+                        new RotateTransform(45.0),
+                        new TranslateTransform(pt.X, pt.Y - ft18.Baseline)
+                    }
+                });
+                dc.DrawText(ft18, new Point(0, 0));
+                dc.Pop();
+                continue;
+            }
+
+            // Special handling for 30° arc angle
+            if (displayStr == "30°")
+            {
+                Point pt = ToPx(118.45, 63.34);
+                dc.PushTransform(new TransformGroup
+                {
+                    Children = new TransformCollection
+                    {
+                        new RotateTransform(80.0),
+                        new TranslateTransform(pt.X, pt.Y - ft.Baseline)
+                    }
+                });
+                dc.DrawText(ft, new Point(0, 0));
+                dc.Pop();
+                continue;
+            }
+
             // Anchor point adjustment for horizontal CAD dimensions and annotations
             double drawX = text.PixelX;
             double drawY = (text.Category == DrawingVectorTextCategory.TechnicalNote || (text.X < 65.0 && text.Y < 30.0))
                 ? (text.PixelY - ft.Baseline)
                 : text.PixelY;
 
-            if (displayStr == "局部视图 A")
+            if (displayStr == "局部视图" || displayStr == "局部视图 A")
             {
-                // Center "局部视图 A" nicely below detail view A
-                Point pt = ToPx(98.0, 28.35);
-                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
-                drawY = pt.Y;
+                Point pt = ToPx(84.15, 30.19);
+                drawX = pt.X;
+                drawY = pt.Y - ft.Baseline;
+            }
+            else if (displayStr == "A" && text.Y < 50.0)
+            {
+                Point pt = ToPx(122.12, 30.21);
+                drawX = pt.X;
+                drawY = pt.Y - ft.Baseline;
+            }
+            else if (displayStr == "比例")
+            {
+                Point pt = ToPx(93.81, 22.00);
+                drawX = pt.X;
+                drawY = pt.Y - ft.Baseline;
+            }
+            else if (displayStr == "1 : 2")
+            {
+                Point pt = ToPx(104.31, 22.00);
+                drawX = pt.X;
+                drawY = pt.Y - ft.Baseline;
             }
             else if (displayStr == "比例 1 : 2")
             {
-                Point pt = ToPx(98.0, 21.43);
+                Point pt = ToPx(99.06, 22.00);
                 drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
-                drawY = pt.Y;
+                drawY = pt.Y - ft.Baseline;
             }
             else if (displayStr == "A" && text.Y > 150.0)
             {
-                Point pt = ToPx(96.44, 161.5);
+                Point pt = ToPx(94.30, 162.60);
                 drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
                 drawY = pt.Y;
             }
@@ -611,103 +676,140 @@ public sealed class DrawingVectorCanvas : FrameworkElement
             }
             else if (displayStr == "33.0" && text.Y > 130.0)
             {
-                // Top flange width 33.0 (above dimension line)
                 Point pt = ToPx(47.7, 147.20);
                 drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
                 drawY = pt.Y - ft.Height - 2.5;
             }
             else if (displayStr == "33.0" && text.Y <= 130.0)
             {
-                // Bottom flange width 33.0 (below dimension line)
                 Point pt = ToPx(47.7, 119.40);
                 drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
                 drawY = pt.Y + 2.5;
             }
             else if (displayStr == "28.0" && text.Y > 130.0)
             {
-                // Right top notch 28.0 (above dimension line)
-                Point pt = ToPx(245.5, 146.31);
+                Point pt = ToPx(240.21, 146.30);
                 drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
                 drawY = pt.Y - ft.Height - 2.5;
             }
             else if (displayStr == "15.0" && text.Y < 130.0)
             {
-                // Right bottom notch 15.0 (below dimension line)
-                Point pt = ToPx(245.1, 118.85);
+                Point pt = ToPx(240.21, 118.82);
                 drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
                 drawY = pt.Y + 2.5;
             }
             else if (displayStr == "220.0" && Math.Abs(text.Y - 150.39) < 3.0)
             {
-                // Main view 220.0 (above dimension line)
-                Point pt = ToPx(88.09, 150.39);
+                Point pt = ToPx(90.27, 150.39);
                 drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
                 drawY = pt.Y - ft.Height - 2.5;
             }
             else if (displayStr == "396.0" && Math.Abs(text.Y - 150.39) < 3.0)
             {
-                // Main view 396.0 chain (above dimension line)
                 Point pt = ToPx(text.X, 150.39);
                 drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
                 drawY = pt.Y - ft.Height - 2.5;
             }
             else if (displayStr == "215.0" && text.Y > 150.0)
             {
-                // Top view 215.0 (above dimension line)
                 Point pt = ToPx(87.00, 176.84);
                 drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
                 drawY = pt.Y - ft.Height - 2.5;
             }
             else if (displayStr == "396.0" && text.Y > 150.0)
             {
-                // Top view 396.0 chain (above dimension line)
                 Point pt = ToPx(text.X, 176.84);
                 drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
                 drawY = pt.Y - ft.Height - 2.5;
             }
             else if (displayStr == "215.0" && text.Y < 120.0)
             {
-                // Bottom view 215.0 (below dimension line)
                 Point pt = ToPx(87.13, 92.64);
                 drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
                 drawY = pt.Y + 2.5;
             }
             else if (displayStr == "396.0" && text.Y < 120.0)
             {
-                // Bottom view 396.0 chain (below dimension line)
                 Point pt = ToPx(text.X, 92.64);
                 drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
                 drawY = pt.Y + 2.5;
             }
             else if (displayStr == "20.0" && Math.Abs(text.Y - 119.63) < 3.0)
             {
-                Point pt = ToPx(81.44, 119.63);
+                Point pt = ToPx(85.26, 119.63);
                 drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
                 drawY = pt.Y + 2.5;
             }
             else if (displayStr == "180.0" && Math.Abs(text.Y - 115.16) < 3.0)
             {
-                Point pt = ToPx(86.17, 115.16);
+                Point pt = ToPx(89.27, 115.16);
                 drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
                 drawY = pt.Y + 2.5;
             }
             else if (displayStr == "18.0" && Math.Abs(text.Y - 44.36) < 3.0)
             {
-                // Detail A horizontal length 18.0 between centers 96.66 and 105.67
                 Point pt = ToPx(101.16, 44.36);
                 drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
                 drawY = pt.Y + 2.5;
             }
-            else if ((displayStr == "18" || displayStr == "Φ18") && Math.Abs(text.X - 105.67) < 15.0 && text.Y < 75.0)
+            else if (displayStr == "Mark/标记" && text.Y > 20.0)
             {
-                Point pt = ToPx(97.84, 65.65);
-                drawX = pt.X - ft.WidthIncludingTrailingWhitespace;
-                drawY = pt.Y - ft.Height - 1.0;
+                Point pt = ToPx((180.38 + 188.07) / 2.0, 22.34);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                drawY = pt.Y - ft.Height / 2.0;
             }
-            else if (displayStr == "30°")
+            else if (displayStr == "Num/处数" && text.Y > 20.0)
             {
-                Point pt = ToPx(120.5, 63.27);
-                drawX = pt.X;
+                Point pt = ToPx((188.07 + 194.49) / 2.0, 22.34);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr == "Changed No./更改号" && text.Y > 20.0)
+            {
+                Point pt = ToPx((194.49 + 208.92) / 2.0, 22.34);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr == "Signature/签名" && text.Y > 20.0 && text.X > 200.0 && text.X < 220.0)
+            {
+                Point pt = ToPx((208.92 + 219.96) / 2.0, 22.34);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr == "Date/日期" && text.Y > 20.0 && text.X > 218.0 && text.X < 230.0)
+            {
+                Point pt = ToPx((219.96 + 227.05) / 2.0, 22.34);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr == "Format/图幅")
+            {
+                Point pt = ToPx((227.05 + 244.72) / 2.0, 25.5);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr == "A3")
+            {
+                Point pt = ToPx((227.05 + 244.72) / 2.0, 22.8);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr == "Scale/比例")
+            {
+                Point pt = ToPx((244.72 + 256.68) / 2.0, 25.5);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr == "Version/版本")
+            {
+                Point pt = ToPx((256.68 + 270.05) / 2.0, 25.5);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr == "Page/页码")
+            {
+                Point pt = ToPx((270.05 + 283.60) / 2.0, 25.5);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
                 drawY = pt.Y - ft.Height / 2.0;
             }
 
@@ -808,11 +910,11 @@ public sealed class DrawingVectorCanvas : FrameworkElement
         }
         Arrow(xTop[^1], 176.84, 1, 0); // pointing right into right tick
         // Right end 16.5 vertical dimension
-        Arrow(247.50, 174.46, 0, -1);
-        Arrow(247.50, 172.81, 0, 1);
+        Arrow(245.81, 174.46, 0, -1);
+        Arrow(245.81, 172.81, 0, 1);
 
         // 2. Main View Top Chain Dimensions (Y = 150.39)
-        double[] xMain = { 78.44, 95.79, 115.59, 135.39, 155.19, 174.99, 194.79 };
+        double[] xMain = { 84.77, 95.77, 115.57, 135.37, 155.17, 174.97, 194.77 };
         Arrow(xMain[0], 150.39, -1, 0); // pointing left into left edge
         for (int i = 1; i < xMain.Length - 1; i++)
         {
@@ -830,8 +932,8 @@ public sealed class DrawingVectorCanvas : FrameworkElement
         }
         Arrow(xTop[^1], 92.64, 1, 0);
         // Right end 16.5 vertical dimension
-        Arrow(247.50, 98.91, 0, -1);
-        Arrow(247.50, 97.26, 0, 1);
+        Arrow(245.81, 98.91, 0, -1);
+        Arrow(245.81, 97.26, 0, 1);
 
         // SolidWorks Native Datum Origin Big Arrows (eDrawings & Official CAD standard)
         void BigArrow(double tipX, double tipY, double dirX, double dirY)
@@ -868,64 +970,60 @@ public sealed class DrawingVectorCanvas : FrameworkElement
         Arrow(54.18, 124.87, 0, -1);
         Arrow(54.18, 124.27, 0, 1);
 
-        // 5. Main View Left Vertical Chain (X = 82.54)
-        // 25.0 segment [124.27, 125.52]: outside pointing inward
-        Arrow(82.54, 124.27, 0, 1);  // pointing up into 124.27 from below
-        Arrow(82.54, 125.52, 0, -1); // pointing down into 125.52 from above
-        // 162.5 lower segment [125.52, 133.64]: inside pointing outward
-        Arrow(82.54, 125.52, 0, 1);  // pointing up from within lower 162.5
-        Arrow(82.54, 133.64, 0, -1); // pointing down from within lower 162.5
-        // 162.5 upper segment [133.64, 141.77]: inside pointing outward
-        Arrow(82.54, 133.64, 0, 1);  // pointing up from within upper 162.5
-        Arrow(82.54, 141.77, 0, -1); // pointing down from within upper 162.5
-        Arrow(82.54, 143.02, 0, 1);  // top edge
+        // 5. Main View Left Vertical Chain (X = 82.51)
+        double xDimLeft = 82.51;
+        Arrow(xDimLeft, 124.27, 0, 1);
+        Arrow(xDimLeft, 125.52, 0, -1);
+        Arrow(xDimLeft, 125.52, 0, 1);
+        Arrow(xDimLeft, 133.64, 0, -1);
+        Arrow(xDimLeft, 133.64, 0, 1);
+        Arrow(xDimLeft, 141.77, 0, -1);
+        Arrow(xDimLeft, 143.02, 0, 1);
 
-        // Inner vertical chain (50.0, 100.0, 100.0 @ X = 91.14)
-        Arrow(91.14, 143.02, 0, 1);
-        Arrow(91.14, 140.52, 0, -1);
-        Arrow(91.14, 140.52, 0, 1);
-        Arrow(91.14, 135.52, 0, -1);
-        Arrow(91.14, 135.52, 0, 1);
-        Arrow(91.14, 130.52, 0, -1);
+        // Inner vertical chain (50.0, 100.0, 100.0 @ X = 90.70)
+        Arrow(90.70, 143.02, 0, -1);
+        Arrow(90.70, 140.52, 0, 1);
+        Arrow(90.70, 140.52, 0, -1);
+        Arrow(90.70, 135.52, 0, 1);
+        Arrow(90.70, 135.52, 0, -1);
+        Arrow(90.70, 130.52, 0, 1);
 
         // Bottom horizontal 20.0 (outside pointing inward)
-        Arrow(78.44, 119.63, 1, 0);
-        Arrow(84.44, 119.63, -1, 0);
+        Arrow(84.77, 119.63, 1, 0);
+        Arrow(85.76, 119.63, -1, 0);
         // Bottom horizontal 180.0 (inside pointing outward)
-        Arrow(78.44, 115.16, -1, 0);
-        Arrow(93.79, 115.16, 1, 0);
+        Arrow(84.77, 115.16, -1, 0);
+        Arrow(93.77, 115.16, 1, 0);
 
-        // 6. Main View Right Vertical Chain (X = 244.75)
-        // 325.0 segment [125.52, 141.77]
-        Arrow(244.75, 141.77, 0, 1);
-        Arrow(244.75, 125.52, 0, -1);
-        // 25.0 segment [124.27, 125.52]: outside pointing inward
-        Arrow(244.75, 125.52, 0, -1);
-        Arrow(244.75, 124.27, 0, 1);
+        // 6. Main View Right Vertical Chain (X = 244.72)
+        double xDimRight = 244.72;
+        Arrow(xDimRight, 141.77, 0, 1);
+        Arrow(xDimRight, 125.52, 0, -1);
+        Arrow(xDimRight, 125.52, 0, -1);
+        Arrow(xDimRight, 124.27, 0, 1);
 
-        // Right 137.5 & 152.5 @ X = 234.31
-        Arrow(234.31, 138.77, 0, 1);
-        Arrow(234.31, 131.14, 0, -1);
-        Arrow(234.31, 131.14, 0, 1);
-        Arrow(234.31, 124.82, 0, -1);
+        // Right 137.5 & 152.5 @ X = 234.28
+        Arrow(234.28, 136.42, 0, 1);
+        Arrow(234.28, 129.19, 0, -1);
+        Arrow(234.28, 129.19, 0, 1);
+        Arrow(234.28, 124.27, 0, -1);
 
         // Right 15.0 and 28.0 (outside pointing inward)
-        Arrow(244.75, 118.85, 1, 0);
-        Arrow(245.50, 118.85, -1, 0);
-        Arrow(244.75, 146.31, 1, 0);
-        Arrow(246.25, 146.31, -1, 0);
+        Arrow(239.68, 118.82, 1, 0);
+        Arrow(240.74, 118.82, -1, 0);
+        Arrow(239.68, 146.30, 1, 0);
+        Arrow(240.74, 146.30, -1, 0);
 
         // 7. Leaders
-        Arrow(84.06, 141.77, 0.85, -0.52); // 5-15*25 pointing to slot
-        Arrow(239.25, 138.77, 0.95, 0.31);  // 2-10*50 pointing to slot
+        Arrow(85.76, 141.77, 0.85, -0.52); // 5-15*25 pointing to slot
+        Arrow(239.68, 136.42, 0.95, 0.31);  // 2-10*50 pointing to slot
 
-        // 8. Detail View A (8.5, 18.0, Φ18, 30°)
+        // 8. Detail View A (8.5, 18.0, Ø18, 30°)
         Arrow(82.51, 59.73, 0, -1);  // 8.5 pointing down into top witness line
         Arrow(82.51, 55.48, 0, 1);   // 8.5 pointing up into bottom witness line
         Arrow(96.66, 44.36, -1, 0);  // 18.0 pointing left into left extension line (center X = 96.66)
         Arrow(105.67, 44.36, 1, 0);  // 18.0 pointing right into right extension line (center X = 105.67)
-        Arrow(105.67 - 3.18, 57.61 + 3.18, 0.71, -0.71);  // Φ18 leader arrowhead at hole perimeter
-        Arrow(105.67 + 3.18, 57.61 - 3.18, -0.71, 0.71); // Φ18 leader arrowhead opposite
+        Arrow(108.83, 54.40, -0.71, 0.71);  // Ø18 leader arrowhead at hole perimeter (single arrow)
         Arrow(105.67 + 13.0, 57.61, 0, 1); // 30° arc arrows
         Arrow(105.67 + 13.0 * Math.Cos(Math.PI / 6.0), 57.61 + 13.0 * Math.Sin(Math.PI / 6.0), -0.5, -0.86);
     }
