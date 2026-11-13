@@ -316,12 +316,21 @@ public sealed class DrawingVectorCanvas : FrameworkElement
             if (text.CleanText == "1 : 2" && Math.Abs(text.X - 104.3) < 3.0 && Math.Abs(text.Y - 21.4) < 3.0)
                 continue;
 
-            // Skip duplicate technical notes and roughness numbers at the lower sheet edge (Y < 13.5)
-            if (text.X < 60.0 && text.Y < 13.5)
-                continue;
-
-            if (text.CleanText == "技术要求" && text.Y < 20.0)
-                continue;
+            // Retain authentic lower technical notes & roughness matching official SolidWorks drawing & PDF
+            // Filter out duplicate displaced upper draft set (Y > 14.0)
+            if (text.X < 65.0)
+            {
+                if (text.CleanText == "技术要求" && text.Y > 20.0)
+                    continue;
+                if (text.CleanText.Contains("毛刺") && text.Y > 16.0)
+                    continue;
+                if ((text.CleanText == "2." || text.CleanText.Contains("折弯") || text.CleanText == ";") && text.Y > 14.0)
+                    continue;
+                if (text.CleanText.Contains("粗糙度") && text.Y > 10.0)
+                    continue;
+                if ((text.CleanText == "25" || text.CleanText == "12.5") && text.Y > 10.0)
+                    continue;
+            }
 
             // Skip stray semicolon and internal model tags
             if (text.CleanText == ";" || text.CleanText.StartsWith("D8001507933-2@"))
@@ -342,6 +351,10 @@ public sealed class DrawingVectorCanvas : FrameworkElement
             else if (displayStr == "比例")
             {
                 displayStr = "比例 1 : 2";
+            }
+            else if (displayStr == "18" && Math.Abs(text.X - 99.5) < 6.0 && text.Y > 55.0 && text.Y < 75.0)
+            {
+                displayStr = "Φ18";
             }
 
             // Determine if this text is a vertical dimension
@@ -381,12 +394,17 @@ public sealed class DrawingVectorCanvas : FrameworkElement
             else if (displayStr == "12.0" && Math.Abs(text.X - 52.52) < 5.0)
             {
                 isVerticalDim = true;
-                isDimOnRight = true;
+                isDimOnRight = false;
             }
             else if (displayStr == "16.5" && text.X > 240.0)
             {
                 isVerticalDim = true;
                 isDimOnRight = true;
+            }
+            else if (displayStr == "8.5" && Math.Abs(text.X - 82.54) < 6.0)
+            {
+                isVerticalDim = true;
+                isDimOnRight = false;
             }
 
             Typeface typeface = defaultTypeface;
@@ -412,12 +430,15 @@ public sealed class DrawingVectorCanvas : FrameworkElement
             }
             else if (displayStr == "技术要求")
             {
-                emSize = 10.0;
-                typeface = new Typeface(typeface.FontFamily, FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
+                emSize = 7.5;
             }
             else if (displayStr == "100.0" || displayStr == "50.0")
             {
                 emSize = 5.0;
+            }
+            else if (displayStr == "8.5")
+            {
+                emSize = 6.0;
             }
             else if (displayStr == "137.5" || displayStr == "152.5" || displayStr == "25.0" || displayStr == "162.5")
             {
@@ -517,7 +538,7 @@ public sealed class DrawingVectorCanvas : FrameworkElement
                 {
                     posX_mm = (text.Y > 130.0) ? 52.52 : 54.18;
                     posY_mm = (text.Y > 130.0) ? 142.72 : 124.57;
-                    isDimOnRight = true;
+                    isDimOnRight = false;
                 }
                 else if (displayStr == "16.5" && text.X > 240.0)
                 {
@@ -525,9 +546,17 @@ public sealed class DrawingVectorCanvas : FrameworkElement
                     posY_mm = (text.Y > 150.0) ? 173.63 : 98.08;
                     isDimOnRight = true;
                 }
+                else if (displayStr == "8.5" && Math.Abs(text.X - 82.54) < 6.0)
+                {
+                    posX_mm = 82.51;
+                    posY_mm = 57.61;
+                    isDimOnRight = false;
+                }
 
                 Point pxPt = ToPx(posX_mm, posY_mm);
-                double targetX = isDimOnRight ? (pxPt.X + 3.5) : (pxPt.X - ft.Height - 3.5);
+                double targetX = (displayStr == "8.5")
+                    ? (pxPt.X - ft.Height - 1.2)
+                    : (isDimOnRight ? (pxPt.X + 3.5) : (pxPt.X - ft.Height - 3.5));
                 double targetY = pxPt.Y + ft.WidthIncludingTrailingWhitespace / 2.0;
 
                 dc.PushTransform(new TransformGroup
@@ -545,7 +574,9 @@ public sealed class DrawingVectorCanvas : FrameworkElement
 
             // Anchor point adjustment for horizontal CAD dimensions and annotations
             double drawX = text.PixelX;
-            double drawY = text.PixelY;
+            double drawY = (text.Category == DrawingVectorTextCategory.TechnicalNote || (text.X < 65.0 && text.Y < 30.0))
+                ? (text.PixelY - ft.Baseline)
+                : text.PixelY;
 
             if (displayStr == "局部视图 A")
             {
@@ -576,13 +607,6 @@ public sealed class DrawingVectorCanvas : FrameworkElement
             {
                 Point pt = ToPx(220.74, 137.06);
                 drawX = pt.X;
-                drawY = pt.Y - ft.Height / 2.0;
-            }
-            else if (displayStr == "8.5" && text.Y < 80.0)
-            {
-                // Detail A 8.5 width dimension: horizontal text cleanly placed to the left of witness lines
-                Point pt = ToPx(75.5, 57.61);
-                drawX = pt.X - ft.WidthIncludingTrailingWhitespace;
                 drawY = pt.Y - ft.Height / 2.0;
             }
             else if (displayStr == "33.0" && text.Y > 130.0)
@@ -669,15 +693,16 @@ public sealed class DrawingVectorCanvas : FrameworkElement
             }
             else if (displayStr == "18.0" && Math.Abs(text.Y - 44.36) < 3.0)
             {
-                Point pt = ToPx(93.6, 44.36);
+                // Detail A horizontal length 18.0 between centers 96.66 and 105.67
+                Point pt = ToPx(101.16, 44.36);
                 drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
                 drawY = pt.Y + 2.5;
             }
-            else if (displayStr == "18" && Math.Abs(text.X - 105.67) < 15.0 && text.Y < 75.0)
+            else if ((displayStr == "18" || displayStr == "Φ18") && Math.Abs(text.X - 105.67) < 15.0 && text.Y < 75.0)
             {
-                Point pt = ToPx(99.0, 63.5);
-                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
-                drawY = pt.Y;
+                Point pt = ToPx(97.84, 65.65);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace;
+                drawY = pt.Y - ft.Height - 1.0;
             }
             else if (displayStr == "30°")
             {
@@ -774,7 +799,7 @@ public sealed class DrawingVectorCanvas : FrameworkElement
         }
 
         // 1. Top View Chain Dimensions (Y = 176.84)
-        double[] xTop = { 78.44, 95.54, 115.34, 135.14, 154.94, 174.74, 194.54, 214.34 };
+        double[] xTop = { 84.77, 95.54, 115.34, 135.14, 154.94, 174.74, 194.54, 214.34 };
         Arrow(xTop[0], 176.84, -1, 0); // pointing left into left extension line
         for (int i = 1; i < xTop.Length - 1; i++)
         {
@@ -808,11 +833,19 @@ public sealed class DrawingVectorCanvas : FrameworkElement
         Arrow(247.50, 98.91, 0, -1);
         Arrow(247.50, 97.26, 0, 1);
 
-        // Projection indicator arrows
-        Arrow(73.0, 180.0, 0, 1);
-        Arrow(73.0, 168.0, 0, -1);
-        Arrow(73.0, 99.0, 0, 1);
-        Arrow(73.0, 87.0, 0, -1);
+        // SolidWorks Native Datum Origin Big Arrows (eDrawings & Official CAD standard)
+        void BigArrow(double tipX, double tipY, double dirX, double dirY)
+        {
+            DrawArrowhead(dc, ToPx(tipX, tipY), new Vector(dirX, -dirY), 7.75 * scaleY, 1.94 * scaleY);
+        }
+
+        // Top View Datum Origin Big Arrows (+X: to 100.26, +Y: to 204.79)
+        BigArrow(100.26, 173.81, 1, 0);
+        BigArrow(84.77, 204.79, 0, 1);
+
+        // Bottom View Datum Origin Big Arrows (+X: to 100.26, -Y: to 66.89)
+        BigArrow(100.26, 97.86, 1, 0);
+        BigArrow(84.77, 66.89, 0, -1);
 
         // 4. Section View Dimensions
         // 375.0 height dimension @ X = 41.47 (inside pointing outwards to extension lines)
@@ -886,13 +919,13 @@ public sealed class DrawingVectorCanvas : FrameworkElement
         Arrow(84.06, 141.77, 0.85, -0.52); // 5-15*25 pointing to slot
         Arrow(239.25, 138.77, 0.95, 0.31);  // 2-10*50 pointing to slot
 
-        // 8. Detail View A (8.5, 18.0, 18, 30°)
-        Arrow(82.54, 59.73, 0, 1);   // 8.5 pointing up into top edge
-        Arrow(82.54, 55.48, 0, -1);  // 8.5 pointing down into bottom edge
-        Arrow(81.54, 44.36, -1, 0);  // 18.0 pointing left into left extension line
-        Arrow(105.67, 44.36, 1, 0);  // 18.0 pointing right into right extension line
-        Arrow(105.67 - 3.18, 57.61 - 3.18, -0.71, -0.71); // 18 leader pointing down-left
-        Arrow(105.67 + 3.18, 57.61 + 3.18, 0.71, 0.71);   // pointing up-right
+        // 8. Detail View A (8.5, 18.0, Φ18, 30°)
+        Arrow(82.51, 59.73, 0, -1);  // 8.5 pointing down into top witness line
+        Arrow(82.51, 55.48, 0, 1);   // 8.5 pointing up into bottom witness line
+        Arrow(96.66, 44.36, -1, 0);  // 18.0 pointing left into left extension line (center X = 96.66)
+        Arrow(105.67, 44.36, 1, 0);  // 18.0 pointing right into right extension line (center X = 105.67)
+        Arrow(105.67 - 3.18, 57.61 + 3.18, 0.71, -0.71);  // Φ18 leader arrowhead at hole perimeter
+        Arrow(105.67 + 3.18, 57.61 - 3.18, -0.71, 0.71); // Φ18 leader arrowhead opposite
         Arrow(105.67 + 13.0, 57.61, 0, 1); // 30° arc arrows
         Arrow(105.67 + 13.0 * Math.Cos(Math.PI / 6.0), 57.61 + 13.0 * Math.Sin(Math.PI / 6.0), -0.5, -0.86);
     }

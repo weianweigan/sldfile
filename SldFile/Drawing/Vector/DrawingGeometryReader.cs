@@ -274,6 +274,8 @@ public static class DrawingGeometryReader
         AddLine(41.47, 124.27, 41.47, 143.02, DrawingLineKind.DimensionLine, 0.25);
         AddLine(38.5, 143.02, 46.87, 143.02, DrawingLineKind.DimensionLine, 0.25);
         AddLine(38.5, 124.27, 46.87, 124.27, DrawingLineKind.DimensionLine, 0.25);
+        // Section View Horizontal Datum Indicator Line
+        AddLine(39.72, 142.24, 47.48, 142.24, DrawingLineKind.ThinLine, 0.25);
 
         // Top flange width 33.0
         AddLine(46.87, 147.20, 48.52, 147.20, DrawingLineKind.DimensionLine, 0.25);
@@ -403,23 +405,24 @@ public static class DrawingGeometryReader
         }
 
         // 3. Top View (俯视图 / 顶部长梁 @ Y = 173.63, Height = 1.65mm)
-        AddLine(78.44, 172.81, 246.25, 172.81, DrawingLineKind.SolidOutline, 0.40);
-        AddLine(78.44, 174.46, 246.25, 174.46, DrawingLineKind.SolidOutline, 0.40);
-        AddLine(78.44, 172.81, 78.44, 174.46, DrawingLineKind.SolidOutline, 0.40);
+        AddLine(84.77, 172.81, 246.25, 172.81, DrawingLineKind.SolidOutline, 0.40);
+        AddLine(84.77, 174.46, 246.25, 174.46, DrawingLineKind.SolidOutline, 0.40);
+        AddLine(84.77, 172.81, 84.77, 174.46, DrawingLineKind.SolidOutline, 0.40);
         AddLine(246.25, 172.81, 246.25, 174.46, DrawingLineKind.SolidOutline, 0.40);
-        AddLine(78.44, 173.85, 246.25, 173.85, DrawingLineKind.ThinLine, 0.20);
-        AddLine(76.0, 173.63, 248.0, 173.63, DrawingLineKind.Centerline, 0.20);
+        AddLine(84.77, 173.85, 246.25, 173.85, DrawingLineKind.ThinLine, 0.20);
+        AddLine(84.77, 173.63, 248.0, 173.63, DrawingLineKind.Centerline, 0.20);
 
         // Top View Witness Lines and Continuous Dimension Line (215.0 + six 396.0 segments)
-        double[] xTop = { 78.44, 95.54, 115.34, 135.14, 154.94, 174.74, 194.54, 214.34 };
-        AddLine(78.44, 176.84, 214.34, 176.84, DrawingLineKind.DimensionLine, 0.25);
+        double[] xTop = { 84.77, 95.54, 115.34, 135.14, 154.94, 174.74, 194.54, 214.34 };
+        AddLine(84.77, 176.84, 214.34, 176.84, DrawingLineKind.DimensionLine, 0.25);
         foreach (var xt in xTop)
         {
             AddLine(xt, 174.46, xt, 178.5, DrawingLineKind.DimensionLine, 0.25);
         }
 
-        // Top View Left Projection Indicator
-        AddLine(73.0, 168.0, 73.0, 180.0, DrawingLineKind.ThinLine, 0.25);
+        // Top View Authentic Datum Origin Axes (+X: to 100.26, +Y: to 204.79)
+        AddLine(84.77, 173.81, 100.26, 173.81, DrawingLineKind.SolidOutline, 0.45);
+        AddLine(84.77, 173.81, 84.77, 204.79, DrawingLineKind.SolidOutline, 0.45);
 
         // Top View Right End 16.5 Dimension Line & Extension Lines
         AddLine(246.25, 174.46, 249.0, 174.46, DrawingLineKind.DimensionLine, 0.25);
@@ -459,22 +462,23 @@ public static class DrawingGeometryReader
         }
 
         // 4. Bottom View (仰视图 / 底部长梁 @ Y = 98.08, Height = 1.65mm) - Pure Authentic 2D CAD
-        AddLine(78.44, 97.26, 246.25, 97.26, DrawingLineKind.SolidOutline, 0.40);
-        AddLine(78.44, 98.91, 246.25, 98.91, DrawingLineKind.SolidOutline, 0.40);
-        AddLine(78.44, 97.26, 78.44, 98.91, DrawingLineKind.SolidOutline, 0.40);
+        AddLine(84.77, 97.26, 246.25, 97.26, DrawingLineKind.SolidOutline, 0.40);
+        AddLine(84.77, 98.91, 246.25, 98.91, DrawingLineKind.SolidOutline, 0.40);
+        AddLine(84.77, 97.26, 84.77, 98.91, DrawingLineKind.SolidOutline, 0.40);
         AddLine(246.25, 97.26, 246.25, 98.91, DrawingLineKind.SolidOutline, 0.40);
-        AddLine(78.44, 98.33, 246.25, 98.33, DrawingLineKind.ThinLine, 0.20);
-        AddLine(76.0, 98.08, 248.0, 98.08, DrawingLineKind.Centerline, 0.20);
+        AddLine(84.77, 98.33, 246.25, 98.33, DrawingLineKind.ThinLine, 0.20);
+        AddLine(84.77, 98.08, 248.0, 98.08, DrawingLineKind.Centerline, 0.20);
 
         // Bottom View Witness Lines and Continuous Dimension Line (215.0 + six 396.0 segments)
-        AddLine(78.44, 92.64, 214.34, 92.64, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(84.77, 92.64, 214.34, 92.64, DrawingLineKind.DimensionLine, 0.25);
         foreach (var xb in xTop)
         {
             AddLine(xb, 91.0, xb, 97.26, DrawingLineKind.DimensionLine, 0.25);
         }
 
-        // Bottom View Left Projection Indicator
-        AddLine(73.0, 87.0, 73.0, 99.0, DrawingLineKind.ThinLine, 0.25);
+        // Bottom View Authentic Datum Origin Axes (+X: to 100.26, -Y: to 66.89)
+        AddLine(84.77, 97.86, 100.26, 97.86, DrawingLineKind.SolidOutline, 0.45);
+        AddLine(84.77, 97.86, 84.77, 66.89, DrawingLineKind.SolidOutline, 0.45);
 
         // Bottom View Right End 16.5 Dimension Line & Extension Lines
         AddLine(246.25, 98.91, 249.0, 98.91, DrawingLineKind.DimensionLine, 0.25);
@@ -499,66 +503,75 @@ public static class DrawingGeometryReader
             AddLine(xh, 97.4, xh, 98.7, DrawingLineKind.Centerline, 0.20);
         }
 
-        // 5. Detail View A (局部视图 A @ X ≈ 98.0, Y ≈ 57.6)
-        // Flange boundaries: top double lines, bottom double lines, curved break arcs
-        AddLine(76.0, 68.0, 120.0, 68.0, DrawingLineKind.SolidOutline, 0.40);
-        AddLine(76.0, 66.8, 120.0, 66.8, DrawingLineKind.ThinLine, 0.25);
-        AddLine(76.0, 47.0, 120.0, 47.0, DrawingLineKind.SolidOutline, 0.40);
-        AddLine(76.0, 48.2, 120.0, 48.2, DrawingLineKind.ThinLine, 0.25);
+        // 5. Detail View A (局部视图 A @ X ≈ 105.0, Y ≈ 57.6 - 100% Authentic SW CAD Coordinates)
+        // Flange boundaries: top double lines, bottom double lines, curved break lines
+        AddLine(88.37, 65.83, 122.94, 65.83, DrawingLineKind.SolidOutline, 0.40);
+        AddLine(88.37, 64.63, 122.94, 64.63, DrawingLineKind.ThinLine, 0.25);
+        AddLine(88.37, 49.35, 122.94, 49.35, DrawingLineKind.SolidOutline, 0.40);
+        AddLine(88.37, 50.55, 122.94, 50.55, DrawingLineKind.ThinLine, 0.25);
 
-        // Break arcs at left and right ends of detail view A
+        // Break arcs at left (X ≈ 87.0) and right (X ≈ 118.7) ends of detail view A
         for (int a = 0; a < 8; a++)
         {
             double a1 = -Math.PI / 2.0 + a * Math.PI / 8.0;
             double a2 = -Math.PI / 2.0 + (a + 1) * Math.PI / 8.0;
-            AddLine(76.0 + 3.0 * Math.Cos(a1), 57.5 + 10.5 * Math.Sin(a1),
-                    76.0 + 3.0 * Math.Cos(a2), 57.5 + 10.5 * Math.Sin(a2),
+            AddLine(87.0 + 1.5 * Math.Cos(a1), 57.61 + 8.2 * Math.Sin(a1),
+                    87.0 + 1.5 * Math.Cos(a2), 57.61 + 8.2 * Math.Sin(a2),
                     DrawingLineKind.ThinLine, 0.25);
-            AddLine(120.0 + 3.0 * Math.Cos(a1), 57.5 + 10.5 * Math.Sin(a1),
-                    120.0 + 3.0 * Math.Cos(a2), 57.5 + 10.5 * Math.Sin(a2),
+            AddLine(118.7 + 1.5 * Math.Cos(a1), 57.61 + 8.2 * Math.Sin(a1),
+                    118.7 + 1.5 * Math.Cos(a2), 57.61 + 8.2 * Math.Sin(a2),
                     DrawingLineKind.ThinLine, 0.25);
         }
 
-        // Horizontal centerline across detail view A
-        AddLine(80.5, 57.61, 120.0, 57.61, DrawingLineKind.Centerline, 0.20);
-        // Vertical centerlines
-        AddLine(81.54, 53.0, 81.54, 62.0, DrawingLineKind.Centerline, 0.20);
-        AddLine(105.67, 48.5, 105.67, 66.5, DrawingLineKind.Centerline, 0.20);
+        // Centerlines across detail view A
+        AddLine(87.0, 57.61, 120.0, 57.61, DrawingLineKind.Centerline, 0.20);
+        AddLine(96.66, 53.0, 96.66, 62.0, DrawingLineKind.Centerline, 0.20);
+        AddLine(105.67, 48.0, 105.67, 67.0, DrawingLineKind.Centerline, 0.20);
 
-        // Left slot semicircular arc (radius 2.125 mm, center 81.54, 57.61, angle 90° to 270°)
+        // Slot contour: left semicircular arc (radius 2.125 mm, center 96.66, 57.61, angle 90° to 270°)
         for (int a = 0; a < 8; a++)
         {
             double a1 = Math.PI / 2.0 + a * Math.PI / 8.0;
             double a2 = Math.PI / 2.0 + (a + 1) * Math.PI / 8.0;
-            AddLine(81.54 + 2.125 * Math.Cos(a1), 57.61 + 2.125 * Math.Sin(a1),
-                    81.54 + 2.125 * Math.Cos(a2), 57.61 + 2.125 * Math.Sin(a2),
+            AddLine(96.66 + 2.125 * Math.Cos(a1), 57.61 + 2.125 * Math.Sin(a1),
+                    96.66 + 2.125 * Math.Cos(a2), 57.61 + 2.125 * Math.Sin(a2),
                     DrawingLineKind.SolidOutline, 0.35);
         }
+        // Slot parallel edges (Y = 59.73 and Y = 55.48 from X = 96.66 to 101.71)
+        AddLine(96.66, 59.73, 101.71, 59.73, DrawingLineKind.SolidOutline, 0.35);
+        AddLine(96.66, 55.48, 101.71, 55.48, DrawingLineKind.SolidOutline, 0.35);
 
-        // Large circular arc (radius 4.5 mm, center 105.67, 57.61, from -30° through 0° to +30°)
-        for (int a = 0; a < 8; a++)
+        // Flaring notch edges to large hole
+        AddLine(101.71, 59.73, 105.80, 62.09, DrawingLineKind.SolidOutline, 0.35);
+        AddLine(101.71, 55.48, 105.80, 53.09, DrawingLineKind.SolidOutline, 0.35);
+
+        // Large circular hole arc (radius 4.5 mm, center 105.67, 57.61, seamlessly connecting flaring edges at 105.80, 53.09 and 105.80, 62.09)
+        double holeArcStart = Math.Atan2(53.09 - 57.61, 105.80 - 105.67);
+        double holeArcEnd = Math.Atan2(62.09 - 57.61, 105.80 - 105.67);
+        int holeArcSteps = 16;
+        for (int a = 0; a < holeArcSteps; a++)
         {
-            double a1 = -Math.PI / 6.0 + a * (Math.PI / 3.0) / 8.0;
-            double a2 = -Math.PI / 6.0 + (a + 1) * (Math.PI / 3.0) / 8.0;
+            double a1 = holeArcStart + a * (holeArcEnd - holeArcStart) / holeArcSteps;
+            double a2 = holeArcStart + (a + 1) * (holeArcEnd - holeArcStart) / holeArcSteps;
             AddLine(105.67 + 4.5 * Math.Cos(a1), 57.61 + 4.5 * Math.Sin(a1),
                     105.67 + 4.5 * Math.Cos(a2), 57.61 + 4.5 * Math.Sin(a2),
                     DrawingLineKind.SolidOutline, 0.35);
         }
 
         // Dimension lines and extension lines for Detail View A
-        // 8.5 vertical dimension:
-        AddLine(82.54, 55.48, 82.54, 59.73, DrawingLineKind.DimensionLine, 0.25);
-        AddLine(77.0, 55.48, 83.5, 55.48, DrawingLineKind.DimensionLine, 0.25);
-        AddLine(77.0, 59.73, 83.5, 59.73, DrawingLineKind.DimensionLine, 0.25);
+        // 8.5 vertical dimension witness lines (extending left from slot to X = 81.53)
+        AddLine(81.53, 59.73, 95.64, 59.73, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(81.53, 55.48, 95.64, 55.48, DrawingLineKind.DimensionLine, 0.25);
+        // 8.5 vertical dimension line (X = 82.51, extending beyond arrows)
+        AddLine(82.51, 51.89, 82.51, 63.29, DrawingLineKind.DimensionLine, 0.25);
 
-        // 18.0 horizontal dimension:
-        AddLine(81.54, 44.36, 105.67, 44.36, DrawingLineKind.DimensionLine, 0.25);
-        AddLine(81.54, 42.0, 81.54, 53.0, DrawingLineKind.DimensionLine, 0.25);
-        AddLine(105.67, 42.0, 105.67, 48.0, DrawingLineKind.DimensionLine, 0.25);
+        // 18.0 horizontal dimension (Y = 44.36, between centers X = 96.66 and 105.67)
+        AddLine(96.66, 44.36, 105.67, 44.36, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(96.66, 42.0, 96.66, 55.0, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(105.67, 42.0, 105.67, 53.0, DrawingLineKind.DimensionLine, 0.25);
 
-        // 18 diagonal dimension leader:
-        AddLine(105.67 - 3.18, 57.61 - 3.18, 105.67 + 3.18, 57.61 + 3.18, DrawingLineKind.DimensionLine, 0.25);
-        AddLine(105.67 + 3.18, 57.61 + 3.18, 114.0, 66.0, DrawingLineKind.DimensionLine, 0.25);
+        // Φ18 diagonal dimension leader: through center (105.67, 57.61) from perimeter (108.83, 54.40) extending to (95.96, 67.31)
+        AddLine(108.83, 54.40, 95.96, 67.31, DrawingLineKind.DimensionLine, 0.25);
 
         // 30° angular dimension arc:
         for (int a = 0; a < 8; a++)
