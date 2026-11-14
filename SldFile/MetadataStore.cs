@@ -360,8 +360,26 @@ internal sealed class MetadataStore
         private static void EnsureLiteralProperty(XElement element)
         {
             if (string.Equals((string?)element.Attribute("IsEquation"), "True", StringComparison.OrdinalIgnoreCase)
-                || element.Elements().Any(e => e.Name.LocalName == "FPVals"))
+                || HasLinkedExpression(element)
+                || (element.Elements().Any(e => e.Name.LocalName == "FPVals") && !IsPlainCopy(element)))
                 throw new NotSupportedException("Editing linked, calculated or cached custom properties is not supported.");
+        }
+
+        private static bool HasLinkedExpression(XElement element)
+        {
+            if (!uint.TryParse((string?)element.Attribute("pid"), out var pid) || pid >= 0x01000000 || element.Parent == null) return false;
+            var partner = (pid + 0x01000000u).ToString(CultureInfo.InvariantCulture);
+            return element.Parent.Elements().Any(e => e.Name.LocalName == "property" && (string?)e.Attribute("pid") == partner);
+        }
+
+        private static bool IsPlainCopy(XElement element)
+        {
+            var fpvals = element.Elements().Where(e => e.Name.LocalName == "FPVals").ToList();
+            if (fpvals.Count != 1) return false;
+            var copies = fpvals[0].Elements().ToList();
+            var literal = element.Elements().FirstOrDefault(e => e.Name.Namespace == Vt);
+            return copies.Count == 1 && copies[0].Name.Namespace == Vt && literal != null
+                && copies[0].Name == literal.Name && copies[0].Value == literal.Value;
         }
 
         private static object? DecodeXml(XElement? property)
@@ -388,6 +406,9 @@ internal sealed class MetadataStore
             var replacement = new XElement(Vt + type, text);
             if (value is string) replacement.SetAttributeValue(XNamespace.Xml + "space", "preserve");
             if (existing != null) existing.ReplaceWith(replacement); else property.AddFirst(replacement);
+
+            var copy = property.Elements().FirstOrDefault(e => e.Name.LocalName == "FPVals");
+            if (copy != null) copy.ReplaceNodes(new XElement(replacement));
         }
 
         internal byte[] ToBytes()
