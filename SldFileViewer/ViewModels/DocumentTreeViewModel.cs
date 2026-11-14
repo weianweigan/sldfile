@@ -90,9 +90,27 @@ public void RequestComponentAction(AssemblyComponentNode comp, ComponentTreeActi
 
         RootNodes.Add(rootNode);
 
-        // Select preview or properties by default
-        SelectedNode = geoNode;
-        geoNode.IsSelected = true;
+        // Select drawing sheet by default for drawings, or geometry preview for models
+        if (swFile.Kind == DocumentKind.Drawing)
+        {
+            var sheetsFolder = rootNode.Children.FirstOrDefault(c => c.Kind == TreeNodeKind.FeatureFolder && c.Title.StartsWith("图纸页"));
+            var firstSheetNode = sheetsFolder?.Children.FirstOrDefault(c => c.Kind == TreeNodeKind.DrawingSheet);
+            if (firstSheetNode != null)
+            {
+                SelectedNode = firstSheetNode;
+                firstSheetNode.IsSelected = true;
+            }
+            else
+            {
+                SelectedNode = geoNode;
+                geoNode.IsSelected = true;
+            }
+        }
+        else
+        {
+            SelectedNode = geoNode;
+            geoNode.IsSelected = true;
+        }
     }
 
     private void BuildPartBranches(TreeNodeModel rootNode, SwFile swFile, int configIndex)

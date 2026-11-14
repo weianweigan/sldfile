@@ -293,10 +293,12 @@ public sealed class DrawingVectorCanvas : FrameworkElement
         }
 
         // 3. Render 2D CAD Vector Typography (Title block, tolerance, notes, dimensions)
-        foreach (var text in VectorData.Texts)
+        if (VectorData.Texts != null)
         {
-            if (string.IsNullOrWhiteSpace(text.CleanText))
-                continue;
+            foreach (var text in VectorData.Texts)
+            {
+                if (string.IsNullOrWhiteSpace(text.CleanText))
+                    continue;
 
             // Filter out system metadata, unplaced tokens, or layer definitions
             if (text.Category == DrawingVectorTextCategory.Metadata)
@@ -893,6 +895,7 @@ public sealed class DrawingVectorCanvas : FrameworkElement
             {
                 dc.Pop();
             }
+        }
         }
     }
 

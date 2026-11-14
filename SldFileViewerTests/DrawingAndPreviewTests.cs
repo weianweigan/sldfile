@@ -276,6 +276,65 @@ public class DrawingAndPreviewTests
     }
 
     [Fact]
+    public async Task Drawing_D8001507933_PreservesHighDefinitionAndVectorDataAcrossConfigAndTreeActions()
+    {
+        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
+        if (!File.Exists(realPath)) return;
+
+        var docService = new SwDocumentService();
+        var dialogService = new MockDialogService();
+        var exportService = new ExportService();
+
+        var treeVm = new DocumentTreeViewModel(docService);
+        var sketchVm = new SketchCanvasViewModel();
+        var propsVm = new CustomPropsViewModel(docService, dialogService);
+        var eqVm = new EquationsViewModel(docService);
+        var bomVm = new BomViewModel(docService, exportService, dialogService);
+        var meshVm = new MeshViewerViewModel(docService, exportService, dialogService);
+        var imgVm = new ImagePreviewViewModel(docService, dialogService);
+        var featVm = new FeatureDetailViewModel();
+
+        var mainVm = new MainViewModel(docService, dialogService, treeVm, sketchVm, propsVm, eqVm, bomVm, meshVm, imgVm, featVm);
+
+        await mainVm.LoadDocumentAsync(realPath);
+
+        // 1. Initial State: Default selected tree node must be DrawingSheet, not generic GeometryPreview
+        Assert.NotNull(treeVm.SelectedNode);
+        Assert.Equal(TreeNodeKind.DrawingSheet, treeVm.SelectedNode.Kind);
+        Assert.Equal("图纸1", treeVm.SelectedNode.Title);
+
+        // High-definition drawing canvas verified
+        Assert.True(imgVm.HasImage);
+        Assert.Equal(1420, imgVm.PixelWidth);
+        Assert.Equal(710, imgVm.PixelHeight);
+        Assert.True(imgVm.PixelWidth >= 1400);
+        Assert.True(imgVm.HasVectorData);
+        Assert.Contains("工程图纸: 图纸1", imgVm.ImageInfo);
+        Assert.DoesNotContain("模型预览 (配置: 默认)", imgVm.ImageInfo);
+
+        // 2. Select GeometryPreview node: Must preserve high-def drawing sheet and vector CAD
+        var rootNode = treeVm.RootNodes.First();
+        var geoNode = rootNode.Children.First(c => c.Kind == TreeNodeKind.GeometryPreview);
+        treeVm.SelectedNode = geoNode;
+
+        Assert.Equal(1420, imgVm.PixelWidth);
+        Assert.Equal(710, imgVm.PixelHeight);
+        Assert.True(imgVm.HasVectorData);
+        Assert.Contains("工程图纸: 图纸1", imgVm.ImageInfo);
+        Assert.DoesNotContain("模型预览 (配置: 默认)", imgVm.ImageInfo);
+
+        // 3. SwitchToConfigPreview: Must maintain high-def drawing sheet, not low-res thumbnail
+        mainVm.SwitchToConfigPreview();
+        Assert.Equal(1420, imgVm.PixelWidth);
+        Assert.Equal(710, imgVm.PixelHeight);
+        Assert.True(imgVm.HasVectorData);
+        Assert.Contains("工程图纸: 图纸1", imgVm.ImageInfo);
+        Assert.DoesNotContain("模型预览 (配置: 默认)", imgVm.ImageInfo);
+
+        mainVm.CloseFileCommand.Execute(null);
+    }
+
+    [Fact]
     public async Task Drawing_RealPartFile_LoadsWithoutExceptions()
     {
         string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDPRT";

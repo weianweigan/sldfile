@@ -197,11 +197,24 @@ public partial class MainViewModel : ObservableObject
         // 3. 3D 检视器 Parasolid 配置索引联动
         MeshViewer.CurrentConfigIndex = value.Index;
 
-        // 4. 关键：提取当前配置专属的高清渲染预览图，动态刷新模型预览！
-        var previewData = _docService.GetBestPreviewImage(value.Index);
-        if (previewData != null)
+        // 4. 关键：提取当前配置专属的高清渲染预览图，动态刷新模型预览（工程图严格保持矢量图纸隔离）！
+        if (_docService.CurrentFile?.Kind == DocumentKind.Drawing)
         {
-            ImagePreview.LoadImage(previewData, $"模型预览 (配置: {value.Name})");
+            var sheets = _docService.GetDrawingSheets();
+            var targetSheet = sheets.FirstOrDefault();
+            if (targetSheet != null)
+            {
+                var sheetImg = _docService.GetBestSheetPreviewImage(targetSheet.SheetIndex) ?? targetSheet.BestPreview ?? targetSheet.PreviewPng;
+                ImagePreview.LoadImage(sheetImg, $"工程图纸: {targetSheet.Name}", targetSheet.VectorData);
+            }
+        }
+        else
+        {
+            var previewData = _docService.GetBestPreviewImage(value.Index);
+            if (previewData != null)
+            {
+                ImagePreview.LoadImage(previewData, $"模型预览 (配置: {value.Name})");
+            }
         }
 
         StatusMessage = $"已切换至配置: {value.Name} (索引: {value.Index})";
@@ -210,6 +223,19 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     public void SwitchToConfigPreview()
     {
+        if (_docService.CurrentFile?.Kind == DocumentKind.Drawing)
+        {
+            var sheets = _docService.GetDrawingSheets();
+            var targetSheet = sheets.FirstOrDefault();
+            if (targetSheet != null)
+            {
+                var sheetImg = _docService.GetBestSheetPreviewImage(targetSheet.SheetIndex) ?? targetSheet.BestPreview ?? targetSheet.PreviewPng;
+                ImagePreview.LoadImage(sheetImg, $"工程图纸: {targetSheet.Name}", targetSheet.VectorData);
+                CurrentView = ImagePreview;
+            }
+            return;
+        }
+
         int idx = SelectedConfiguration?.Index ?? 0;
         string name = SelectedConfiguration?.Name ?? "默认";
         var img = _docService.GetBestPreviewImage(idx);
@@ -258,27 +284,28 @@ public partial class MainViewModel : ObservableObject
                 break;
 
             case TreeNodeKind.GeometryPreview:
-                int cfgIdx = SelectedConfiguration?.Index ?? 0;
-                string cfgName = SelectedConfiguration?.Name ?? "默认";
-                byte[]? img = null;
-                string desc = $"模型预览 (配置: {cfgName})";
-                SldFile.Drawing.Vector.DrawingSheetVectorData? vectorData = null;
                 if (_docService.CurrentFile?.Kind == DocumentKind.Drawing)
                 {
                     var sheets = _docService.GetDrawingSheets();
                     var firstSheet = sheets.FirstOrDefault();
-                    img = _docService.GetBestSheetPreviewImage(0) ?? firstSheet?.BestPreview ?? _docService.GetBestPreviewImage(0);
-                    desc = firstSheet != null ? $"工程图纸: {firstSheet.Name}" : "工程图预览";
-                    vectorData = firstSheet?.VectorData;
+                    var sheetImg = _docService.GetBestSheetPreviewImage(0) ?? firstSheet?.BestPreview ?? _docService.GetBestPreviewImage(0);
+                    var sheetDesc = firstSheet != null ? $"工程图纸: {firstSheet.Name}" : "工程图预览";
+                    var vectorData = firstSheet?.VectorData;
+                    if (sheetImg != null)
+                    {
+                        ImagePreview.LoadImage(sheetImg, sheetDesc, vectorData);
+                        CurrentView = ImagePreview;
+                    }
+                    break;
                 }
-                else
-                {
-                    img = _docService.GetBestPreviewImage(cfgIdx);
-                }
+
+                int cfgIdx = SelectedConfiguration?.Index ?? 0;
+                string cfgName = SelectedConfiguration?.Name ?? "默认";
+                var img = _docService.GetBestPreviewImage(cfgIdx);
 
                 if (img != null)
                 {
-                    ImagePreview.LoadImage(img, desc, vectorData);
+                    ImagePreview.LoadImage(img, $"模型预览 (配置: {cfgName})");
                 }
 
                 if (MeshViewer.HasMesh)
