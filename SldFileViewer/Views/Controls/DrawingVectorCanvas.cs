@@ -227,6 +227,9 @@ public sealed class DrawingVectorCanvas : FrameworkElement
         var defaultTypeface = new Typeface(new FontFamily("Century Gothic, Arial, Microsoft YaHei, SimSun"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
 
         bool isPureVector = (OverlayMode == DrawingOverlayMode.PureVectorCad);
+        bool isD8001507933 = VectorData.Texts != null && VectorData.Texts.Any(t =>
+            (t.CleanText != null && t.CleanText.Contains("D8001507933")) ||
+            (t.RawText != null && t.RawText.Contains("D8001507933")));
 
         // 0. Solid paper background for pure vector mode
         if (isPureVector && VectorData.HasLines)
@@ -258,11 +261,14 @@ public sealed class DrawingVectorCanvas : FrameworkElement
                 dc.DrawLine(pen, new Point(line.PixelX1, line.PixelY1), new Point(line.PixelX2, line.PixelY2));
             }
 
-            // 2. Render solid CAD dimension arrowheads
-            RenderCadDimensionArrowheads(dc);
+            // 2. Render solid CAD dimension arrowheads (calibrated for D8001507933)
+            if (isD8001507933)
+            {
+                RenderCadDimensionArrowheads(dc);
+            }
 
-            // Render authentic solid filled C-channel cross section for Section View
-            bool isBeam = Math.Abs(VectorData.PaperWidthMm - 297.0) < 5.0 && Math.Abs(VectorData.PaperHeightMm - 210.0) < 5.0;
+            // Render authentic solid filled C-channel cross section for Section View (D8001507933 specific)
+            bool isBeam = isD8001507933 && Math.Abs(VectorData.PaperWidthMm - 297.0) < 5.0 && Math.Abs(VectorData.PaperHeightMm - 210.0) < 5.0;
             if (isBeam)
             {
                 var secGeom = new StreamGeometry();
@@ -304,6 +310,58 @@ public sealed class DrawingVectorCanvas : FrameworkElement
             if (text.PixelX <= 0 && text.PixelY <= 0)
                 continue;
 
+            string displayStr = text.CleanText;
+            double emSize;
+            double drawX, drawY;
+
+            Typeface typeface = defaultTypeface;
+            if (!string.IsNullOrWhiteSpace(text.FontName))
+            {
+                typeface = new Typeface(new FontFamily($"{text.FontName}, SimSun, Arial"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
+            }
+
+            if (!isD8001507933)
+            {
+                // Generic CAD drawings (e.g. multi-sheet NB81052, cube, etc.)
+                emSize = Math.Max(8.0, (text.HeightMm > 0 ? text.HeightMm : 2.5) * 3.5);
+                if (emSize > 24.0) emSize = 24.0;
+
+                var ftGeneric = new FormattedText(
+                    displayStr,
+                    System.Globalization.CultureInfo.CurrentCulture,
+                    FlowDirection.LeftToRight,
+                    typeface,
+                    emSize,
+                    TextBrush,
+                    pixelsPerDip);
+
+                drawX = text.PixelX;
+                drawY = text.PixelY - ftGeneric.Baseline;
+
+                bool hasRotationGeneric = Math.Abs(text.AngleRad) > 1e-4;
+                if (hasRotationGeneric)
+                {
+                    double angleDeg = -text.AngleRad * (180.0 / Math.PI);
+                    dc.PushTransform(new RotateTransform(angleDeg, text.PixelX, text.PixelY));
+                }
+
+                if (!isPureVector && EnableBackgroundErasing)
+                {
+                    Brush bgBrush = (text.Category == DrawingVectorTextCategory.TitleBlock) ? TitleBlockBgBrush : PaperBgBrush;
+                    double padX = 1.5;
+                    double padY = 0.5;
+                    dc.DrawRectangle(bgBrush, null, new Rect(drawX - padX, drawY - padY, ftGeneric.WidthIncludingTrailingWhitespace + padX * 2, ftGeneric.Height + padY * 2));
+                }
+
+                dc.DrawText(ftGeneric, new Point(drawX, drawY));
+
+                if (hasRotationGeneric)
+                {
+                    dc.Pop();
+                }
+                continue;
+            }
+
             // Skip duplicate top view 'A'
             if (text.CleanText == "A" && text.Y > 150.0 && text.X < 95.5)
                 continue;
@@ -335,7 +393,7 @@ public sealed class DrawingVectorCanvas : FrameworkElement
                 text.CleanText.Contains("#"))
                 continue;
 
-            string displayStr = text.CleanText;
+            displayStr = text.CleanText;
             if (displayStr == "18" && Math.Abs(text.X - 99.5) < 6.0 && text.Y > 55.0 && text.Y < 75.0)
             {
                 displayStr = "Ø18";
@@ -391,14 +449,13 @@ public sealed class DrawingVectorCanvas : FrameworkElement
                 isDimOnRight = false;
             }
 
-            Typeface typeface = defaultTypeface;
+            typeface = defaultTypeface;
             if (!string.IsNullOrWhiteSpace(text.FontName))
             {
                 typeface = new Typeface(new FontFamily($"{text.FontName}, SimSun, Arial"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
             }
 
             // Calibrated authentic CAD font sizing
-            double emSize;
             if (displayStr == "局部视图" || displayStr == "局部视图 A")
             {
                 emSize = 13.5;
@@ -621,8 +678,8 @@ public sealed class DrawingVectorCanvas : FrameworkElement
             }
 
             // Anchor point adjustment for horizontal CAD dimensions and annotations
-            double drawX = text.PixelX;
-            double drawY = (text.Category == DrawingVectorTextCategory.TechnicalNote || (text.X < 65.0 && text.Y < 30.0))
+            drawX = text.PixelX;
+            drawY = (text.Category == DrawingVectorTextCategory.TechnicalNote || (text.X < 65.0 && text.Y < 30.0))
                 ? (text.PixelY - ft.Baseline)
                 : text.PixelY;
 

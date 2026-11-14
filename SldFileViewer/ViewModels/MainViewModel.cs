@@ -392,13 +392,14 @@ public partial class MainViewModel : ObservableObject
                     FeatureDetail.LoadGeneric(view.Name, $"工程图视图 ({view.ViewType})",
                         $"配置: {view.ReferencedConfiguration}\n比例: {view.Scale}\nMFC类: {view.MfcClassName}\n模型路径: {view.ReferencedModelPath}");
                     var sheets = _docService.GetDrawingSheets();
-                    var firstSheet = sheets.FirstOrDefault();
-                    if (firstSheet != null)
+                    var targetSheet = sheets.FirstOrDefault(s => s.Views.Any(v => ReferenceEquals(v, view) || v.Name == view.Name))
+                                   ?? sheets.FirstOrDefault();
+                    if (targetSheet != null)
                     {
-                        var viewImg = _docService.GetBestSheetPreviewImage(firstSheet.SheetIndex) ?? firstSheet.BestPreview;
+                        var viewImg = _docService.GetBestSheetPreviewImage(targetSheet.SheetIndex) ?? targetSheet.BestPreview;
                         if (viewImg != null)
                         {
-                            ImagePreview.LoadImage(viewImg, $"工程图视图: {view.Name} ({view.ViewType})", firstSheet.VectorData);
+                            ImagePreview.LoadImage(viewImg, $"工程图视图: {view.Name} ({view.ViewType})", targetSheet.VectorData);
                             CurrentView = ImagePreview;
                             break;
                         }

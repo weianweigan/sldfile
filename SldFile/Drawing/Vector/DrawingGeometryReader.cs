@@ -21,7 +21,9 @@ public static class DrawingGeometryReader
         byte[]? vbListsStream,
         byte[]? definitionStream,
         double paperWidthMm,
-        double paperHeightMm)
+        double paperHeightMm,
+        int rangeStart = 0,
+        int rangeEnd = -1)
     {
         var allLines = new List<DrawingVectorLine>();
         double w = paperWidthMm > 50.0 ? paperWidthMm : 297.0;
@@ -38,7 +40,7 @@ public static class DrawingGeometryReader
         bool hasDisplayListLines = false;
         if (displayListsStream != null && displayListsStream.Length > 100)
         {
-            var dlLines = ExtractLinesFromDisplayLists(displayListsStream, w, h);
+            var dlLines = ExtractLinesFromDisplayLists(displayListsStream, w, h, rangeStart, rangeEnd);
             if (dlLines.Count > 0)
             {
                 allLines.AddRange(dlLines);
@@ -152,13 +154,16 @@ public static class DrawingGeometryReader
     /// <summary>
     /// Decodes high-precision 2D CAD vector line geometry directly from SolidWorks Contents/DisplayLists stream.
     /// This is the exact native stream used by eDrawings to render clean, lossless, sub-millimeter 2D drawing views.
+    /// Supports byte range slicing for multi-sheet drawing isolation.
     /// </summary>
     public static List<DrawingVectorLine> ExtractLinesFromDisplayLists(
         byte[] displayListsStream,
         double paperWidthMm,
-        double paperHeightMm)
+        double paperHeightMm,
+        int rangeStart = 0,
+        int rangeEnd = -1)
     {
-        return SldFile.Binary.DisplayListsSchemaMapper.ExtractCadLines(displayListsStream, null, paperWidthMm, paperHeightMm);
+        return SldFile.Binary.DisplayListsSchemaMapper.ExtractCadLines(displayListsStream, null, paperWidthMm, paperHeightMm, rangeStart, rangeEnd);
     }
 
     private static void GenerateSheetOuterBorders(List<DrawingVectorLine> lines, double w, double h)

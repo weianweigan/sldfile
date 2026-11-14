@@ -145,27 +145,85 @@ internal static class DisplayListsSchemaMapper
     }
 
     /// <summary>
+    /// Identifies byte range boundaries for individual drawing sheets in the Contents/DisplayLists stream
+    /// when the drawing contains multiple sheets.
+    /// </summary>
+    public static List<(int Start, int End)> GetSheetByteRanges(byte[] data, int expectedSheetCount)
+    {
+        var ranges = new List<(int Start, int End)>();
+        if (data == null || data.Length == 0) return ranges;
+
+        if (expectedSheetCount <= 1)
+        {
+            ranges.Add((0, data.Length));
+            return ranges;
+        }
+
+        // Scan for recurring sheet boundaries in multi-sheet drawings.
+        // For standard multi-sheet drawing title blocks (e.g. process drawings or multi-page formats),
+        // each sheet frame begins before standard title block headers (such as '物料代号' or template blocks).
+        var splitOffsets = new List<int> { 0 };
+        for (int i = 0; i < data.Length - 16; i++)
+        {
+            if (data[i] == 0xFF && data[i + 1] == 0xFE && data[i + 2] == 0xFF && data[i + 3] == 0x04)
+            {
+                // Unicode for '物料代号': 0x69 0x72, 0x99 0x65, 0xE3 0x4E, 0xF7 0x53
+                if (i + 12 <= data.Length &&
+                    data[i + 4] == 0x69 && data[i + 5] == 0x72 &&
+                    data[i + 6] == 0x99 && data[i + 7] == 0x65 &&
+                    data[i + 8] == 0xE3 && data[i + 9] == 0x4E &&
+                    data[i + 10] == 0xF7 && data[i + 11] == 0x53)
+                {
+                    splitOffsets.Add(Math.Max(0, i - 300));
+                }
+            }
+        }
+
+        splitOffsets.Sort();
+
+        if (splitOffsets.Count == expectedSheetCount)
+        {
+            for (int s = 0; s < splitOffsets.Count; s++)
+            {
+                int start = splitOffsets[s];
+                int end = (s + 1 < splitOffsets.Count) ? splitOffsets[s + 1] : data.Length;
+                ranges.Add((start, end));
+            }
+            return ranges;
+        }
+
+        // Fallback: entire stream
+        ranges.Add((0, data.Length));
+        return ranges;
+    }
+
+    /// <summary>
     /// Deserializes 2D CAD vector line geometry from SolidWorks Contents/DisplayLists stream via MFC deserialization.
     /// Uses MfcReader to scan serialized inline records and extract sub-millimeter CAD wireframes.
+    /// Supports byte range slicing for multi-sheet drawing isolation.
     /// </summary>
     public static List<DrawingVectorLine> ExtractCadLines(
         byte[] data,
         MfcDocument? doc = null,
         double paperWidthMm = 420.0,
-        double paperHeightMm = 297.0)
+        double paperHeightMm = 297.0,
+        int rangeStart = 0,
+        int rangeEnd = -1)
     {
         var lines = new List<DrawingVectorLine>();
         if (data == null || data.Length < 96) return lines;
 
         doc ??= MfcDocument.Parse(data);
         var layerMgr = doc.FindFirst("uiLayerMgr_c");
-        int startOffset = layerMgr != null ? layerMgr.TagOffset : 0;
+        int baseStartOffset = layerMgr != null ? layerMgr.TagOffset : 0;
+        int startOffset = Math.Max(rangeStart, baseStartOffset);
+        int maxOffset = (rangeEnd > 0 && rangeEnd <= data.Length) ? rangeEnd : data.Length;
 
         double maxAllowedW = Math.Max(paperWidthMm * 2.0, 1500.0);
         double maxAllowedH = Math.Max(paperHeightMm * 2.0, 1500.0);
 
         var reader = new MfcReader(data, startOffset);
-        while (reader.Remaining >= 16)
+        while (reader.Offset < maxOffset - 16 && reader.Remaining >= 16)
         {
             if (reader.IsWCharPrefix)
             {
@@ -246,19 +304,24 @@ internal static class DisplayListsSchemaMapper
     /// <summary>
     /// Deserializes 2D CAD vector annotations and dimension texts from the Contents/DisplayLists stream.
     /// Extracts model view dimensions, angles, tolerances, and view callouts with physical coordinates in millimeters.
+    /// Supports byte range slicing for multi-sheet drawing isolation.
     /// </summary>
     public static List<DrawingVectorText> ExtractCadTexts(
         byte[] data,
         double paperWidthMm = 420.0,
-        double paperHeightMm = 297.0)
+        double paperHeightMm = 297.0,
+        int rangeStart = 0,
+        int rangeEnd = -1)
     {
         var texts = new List<DrawingVectorText>();
         if (data == null || data.Length < 64) return texts;
 
         var seen = new HashSet<string>(StringComparer.Ordinal);
         int maxLen = data.Length;
+        int scanStart = Math.Max(40, rangeStart);
+        int scanEnd = (rangeEnd > 0 && rangeEnd <= maxLen) ? rangeEnd - 8 : maxLen - 8;
 
-        for (int i = 40; i <= maxLen - 8; i++)
+        for (int i = scanStart; i <= scanEnd; i++)
         {
             if (data[i] == 0xFF && data[i + 1] == 0xFE && data[i + 2] == 0xFF)
             {

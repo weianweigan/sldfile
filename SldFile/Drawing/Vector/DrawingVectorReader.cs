@@ -26,7 +26,8 @@ public static class DrawingVectorReader
         string? keywordsXml,
         int sheetIndex = 0,
         byte[]? vbListsStream = null,
-        byte[]? displayListsStream = null)
+        byte[]? displayListsStream = null,
+        int totalSheetsCount = 1)
     {
         var vectorData = new DrawingSheetVectorData();
 
@@ -39,12 +40,28 @@ public static class DrawingVectorReader
             return vectorData;
         }
 
+        // Determine sheet byte range in DisplayLists if this is a multi-sheet drawing
+        int rangeStart = 0;
+        int rangeEnd = -1;
+        bool isMultiSheet = totalSheetsCount > 1;
+        if (displayListsStream != null && isMultiSheet)
+        {
+            var ranges = SldFile.Binary.DisplayListsSchemaMapper.GetSheetByteRanges(displayListsStream, totalSheetsCount);
+            if (sheetIndex >= 0 && sheetIndex < ranges.Count)
+            {
+                rangeStart = ranges[sheetIndex].Start;
+                rangeEnd = ranges[sheetIndex].End;
+            }
+        }
+
         // 1. Parse sheet metadata from KeyWords XML
         ParseSheetMetadata(keywordsXml, sheetIndex, vectorData);
 
         // 2. Parse vector text annotations from Definition and DisplayLists streams
         var allTexts = new List<DrawingVectorText>();
-        if (definitionStream != null && definitionStream.Length > 0)
+
+        // For single-sheet drawings, incorporate Definition stream annotations
+        if (!isMultiSheet && definitionStream != null && definitionStream.Length > 0)
         {
             var defnTexts = ParseTextsFromDefinition(definitionStream);
             allTexts.AddRange(defnTexts);
@@ -66,13 +83,15 @@ public static class DrawingVectorReader
             }
         }
 
-        // Also extract full 2D CAD dimensions and view annotations from DisplayLists stream
+        // Also extract full 2D CAD dimensions and view annotations from DisplayLists stream (scoped to current sheet range)
         if (displayListsStream != null && displayListsStream.Length > 0)
         {
             var dlTexts = SldFile.Binary.DisplayListsSchemaMapper.ExtractCadTexts(
                 displayListsStream,
                 vectorData.PaperWidthMm,
-                vectorData.PaperHeightMm);
+                vectorData.PaperHeightMm,
+                rangeStart,
+                rangeEnd);
             allTexts.AddRange(dlTexts);
         }
 
@@ -114,7 +133,7 @@ public static class DrawingVectorReader
         ClassifyTexts(dedupedTexts, vectorData.PaperWidthMm, vectorData.PaperHeightMm);
         vectorData.Texts = dedupedTexts;
 
-        // 3. Extract 2D CAD vector line geometry (sheet borders, title block, view geometry wireframes)
+        // 3. Extract 2D CAD vector line geometry (scoped to current sheet range)
         if ((displayListsStream != null && displayListsStream.Length > 0) ||
             (vbListsStream != null && vbListsStream.Length > 0) ||
             (definitionStream != null && definitionStream.Length > 0))
@@ -124,7 +143,9 @@ public static class DrawingVectorReader
                 vbListsStream: vbListsStream,
                 definitionStream: definitionStream,
                 paperWidthMm: vectorData.PaperWidthMm,
-                paperHeightMm: vectorData.PaperHeightMm);
+                paperHeightMm: vectorData.PaperHeightMm,
+                rangeStart: rangeStart,
+                rangeEnd: rangeEnd);
             vectorData.Lines = lines;
             vectorData.Views = views;
         }
