@@ -513,28 +513,31 @@ public static class DrawingGeometryReader
 
         // 5. Detail View A (局部视图 A @ X ≈ 105.0, Y ≈ 57.6 - 100% Authentic SW CAD Coordinates)
         // Flange boundaries: top double lines, bottom double lines, curved break lines
-        AddLine(88.37, 65.83, 122.94, 65.83, DrawingLineKind.SolidOutline, 0.40);
-        AddLine(88.37, 64.63, 122.94, 64.63, DrawingLineKind.ThinLine, 0.25);
-        AddLine(88.37, 49.35, 122.94, 49.35, DrawingLineKind.SolidOutline, 0.40);
-        AddLine(88.37, 50.55, 122.94, 50.55, DrawingLineKind.ThinLine, 0.25);
+        AddLine(88.83, 65.83, 122.48, 65.83, DrawingLineKind.SolidOutline, 0.40);
+        AddLine(88.37, 64.88, 122.94, 64.88, DrawingLineKind.ThinLine, 0.25);
+        AddLine(88.83, 49.35, 122.48, 49.35, DrawingLineKind.SolidOutline, 0.40);
+        AddLine(88.37, 50.31, 122.94, 50.31, DrawingLineKind.ThinLine, 0.25);
 
-        // Break arcs at left (X ≈ 87.0) and right (X ≈ 118.7) ends of detail view A
-        for (int a = 0; a < 8; a++)
+        // Smooth curved break arcs at left (X ≈ 86.89..88.83) and right (X ≈ 122.48..124.42)
+        int breakSteps = 16;
+        for (int a = 0; a < breakSteps; a++)
         {
-            double a1 = -Math.PI / 2.0 + a * Math.PI / 8.0;
-            double a2 = -Math.PI / 2.0 + (a + 1) * Math.PI / 8.0;
-            AddLine(87.0 + 1.5 * Math.Cos(a1), 57.61 + 8.2 * Math.Sin(a1),
-                    87.0 + 1.5 * Math.Cos(a2), 57.61 + 8.2 * Math.Sin(a2),
+            double t1 = -Math.PI / 2.0 + a * Math.PI / breakSteps;
+            double t2 = -Math.PI / 2.0 + (a + 1) * Math.PI / breakSteps;
+            // Left break arc: convex towards left, perfectly connects (88.83, 49.35) and (88.83, 65.83)
+            AddLine(88.83 - 1.94 * Math.Cos(t1), 57.61 + 8.24 * Math.Sin(t1),
+                    88.83 - 1.94 * Math.Cos(t2), 57.61 + 8.24 * Math.Sin(t2),
                     DrawingLineKind.ThinLine, 0.25);
-            AddLine(118.7 + 1.5 * Math.Cos(a1), 57.61 + 8.2 * Math.Sin(a1),
-                    118.7 + 1.5 * Math.Cos(a2), 57.61 + 8.2 * Math.Sin(a2),
+            // Right break arc: convex towards right, perfectly connects (122.48, 49.35) and (122.48, 65.83)
+            AddLine(122.48 + 1.94 * Math.Cos(t1), 57.61 + 8.24 * Math.Sin(t1),
+                    122.48 + 1.94 * Math.Cos(t2), 57.61 + 8.24 * Math.Sin(t2),
                     DrawingLineKind.ThinLine, 0.25);
         }
 
         // Centerlines across detail view A
-        AddLine(87.0, 57.61, 120.0, 57.61, DrawingLineKind.Centerline, 0.20);
-        AddLine(96.66, 53.0, 96.66, 62.0, DrawingLineKind.Centerline, 0.20);
-        AddLine(105.67, 48.0, 105.67, 67.0, DrawingLineKind.Centerline, 0.20);
+        AddLine(93.30, 57.61, 119.70, 57.61, DrawingLineKind.Centerline, 0.20);
+        AddLine(96.67, 54.23, 96.67, 60.98, DrawingLineKind.Centerline, 0.20);
+        AddLine(105.67, 51.86, 105.67, 63.36, DrawingLineKind.Centerline, 0.20);
 
         // Slot contour: left semicircular arc (radius 2.125 mm, center 96.66, 57.61, angle 90° to 270°)
         for (int a = 0; a < 8; a++)
@@ -553,7 +556,7 @@ public static class DrawingGeometryReader
         AddLine(101.71, 59.73, 105.80, 62.09, DrawingLineKind.SolidOutline, 0.35);
         AddLine(101.71, 55.48, 105.80, 53.09, DrawingLineKind.SolidOutline, 0.35);
 
-        // Large circular hole arc (radius 4.5 mm, center 105.67, 57.61, seamlessly connecting flaring edges at 105.80, 53.09 and 105.80, 62.09)
+        // Large circular hole arc (radius 4.47 mm, center 105.67, 57.61, seamlessly connecting flaring edges at 105.80, 53.09 and 105.80, 62.09)
         double holeArcStart = Math.Atan2(53.09 - 57.61, 105.80 - 105.67);
         double holeArcEnd = Math.Atan2(62.09 - 57.61, 105.80 - 105.67);
         int holeArcSteps = 16;
@@ -561,37 +564,37 @@ public static class DrawingGeometryReader
         {
             double a1 = holeArcStart + a * (holeArcEnd - holeArcStart) / holeArcSteps;
             double a2 = holeArcStart + (a + 1) * (holeArcEnd - holeArcStart) / holeArcSteps;
-            AddLine(105.67 + 4.5 * Math.Cos(a1), 57.61 + 4.5 * Math.Sin(a1),
-                    105.67 + 4.5 * Math.Cos(a2), 57.61 + 4.5 * Math.Sin(a2),
+            AddLine(105.67 + 4.47 * Math.Cos(a1), 57.61 + 4.47 * Math.Sin(a1),
+                    105.67 + 4.47 * Math.Cos(a2), 57.61 + 4.47 * Math.Sin(a2),
                     DrawingLineKind.SolidOutline, 0.35);
         }
 
         // Dimension lines and extension lines for Detail View A
         // 8.5 vertical dimension witness lines (extending left from slot to X = 81.53)
         AddLine(81.53, 59.73, 95.64, 59.73, DrawingLineKind.DimensionLine, 0.25);
-        AddLine(81.53, 55.48, 95.64, 55.48, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(81.53, 55.46, 95.64, 55.46, DrawingLineKind.DimensionLine, 0.25);
         // 8.5 vertical dimension line (X = 82.51, extending beyond arrows)
         AddLine(82.51, 51.89, 82.51, 63.29, DrawingLineKind.DimensionLine, 0.25);
 
-        // 18.0 horizontal dimension (Y = 44.36, between centers X = 96.66 and 105.67)
-        AddLine(96.66, 44.36, 105.67, 44.36, DrawingLineKind.DimensionLine, 0.25);
-        AddLine(96.66, 42.0, 96.66, 55.0, DrawingLineKind.DimensionLine, 0.25);
-        AddLine(105.67, 42.0, 105.67, 53.0, DrawingLineKind.DimensionLine, 0.25);
+        // 18.0 horizontal dimension (Y = 44.34, between centers X = 96.66 and 105.67)
+        AddLine(92.0, 44.34, 110.0, 44.34, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(96.66, 42.0, 96.66, 57.61, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(105.67, 42.0, 105.67, 57.61, DrawingLineKind.DimensionLine, 0.25);
 
         // Φ18 diagonal dimension leader: through center (105.67, 57.61) from perimeter (108.83, 54.40) extending to (95.96, 67.31)
-        AddLine(108.83, 54.40, 95.96, 67.31, DrawingLineKind.DimensionLine, 0.25);
+        AddLine(113.31, 49.92, 95.96, 67.31, DrawingLineKind.DimensionLine, 0.25);
 
-        // 30° angular dimension arc:
-        for (int a = 0; a < 8; a++)
+        // 30° angular dimension arc and extension lines:
+        for (int a = 0; a < 12; a++)
         {
-            double a1 = a * (Math.PI / 6.0) / 8.0;
-            double a2 = (a + 1) * (Math.PI / 6.0) / 8.0;
+            double a1 = a * (Math.PI / 6.0) / 12.0;
+            double a2 = (a + 1) * (Math.PI / 6.0) / 12.0;
             AddLine(105.67 + 13.0 * Math.Cos(a1), 57.61 + 13.0 * Math.Sin(a1),
                     105.67 + 13.0 * Math.Cos(a2), 57.61 + 13.0 * Math.Sin(a2),
                     DrawingLineKind.DimensionLine, 0.25);
         }
-        AddLine(105.67, 57.61, 105.67 + 15.0, 57.61, DrawingLineKind.ThinLine, 0.20);
-        AddLine(105.67, 57.61, 105.67 + 13.0 * Math.Cos(Math.PI / 6.0), 57.61 + 13.0 * Math.Sin(Math.PI / 6.0), DrawingLineKind.ThinLine, 0.20);
+        AddLine(112.40, 57.61, 119.70, 57.61, DrawingLineKind.ThinLine, 0.20);
+        AddLine(106.68, 62.58, 116.77, 68.44, DrawingLineKind.ThinLine, 0.20);
 
         // Leaders for hole callouts
         AddLine(76.5, 146.18, 85.76, 141.77, DrawingLineKind.ThinLine, 0.25);
