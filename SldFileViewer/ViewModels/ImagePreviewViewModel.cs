@@ -74,7 +74,7 @@ public partial class ImagePreviewViewModel : ObservableObject
         {
             if (value && OverlayMode == DrawingOverlayMode.Off)
             {
-                OverlayMode = DrawingOverlayMode.AllAnnotations;
+                OverlayMode = DrawingOverlayMode.SheetNotesOnly;
             }
             else if (!value)
             {
@@ -96,7 +96,6 @@ public partial class ImagePreviewViewModel : ObservableObject
             {
                 DrawingOverlayMode.PureVectorCad => $"纯矢量 CAD ({lineCount} 线条 + {textCount} 注释)",
                 DrawingOverlayMode.SheetNotesOnly => $"矢量注释 ({(VectorData!.Texts != null ? VectorData!.Texts.Count(t => t.IsSheetLevelNote) : 0)} 项图纸文字)",
-                DrawingOverlayMode.AllAnnotations => $"全图 CAD ({textCount} 图元)",
                 _ => "原生工程图 (100% 官方渲染)"
             };
         }
@@ -106,7 +105,6 @@ public partial class ImagePreviewViewModel : ObservableObject
     {
         DrawingOverlayMode.PureVectorCad => "🎨 纯矢量 CAD",
         DrawingOverlayMode.SheetNotesOnly => "🔤 矢量增强: 图纸注释",
-        DrawingOverlayMode.AllAnnotations => "📐 矢量增强: 全图 CAD",
         _ => "📐 原生工程图"
     };
 
@@ -176,9 +174,8 @@ public partial class ImagePreviewViewModel : ObservableObject
     {
         OverlayMode = OverlayMode switch
         {
-            DrawingOverlayMode.Off => DrawingOverlayMode.AllAnnotations,
-            DrawingOverlayMode.AllAnnotations => DrawingOverlayMode.PureVectorCad,
-            DrawingOverlayMode.PureVectorCad => DrawingOverlayMode.SheetNotesOnly,
+            DrawingOverlayMode.Off => DrawingOverlayMode.SheetNotesOnly,
+            DrawingOverlayMode.SheetNotesOnly => DrawingOverlayMode.PureVectorCad,
             _ => DrawingOverlayMode.Off
         };
     }
@@ -188,9 +185,6 @@ public partial class ImagePreviewViewModel : ObservableObject
 
     [RelayCommand]
     public void SetSheetNotesOnlyMode() => OverlayMode = DrawingOverlayMode.SheetNotesOnly;
-
-    [RelayCommand]
-    public void SetAllAnnotationsMode() => OverlayMode = DrawingOverlayMode.AllAnnotations;
 
     [RelayCommand]
     public void SetOverlayOffMode() => OverlayMode = DrawingOverlayMode.Off;

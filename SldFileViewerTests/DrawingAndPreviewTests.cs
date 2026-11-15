@@ -457,7 +457,7 @@ public class DrawingAndPreviewTests
                     Width = w,
                     Height = h,
                     VectorData = imgVm.VectorData,
-                    OverlayMode = SldFileViewer.Views.Controls.DrawingOverlayMode.AllAnnotations,
+                    OverlayMode = SldFileViewer.Views.Controls.DrawingOverlayMode.SheetNotesOnly,
                     IsOverlayEnabled = true
                 };
                 grid.Children.Add(canvas);
@@ -482,8 +482,8 @@ public class DrawingAndPreviewTests
                     encoderNative.Save(fs);
                 }
 
-                // 2. Render AllAnnotations (Vector annotation overlay mode)
-                canvas.OverlayMode = SldFileViewer.Views.Controls.DrawingOverlayMode.AllAnnotations;
+                // 2. Render SheetNotesOnly (Vector sheet notes overlay mode)
+                canvas.OverlayMode = SldFileViewer.Views.Controls.DrawingOverlayMode.SheetNotesOnly;
                 canvas.IsOverlayEnabled = true;
                 grid.UpdateLayout();
                 var rtb = new System.Windows.Media.Imaging.RenderTargetBitmap(w, h, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);

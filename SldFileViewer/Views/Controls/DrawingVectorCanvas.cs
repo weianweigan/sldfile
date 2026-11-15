@@ -22,8 +22,9 @@ public enum DrawingOverlayMode
     SheetNotesOnly = 1,
 
     /// <summary>
-    /// Overlays all extracted CAD text elements, including drawing view dimensions and callouts.
+    /// Deprecated mode (removed from UI; use SheetNotesOnly or PureVectorCad instead).
     /// </summary>
+    [Obsolete("AllAnnotations mode is deprecated and removed from UI.")]
     AllAnnotations = 2,
 
     /// <summary>
