@@ -104,9 +104,9 @@ public class DrawingVectorExportTests
         Assert.StartsWith("0\r\nSECTION\r\n2\r\nHEADER", dxf);
         Assert.EndsWith("0\r\nEOF\r\n", dxf);
 
-        // 2. Verify AutoCAD standard version & millimetre units
-        Assert.Contains("$ACADVER\r\n1\r\nAC1015", dxf);
-        Assert.Contains("$INSUNITS\r\n70\r\n4", dxf);
+        // 2. Verify AutoCAD R12 standard version & ANSI_936 code page
+        Assert.Contains("$ACADVER\r\n1\r\nAC1009", dxf);
+        Assert.Contains("$DWGCODEPAGE\r\n3\r\nANSI_936", dxf);
 
         // 3. Verify Layer table contains BORDER, VISIBLE, HIDDEN, CENTER, DIMENSION, ANNOTATIONS
         Assert.Contains("LAYER\r\n2\r\nBORDER", dxf);
@@ -148,7 +148,7 @@ public class DrawingVectorExportTests
             // Export to DXF
             string dxf = drawing.ExportSheetDxf(0);
             Assert.False(string.IsNullOrWhiteSpace(dxf));
-            Assert.Contains("AC1015", dxf);
+            Assert.Contains("AC1009", dxf);
             Assert.Contains("EOF", dxf);
         }
     }
@@ -216,11 +216,13 @@ public class DrawingVectorExportTests
         string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
         if (!File.Exists(realPath)) return;
         using var drawing = (SldDrawing)SwFile.Open(realPath);
+        string targetDxfPath = @"C:\Users\HP\Desktop\New folder\D8001507933.dxf";
+        drawing.ExportSheetDxf(0, targetDxfPath);
         string dxf = drawing.ExportSheetDxf(0);
         Assert.False(string.IsNullOrWhiteSpace(dxf));
 
-        // 1. Verify AutoCAD 2000 AC1015 standard and code page
-        Assert.Contains("AC1015", dxf);
+        // 1. Verify AutoCAD R12 AC1009 standard and code page
+        Assert.Contains("AC1009", dxf);
         Assert.Contains("ANSI_936", dxf);
         Assert.Contains("STYLE\r\n2\r\nSTANDARD", dxf);
 

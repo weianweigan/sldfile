@@ -19,7 +19,7 @@ public static class DrawingDxfWriter
     public static string Write(DrawingSheetVectorData vectorData, string sheetName = "Sheet1")
     {
         var sb = new StringBuilder();
-        using var writer = new StringWriter(sb, CultureInfo.InvariantCulture);
+        using var writer = new StringWriter(sb, CultureInfo.InvariantCulture) { NewLine = "\r\n" };
         Write(vectorData, writer, sheetName);
         return sb.ToString();
     }
@@ -44,17 +44,12 @@ public static class DrawingDxfWriter
         writer.WriteLine("9");
         writer.WriteLine("$ACADVER");
         writer.WriteLine("1");
-        writer.WriteLine("AC1015"); // AutoCAD 2000 standard (supports \U+ Unicode escapes & DWGCODEPAGE)
+        writer.WriteLine("AC1009"); // AutoCAD R12 standard (universal compatibility across AutoCAD & CAM)
 
         writer.WriteLine("9");
         writer.WriteLine("$DWGCODEPAGE");
         writer.WriteLine("3");
         writer.WriteLine("ANSI_936");
-
-        writer.WriteLine("9");
-        writer.WriteLine("$INSUNITS");
-        writer.WriteLine("70");
-        writer.WriteLine("4"); // 4 = Millimeters
 
         writer.WriteLine("9");
         writer.WriteLine("$EXTMIN");
@@ -146,12 +141,6 @@ public static class DrawingDxfWriter
         writer.WriteLine("simplex.shx");
         writer.WriteLine("4");
         writer.WriteLine("gbcbig.shx");
-        writer.WriteLine("1001");
-        writer.WriteLine("ACAD");
-        writer.WriteLine("1000");
-        writer.WriteLine("SimSun");
-        writer.WriteLine("1071");
-        writer.WriteLine("0");
 
         writer.WriteLine("0");
         writer.WriteLine("ENDTAB");
