@@ -44,7 +44,12 @@ public static class DrawingDxfWriter
         writer.WriteLine("9");
         writer.WriteLine("$ACADVER");
         writer.WriteLine("1");
-        writer.WriteLine("AC1009"); // AutoCAD R12 standard (universal compatibility)
+        writer.WriteLine("AC1015"); // AutoCAD 2000 standard (supports \U+ Unicode escapes & DWGCODEPAGE)
+
+        writer.WriteLine("9");
+        writer.WriteLine("$DWGCODEPAGE");
+        writer.WriteLine("3");
+        writer.WriteLine("ANSI_936");
 
         writer.WriteLine("9");
         writer.WriteLine("$INSUNITS");
@@ -113,6 +118,44 @@ public static class DrawingDxfWriter
         writer.WriteLine("0");
         writer.WriteLine("ENDTAB");
 
+        // 2.3 Style Table (Text Styles for universal Chinese & CAD annotations)
+        writer.WriteLine("0");
+        writer.WriteLine("TABLE");
+        writer.WriteLine("2");
+        writer.WriteLine("STYLE");
+        writer.WriteLine("70");
+        writer.WriteLine("1");
+
+        writer.WriteLine("0");
+        writer.WriteLine("STYLE");
+        writer.WriteLine("2");
+        writer.WriteLine("STANDARD");
+        writer.WriteLine("70");
+        writer.WriteLine("0");
+        writer.WriteLine("40");
+        writer.WriteLine("0.0"); // 0 = flexible variable height
+        writer.WriteLine("41");
+        writer.WriteLine("1.0"); // Width factor
+        writer.WriteLine("50");
+        writer.WriteLine("0.0");
+        writer.WriteLine("71");
+        writer.WriteLine("0");
+        writer.WriteLine("42");
+        writer.WriteLine("2.5");
+        writer.WriteLine("3");
+        writer.WriteLine("simplex.shx");
+        writer.WriteLine("4");
+        writer.WriteLine("gbcbig.shx");
+        writer.WriteLine("1001");
+        writer.WriteLine("ACAD");
+        writer.WriteLine("1000");
+        writer.WriteLine("SimSun");
+        writer.WriteLine("1071");
+        writer.WriteLine("0");
+
+        writer.WriteLine("0");
+        writer.WriteLine("ENDTAB");
+
         writer.WriteLine("0");
         writer.WriteLine("ENDSEC");
 
@@ -149,7 +192,16 @@ public static class DrawingDxfWriter
             }
         }
 
-        // 4.2 Write Vector Text Entities
+        // 4.2 Write Vector Arrowheads (SOLID entities on DIMENSION layer)
+        if (vectorData.Arrows != null)
+        {
+            foreach (var arrow in vectorData.Arrows)
+            {
+                WriteArrowSolid(writer, "DIMENSION", arrow.TipX, arrow.TipY, arrow.DirX, arrow.DirY, arrow.LengthMm, arrow.HalfWidthMm);
+            }
+        }
+
+        // 4.3 Write Vector Text Entities
         if (vectorData.Texts != null)
         {
             foreach (var text in vectorData.Texts)
@@ -199,6 +251,8 @@ public static class DrawingDxfWriter
         writer.WriteLine("TEXT");
         writer.WriteLine("8");
         writer.WriteLine(layer);
+        writer.WriteLine("7");
+        writer.WriteLine("STANDARD");
         writer.WriteLine("10");
         writer.WriteLine(x.ToString("F3", CultureInfo.InvariantCulture));
         writer.WriteLine("20");
@@ -217,11 +271,73 @@ public static class DrawingDxfWriter
         }
     }
 
+    private static void WriteArrowSolid(TextWriter writer, string layer, double tipX, double tipY, double dirX, double dirY, double lengthMm, double halfWidthMm)
+    {
+        double len = lengthMm > 0.5 ? lengthMm : 3.5;
+        double halfW = halfWidthMm > 0.1 ? halfWidthMm : 0.45;
+
+        // Base center point
+        double baseX = tipX - dirX * len;
+        double baseY = tipY - dirY * len;
+
+        // Perpendicular vector
+        double perpX = -dirY;
+        double perpY = dirX;
+
+        double v1X = baseX + perpX * halfW;
+        double v1Y = baseY + perpY * halfW;
+
+        double v2X = baseX - perpX * halfW;
+        double v2Y = baseY - perpY * halfW;
+
+        writer.WriteLine("0");
+        writer.WriteLine("SOLID");
+        writer.WriteLine("8");
+        writer.WriteLine(layer);
+        writer.WriteLine("10");
+        writer.WriteLine(tipX.ToString("F3", CultureInfo.InvariantCulture));
+        writer.WriteLine("20");
+        writer.WriteLine(tipY.ToString("F3", CultureInfo.InvariantCulture));
+        writer.WriteLine("30");
+        writer.WriteLine("0.0");
+        writer.WriteLine("11");
+        writer.WriteLine(v1X.ToString("F3", CultureInfo.InvariantCulture));
+        writer.WriteLine("21");
+        writer.WriteLine(v1Y.ToString("F3", CultureInfo.InvariantCulture));
+        writer.WriteLine("31");
+        writer.WriteLine("0.0");
+        writer.WriteLine("12");
+        writer.WriteLine(v2X.ToString("F3", CultureInfo.InvariantCulture));
+        writer.WriteLine("22");
+        writer.WriteLine(v2Y.ToString("F3", CultureInfo.InvariantCulture));
+        writer.WriteLine("32");
+        writer.WriteLine("0.0");
+        writer.WriteLine("13");
+        writer.WriteLine(v2X.ToString("F3", CultureInfo.InvariantCulture));
+        writer.WriteLine("23");
+        writer.WriteLine(v2Y.ToString("F3", CultureInfo.InvariantCulture));
+        writer.WriteLine("33");
+        writer.WriteLine("0.0");
+    }
+
     private static string SanitizeDxfText(string text)
     {
         if (string.IsNullOrEmpty(text)) return string.Empty;
-        // DXF strings should be single line; replace newlines with spaces
-        return text.Replace("\r\n", " ").Replace("\n", " ").Replace("\r", " ").Trim();
+        var clean = text.Replace("\r\n", " ").Replace("\n", " ").Replace("\r", " ").Trim();
+        var sb = new StringBuilder(clean.Length * 2);
+        foreach (char c in clean)
+        {
+            if (c > 127)
+            {
+                // AutoCAD universal Unicode escape sequence \U+XXXX (works across all AutoCAD & CAD versions)
+                sb.AppendFormat("\\U+{0:X4}", (int)c);
+            }
+            else
+            {
+                sb.Append(c);
+            }
+        }
+        return sb.ToString();
     }
 
     private static void WriteLayer(TextWriter writer, string name, int colorCode, string linetype)

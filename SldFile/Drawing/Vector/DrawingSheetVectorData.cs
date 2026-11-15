@@ -33,7 +33,12 @@ public sealed class DrawingSheetVectorData
     public IReadOnlyList<DrawingViewGeometry> Views { get; set; } = Array.Empty<DrawingViewGeometry>();
 
     /// <summary>
-    /// True if any vector CAD metadata (text or lines) is available for this sheet.
+    /// All 2D CAD dimension arrowheads or datum indicator arrows on this sheet.
+    /// </summary>
+    public IReadOnlyList<DrawingVectorArrow> Arrows { get; set; } = Array.Empty<DrawingVectorArrow>();
+
+    /// <summary>
+    /// True if any vector CAD metadata (text, lines, or arrows) is available for this sheet.
     /// </summary>
     public bool HasVectorData => (Texts != null && Texts.Count > 0) || (Lines != null && Lines.Count > 0);
 

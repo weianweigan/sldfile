@@ -147,6 +147,40 @@ public static class DrawingSvgWriter
             writer.WriteLine("  </g>");
         }
 
+        // 3.1 Group: Dimension Arrowheads
+        if (vectorData.Arrows != null && vectorData.Arrows.Count > 0)
+        {
+            writer.WriteLine("  <g id=\"dimension-arrowheads\" fill=\"#0066cc\">");
+            foreach (var arrow in vectorData.Arrows)
+            {
+                double len = arrow.LengthMm > 0.5 ? arrow.LengthMm : 3.5;
+                double halfW = arrow.HalfWidthMm > 0.1 ? arrow.HalfWidthMm : 0.45;
+
+                double tipX = arrow.TipX;
+                double tipY = ToSvgY(arrow.TipY);
+
+                double svgDirX = arrow.DirX;
+                double svgDirY = -arrow.DirY;
+
+                double baseX = tipX - svgDirX * len;
+                double baseY = tipY - svgDirY * len;
+
+                double perpX = -svgDirY;
+                double perpY = svgDirX;
+
+                double v1X = baseX + perpX * halfW;
+                double v1Y = baseY + perpY * halfW;
+
+                double v2X = baseX - perpX * halfW;
+                double v2Y = baseY - perpY * halfW;
+
+                writer.WriteLine(string.Format(CultureInfo.InvariantCulture,
+                    "    <polygon points=\"{0:F3},{1:F3} {2:F3},{3:F3} {4:F3},{5:F3}\" />",
+                    tipX, tipY, v1X, v1Y, v2X, v2Y));
+            }
+            writer.WriteLine("  </g>");
+        }
+
         // 4. Group: Typography and Annotations (Title block, dimensions, notes)
         if (vectorData.Texts != null && vectorData.Texts.Count > 0)
         {

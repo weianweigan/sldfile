@@ -104,8 +104,8 @@ public class DrawingVectorExportTests
         Assert.StartsWith("0\r\nSECTION\r\n2\r\nHEADER", dxf);
         Assert.EndsWith("0\r\nEOF\r\n", dxf);
 
-        // 2. Verify AutoCAD R12 standard version & millimetre units
-        Assert.Contains("$ACADVER\r\n1\r\nAC1009", dxf);
+        // 2. Verify AutoCAD standard version & millimetre units
+        Assert.Contains("$ACADVER\r\n1\r\nAC1015", dxf);
         Assert.Contains("$INSUNITS\r\n70\r\n4", dxf);
 
         // 3. Verify Layer table contains BORDER, VISIBLE, HIDDEN, CENTER, DIMENSION, ANNOTATIONS
@@ -121,7 +121,7 @@ public class DrawingVectorExportTests
         Assert.Contains("0\r\nLINE\r\n8\r\nCENTER\r\n10\r\n80.000\r\n20\r\n150.000", dxf);
 
         // 5. Verify TEXT entities and native CAD coordinate preservation (no inversion)
-        Assert.Contains("0\r\nTEXT\r\n8\r\nDIMENSION\r\n10\r\n150.000\r\n20\r\n75.000\r\n30\r\n0.0\r\n40\r\n3.000\r\n1\r\n100.00", dxf);
+        Assert.Contains("0\r\nTEXT\r\n8\r\nDIMENSION\r\n7\r\nSTANDARD\r\n10\r\n150.000\r\n20\r\n75.000\r\n30\r\n0.0\r\n40\r\n3.000\r\n1\r\n100.00", dxf);
         Assert.Contains("PART NAME: BRACKET-100 & FLANGE", dxf);
     }
 
@@ -148,7 +148,7 @@ public class DrawingVectorExportTests
             // Export to DXF
             string dxf = drawing.ExportSheetDxf(0);
             Assert.False(string.IsNullOrWhiteSpace(dxf));
-            Assert.Contains("AC1009", dxf);
+            Assert.Contains("AC1015", dxf);
             Assert.Contains("EOF", dxf);
         }
     }
@@ -209,4 +209,48 @@ public class DrawingVectorExportTests
             if (File.Exists(tempDxf)) File.Delete(tempDxf);
         }
     }
+
+    [Fact]
+    public void Drawing_D8001507933_ExportDxf_GeneratesAuthenticUnicodeAndArrowheads()
+    {
+        string realPath = @"C:\Users\HP\Desktop\New folder\D8001507933.SLDDRW";
+        if (!File.Exists(realPath)) return;
+        using var drawing = (SldDrawing)SwFile.Open(realPath);
+        string dxf = drawing.ExportSheetDxf(0);
+        Assert.False(string.IsNullOrWhiteSpace(dxf));
+
+        // 1. Verify AutoCAD 2000 AC1015 standard and code page
+        Assert.Contains("AC1015", dxf);
+        Assert.Contains("ANSI_936", dxf);
+        Assert.Contains("STYLE\r\n2\r\nSTANDARD", dxf);
+
+        // 2. Verify Unicode escape representation for Chinese characters (auto-rendered by all CAD engines)
+        Assert.Contains(@"\U+6280\U+672F\U+8981\U+6C42", dxf); // 技术要求
+        Assert.Contains(@"\U+5C40\U+90E8\U+89C6\U+56FE", dxf); // 局部视图
+        Assert.Contains(@"\U+6BD4\U+4F8B", dxf);               // 比例
+        Assert.Contains(@"\U+00D818", dxf);                   // Ø18
+
+        // 3. Verify exactly 1 occurrence of 技术要求 (deduplicated)
+        int techOccurrences = 0;
+        int idx = 0;
+        while ((idx = dxf.IndexOf(@"\U+6280\U+672F\U+8981\U+6C42", idx, StringComparison.Ordinal)) != -1)
+        {
+            techOccurrences++;
+            idx += 10;
+        }
+        Assert.Equal(1, techOccurrences);
+
+        // 4. Verify SOLID arrowheads present
+        Assert.Contains("SOLID\r\n8\r\nDIMENSION", dxf);
+
+        // 5. Verify vertical dimensions rotated 90 degrees
+        Assert.Contains("50\r\n90.00", dxf);
+
+        // 6. Verify vector data contains authentic arrows
+        var v = drawing.GetSheetVectorData(0);
+        Assert.NotNull(v);
+        Assert.NotEmpty(v.Arrows);
+        Assert.True(v.Arrows.Count >= 88);
+    }
+
 }

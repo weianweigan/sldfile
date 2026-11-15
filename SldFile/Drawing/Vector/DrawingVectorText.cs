@@ -53,7 +53,7 @@ public sealed class DrawingVectorText
     /// <summary>
     /// Clean display text with SolidWorks internal markup tags stripped out.
     /// </summary>
-    public string CleanText { get; }
+    public string CleanText { get; internal set; }
 
     /// <summary>
     /// Physical X position on sheet in millimeters (CAD coordinate, origin at sheet lower-left).
@@ -78,12 +78,12 @@ public sealed class DrawingVectorText
     /// <summary>
     /// Nominal text height in millimeters. Defaults to 2.5 mm if unspecified or negative.
     /// </summary>
-    public double HeightMm { get; }
+    public double HeightMm { get; internal set; }
 
     /// <summary>
     /// Text rotation angle in radians (counter-clockwise).
     /// </summary>
-    public double AngleRad { get; }
+    public double AngleRad { get; internal set; }
 
     /// <summary>
     /// Computed base pixel X position on reference preview bitmap.
@@ -116,7 +116,21 @@ public sealed class DrawingVectorText
         Y = yMm;
         Z = zMm;
         FontName = string.IsNullOrWhiteSpace(fontName) ? "SimSun" : fontName.Trim();
-        HeightMm = heightMm > 0.1 && heightMm < 50.0 ? heightMm : 2.5;
+
+        // Extract font size from <FONT size=...PTS> tag if present in raw text
+        double parsedH = heightMm;
+        var fontMatch = Regex.Match(RawText, @"<FONT\s+size=([0-9.]+)PTS>", RegexOptions.IgnoreCase);
+        if (fontMatch.Success && double.TryParse(fontMatch.Groups[1].Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double pts))
+        {
+            // 1 point = 25.4 / 72 mm = ~0.352778 mm
+            double mmFromPts = pts * 0.352778;
+            if (mmFromPts > 0.5 && mmFromPts < 30.0)
+            {
+                parsedH = mmFromPts;
+            }
+        }
+
+        HeightMm = parsedH > 0.1 && parsedH < 50.0 ? parsedH : 2.5;
         AngleRad = angleRad;
         Category = category;
     }

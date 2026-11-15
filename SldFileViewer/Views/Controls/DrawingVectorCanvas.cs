@@ -1048,6 +1048,18 @@ public sealed class DrawingVectorCanvas : FrameworkElement
         double paperH = height - 2 * marginY;
         double scaleY = paperH / VectorData.PaperHeightMm;
 
+        // Render from VectorData.Arrows if available (populated by SldFile core library)
+        if (VectorData.Arrows != null && VectorData.Arrows.Count > 0)
+        {
+            foreach (var arrow in VectorData.Arrows)
+            {
+                double len = Math.Max(7.0, arrow.LengthMm * scaleY);
+                double halfW = Math.Max(1.0, arrow.HalfWidthMm * scaleY);
+                DrawArrowhead(dc, ToPx(arrow.TipX, arrow.TipY), new Vector(arrow.DirX, -arrow.DirY), len, halfW);
+            }
+            return;
+        }
+
         // Authentic CAD dimension arrowhead sizing: 3.56mm length, 0.38mm half-width (ratio ~9.4:1)
         double arrowLen = Math.Max(7.0, 3.56 * scaleY);
         double arrowHalfW = Math.Max(1.0, 0.38 * scaleY);
