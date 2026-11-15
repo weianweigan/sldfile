@@ -296,6 +296,11 @@ public sealed class DrawingVectorCanvas : FrameworkElement
         // 3. Render 2D CAD Vector Typography (Title block, tolerance, notes, dimensions)
         if (VectorData.Texts != null)
         {
+            int count120 = 0;
+            int count400 = 0;
+            int count1000 = 0;
+            int count2000 = 0;
+
             foreach (var text in VectorData.Texts)
             {
                 if (string.IsNullOrWhiteSpace(text.CleanText))
@@ -812,63 +817,314 @@ public sealed class DrawingVectorCanvas : FrameworkElement
                 drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
                 drawY = pt.Y - ft.Height - 1.5;
             }
-            else if (displayStr == "Mark/标记" && text.Y > 20.0)
+            // D8001507933 Title Block and Tolerance Table exact cell centering
+            else if (displayStr.Contains("Tolerance not marked") || displayStr.Contains("未注公差"))
             {
-                Point pt = ToPx((180.38 + 188.07) / 2.0, 22.34);
+                Point pt = ToPx((243.32 + 283.63) / 2.0, 48.525);
                 drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
                 drawY = pt.Y - ft.Height / 2.0;
             }
-            else if (displayStr == "Num/处数" && text.Y > 20.0)
+            else if (displayStr.Contains("specify deviations"))
             {
-                Point pt = ToPx((188.07 + 194.49) / 2.0, 22.34);
+                Point pt = ToPx(244.0, 36.6);
+                drawX = pt.X;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr.Contains("当名义尺寸") || displayStr.Contains("注出公差"))
+            {
+                Point pt = ToPx(244.0, 34.4);
+                drawX = pt.X;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            // Tolerance Table Row 1 (Center Y = 45.695)
+            else if (displayStr == "＞" || displayStr == ">")
+            {
+                Point pt = ToPx(245.55, 45.695);
                 drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
                 drawY = pt.Y - ft.Height / 2.0;
             }
-            else if (displayStr == "Changed No./更改号" && text.Y > 20.0)
+            else if (displayStr == "0.5" && text.Y > 43.5)
             {
-                Point pt = ToPx((194.49 + 208.92) / 2.0, 22.34);
+                Point pt = ToPx(250.00, 45.695);
                 drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
                 drawY = pt.Y - ft.Height / 2.0;
             }
-            else if (displayStr == "Signature/签名" && text.Y > 20.0 && text.X > 200.0 && text.X < 220.0)
+            else if (displayStr == "3" && text.Y > 43.5)
             {
-                Point pt = ToPx((208.92 + 219.96) / 2.0, 22.34);
+                Point pt = ToPx(254.46, 45.695);
                 drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
                 drawY = pt.Y - ft.Height / 2.0;
             }
-            else if (displayStr == "Date/日期" && text.Y > 20.0 && text.X > 218.0 && text.X < 230.0)
+            else if (displayStr == "6" && text.Y > 43.5)
             {
-                Point pt = ToPx((219.96 + 227.05) / 2.0, 22.34);
+                Point pt = ToPx(258.91, 45.695);
                 drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
                 drawY = pt.Y - ft.Height / 2.0;
             }
-            else if (displayStr == "Format/图幅")
+            else if (displayStr == "30" && text.Y > 43.5)
             {
-                Point pt = ToPx((227.05 + 244.72) / 2.0, 25.5);
+                Point pt = ToPx(263.37, 45.695);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr == "120" && text.Category == DrawingVectorTextCategory.ToleranceTable)
+            {
+                if (count120++ == 0)
+                {
+                    Point pt = ToPx(267.82, 45.695);
+                    drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                    drawY = pt.Y - ft.Height / 2.0;
+                }
+                else
+                {
+                    Point pt = ToPx(263.37, 42.865);
+                    drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                    drawY = pt.Y - ft.Height / 2.0;
+                }
+            }
+            else if (displayStr == "400" && text.Category == DrawingVectorTextCategory.ToleranceTable)
+            {
+                if (count400++ == 0)
+                {
+                    Point pt = ToPx(272.28, 45.695);
+                    drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                    drawY = pt.Y - ft.Height / 2.0;
+                }
+                else
+                {
+                    Point pt = ToPx(267.82, 42.865);
+                    drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                    drawY = pt.Y - ft.Height / 2.0;
+                }
+            }
+            else if (displayStr == "1000" && text.Category == DrawingVectorTextCategory.ToleranceTable)
+            {
+                if (count1000++ == 0)
+                {
+                    Point pt = ToPx(276.73, 45.695);
+                    drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                    drawY = pt.Y - ft.Height / 2.0;
+                }
+                else
+                {
+                    Point pt = ToPx(272.28, 42.865);
+                    drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                    drawY = pt.Y - ft.Height / 2.0;
+                }
+            }
+            else if (displayStr == "2000" && text.Category == DrawingVectorTextCategory.ToleranceTable)
+            {
+                if (count2000++ == 0)
+                {
+                    Point pt = ToPx(281.30, 45.695);
+                    drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                    drawY = pt.Y - ft.Height / 2.0;
+                }
+                else
+                {
+                    Point pt = ToPx(276.73, 42.865);
+                    drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                    drawY = pt.Y - ft.Height / 2.0;
+                }
+            }
+            // Tolerance Table Row 2 (Center Y = 42.865)
+            else if (displayStr == "≤" || displayStr == "<=" || displayStr == "<")
+            {
+                Point pt = ToPx(245.55, 42.865);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr == "4000")
+            {
+                Point pt = ToPx(281.30, 42.865);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            // Tolerance Table Row 3 (Center Y = 40.035)
+            else if (displayStr == "±" || displayStr == "+-")
+            {
+                Point pt = ToPx(245.55, 40.035);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr == "0.1")
+            {
+                Point pt = ToPx(254.46, 40.035);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr == "0.2")
+            {
+                Point pt = ToPx(258.91, 40.035);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr == "0.3")
+            {
+                Point pt = ToPx(263.37, 40.035);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr == "0.5" && text.Y <= 41.0)
+            {
+                Point pt = ToPx(267.82, 40.035);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr == "0.8")
+            {
+                Point pt = ToPx(272.28, 40.035);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr == "1.2")
+            {
+                Point pt = ToPx(276.73, 40.035);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr == "2" && text.X > 275.0)
+            {
+                Point pt = ToPx(281.30, 40.035);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            // Title Block Right Rows
+            else if (displayStr.Contains("Project Name") || displayStr.Contains("项目名称"))
+            {
+                Point pt = ToPx(227.06, 31.555);
+                drawX = pt.X + 2.5;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr.Contains("Project No.") || displayStr.Contains("项目号"))
+            {
+                Point pt = ToPx(227.06, 28.725);
+                drawX = pt.X + 2.5;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr.Contains("Format") || displayStr.Contains("图幅"))
+            {
+                Point pt = ToPx((227.06 + 244.72) / 2.0, 25.895);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr.Contains("Scale") || displayStr.Contains("比例"))
+            {
+                Point pt = ToPx((244.72 + 256.68) / 2.0, 25.895);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr.Contains("Version") || displayStr.Contains("版本"))
+            {
+                Point pt = ToPx((256.68 + 270.05) / 2.0, 25.895);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr.Contains("Page") || displayStr.Contains("页码"))
+            {
+                Point pt = ToPx((270.05 + 283.60) / 2.0, 25.895);
                 drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
                 drawY = pt.Y - ft.Height / 2.0;
             }
             else if (displayStr == "A3")
             {
-                Point pt = ToPx((227.05 + 244.72) / 2.0, 22.8);
+                Point pt = ToPx((227.06 + 244.72) / 2.0, 23.07);
                 drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
                 drawY = pt.Y - ft.Height / 2.0;
             }
-            else if (displayStr == "Scale/比例")
+            else if (displayStr.Contains("Drawing No.") || displayStr.Contains("图号"))
             {
-                Point pt = ToPx((244.72 + 256.68) / 2.0, 25.5);
+                Point pt = ToPx(227.06, 20.0);
+                drawX = pt.X + 2.5;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr == "D8001507933" || displayStr.StartsWith("D800"))
+            {
+                Point pt = ToPx((227.06 + 283.63) / 2.0, 17.415);
                 drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
                 drawY = pt.Y - ft.Height / 2.0;
             }
-            else if (displayStr == "Version/版本")
+            else if (displayStr.Contains("Part Name") || displayStr.Contains("零部件名称"))
             {
-                Point pt = ToPx((256.68 + 270.05) / 2.0, 25.5);
+                Point pt = ToPx(227.06, 11.2);
+                drawX = pt.X + 2.5;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            // Title Block Revision Row (Row 4: Y = 23.07)
+            else if (displayStr.Contains("Mark") || displayStr.Contains("标记"))
+            {
+                Point pt = ToPx((180.39 + 188.10) / 2.0, 23.07);
                 drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
                 drawY = pt.Y - ft.Height / 2.0;
             }
-            else if (displayStr == "Page/页码")
+            else if (displayStr.Contains("Num") || displayStr.Contains("处数"))
             {
-                Point pt = ToPx((270.05 + 283.60) / 2.0, 25.5);
+                Point pt = ToPx((188.10 + 194.51) / 2.0, 23.07);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr.Contains("Changed No.") || displayStr.Contains("更改号"))
+            {
+                Point pt = ToPx((194.51 + 208.92) / 2.0, 23.07);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr.Contains("Signature") || displayStr.Contains("签名"))
+            {
+                double cx = (text.Y > 20.0) ? ((208.92 + 219.99) / 2.0) : (text.X < 190.0 ? ((169.08 + 180.39) / 2.0) : ((204.43 + 215.74) / 2.0));
+                double cy = (text.Y > 20.0) ? 23.07 : 14.585;
+                Point pt = ToPx(cx, cy);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr.Contains("Date") || displayStr.Contains("日期"))
+            {
+                double cx = (text.Y > 20.0) ? ((219.99 + 227.06) / 2.0) : (text.X < 195.0 ? ((180.39 + 189.56) / 2.0) : ((215.74 + 227.06) / 2.0));
+                double cy = (text.Y > 20.0) ? 23.07 : 14.585;
+                Point pt = ToPx(cx, cy);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            // Title Block Left Approval Rows
+            else if (displayStr.Contains("Material") || displayStr.Contains("材料"))
+            {
+                Point pt = ToPx(171.0, 18.83);
+                drawX = pt.X;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr.Contains("Designed") || displayStr.Contains("设计"))
+            {
+                Point pt = ToPx((156.24 + 169.08) / 2.0, 14.585);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr.Contains("Checked 1") || displayStr.Contains("审核1"))
+            {
+                Point pt = ToPx((156.24 + 169.08) / 2.0, 11.76);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr.Contains("Standardized") || displayStr.Contains("标准化"))
+            {
+                Point pt = ToPx((189.56 + 204.43) / 2.0, 11.76);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr.Contains("Checked 2") || displayStr.Contains("审核2"))
+            {
+                Point pt = ToPx((156.24 + 169.08) / 2.0, 8.935);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr.Contains("Technologized") || displayStr.Contains("工艺"))
+            {
+                Point pt = ToPx((156.24 + 169.08) / 2.0, 6.105);
+                drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
+                drawY = pt.Y - ft.Height / 2.0;
+            }
+            else if (displayStr.Contains("Approved") || displayStr.Contains("批准"))
+            {
+                Point pt = ToPx((189.56 + 204.43) / 2.0, 6.105);
                 drawX = pt.X - ft.WidthIncludingTrailingWhitespace / 2.0;
                 drawY = pt.Y - ft.Height / 2.0;
             }

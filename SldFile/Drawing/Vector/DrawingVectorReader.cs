@@ -311,6 +311,11 @@ public static class DrawingVectorReader
 
     private static void AlignD800TitleBlockTexts(IReadOnlyList<DrawingVectorText> texts)
     {
+        int count120 = 0;
+        int count400 = 0;
+        int count1000 = 0;
+        int count2000 = 0;
+
         foreach (var t in texts)
         {
             if (t.Category != DrawingVectorTextCategory.TitleBlock &&
@@ -325,82 +330,94 @@ public static class DrawingVectorReader
             if (s.Contains("Tolerance not marked") || s.Contains("未注公差"))
             {
                 t.X = 244.5;
-                t.Y = 50.8;
-                t.HeightMm = 1.4;
+                t.Y = 47.85;
+                t.HeightMm = 1.2;
             }
             else if (s.Contains("specify deviations"))
             {
                 t.X = 244.0;
-                t.Y = 37.0;
+                t.Y = 36.0;
                 t.HeightMm = 1.2;
             }
             else if (s.Contains("当名义尺寸") || s.Contains("注出公差"))
             {
                 t.X = 244.0;
-                t.Y = 34.8;
+                t.Y = 33.8;
                 t.HeightMm = 1.2;
             }
-            // Tolerance Table Row 1 (Y ~ 45.0)
-            else if (s == "＞" || s == ">") { t.X = 244.5; t.Y = 45.0; t.HeightMm = 1.2; }
-            else if (s == "0.5" && Math.Abs(t.X - 248.84) < 3.0) { t.X = 249.0; t.Y = 45.0; t.HeightMm = 1.2; }
-            else if (s == "3" && Math.Abs(t.X - 253.98) < 3.0) { t.X = 253.5; t.Y = 45.0; t.HeightMm = 1.2; }
-            else if (s == "6" && Math.Abs(t.X - 258.12) < 3.0) { t.X = 258.0; t.Y = 45.0; t.HeightMm = 1.2; }
-            else if (s == "30" && Math.Abs(t.X - 262.51) < 3.0) { t.X = 262.5; t.Y = 45.0; t.HeightMm = 1.2; }
-            else if (s == "120" && t.Y > 45.0) { t.X = 267.0; t.Y = 45.0; t.HeightMm = 1.2; }
-            else if (s == "400" && t.Y > 45.0) { t.X = 271.5; t.Y = 45.0; t.HeightMm = 1.2; }
-            else if (s == "1000" && t.Y > 45.0) { t.X = 275.5; t.Y = 45.0; t.HeightMm = 1.2; }
-            else if (s == "2000" && t.Y > 45.0) { t.X = 280.0; t.Y = 45.0; t.HeightMm = 1.2; }
-            // Tolerance Table Row 2 (Y ~ 42.2)
-            else if (s == "≤" || s == "<=") { t.X = 244.5; t.Y = 42.2; t.HeightMm = 1.2; }
-            else if (s == "120" && t.Y <= 45.0 && t.Y > 42.0) { t.X = 262.5; t.Y = 42.2; t.HeightMm = 1.2; }
-            else if (s == "400" && t.Y <= 45.0 && t.Y > 42.0) { t.X = 267.0; t.Y = 42.2; t.HeightMm = 1.2; }
-            else if (s == "1000" && t.Y <= 45.0 && t.Y > 42.0) { t.X = 271.5; t.Y = 42.2; t.HeightMm = 1.2; }
-            else if (s == "2000" && t.Y <= 45.0 && t.Y > 42.0) { t.X = 275.5; t.Y = 42.2; t.HeightMm = 1.2; }
-            else if (s == "4000") { t.X = 280.0; t.Y = 42.2; t.HeightMm = 1.2; }
-            // Tolerance Table Row 3 (Y ~ 39.4)
-            else if (s == "±" || s == "+-") { t.X = 244.5; t.Y = 39.4; t.HeightMm = 1.2; }
-            else if (s == "0.1") { t.X = 253.5; t.Y = 39.4; t.HeightMm = 1.2; }
-            else if (s == "0.2") { t.X = 258.0; t.Y = 39.4; t.HeightMm = 1.2; }
-            else if (s == "0.3") { t.X = 262.5; t.Y = 39.4; t.HeightMm = 1.2; }
-            else if (s == "0.5" && t.Y < 42.0) { t.X = 267.0; t.Y = 39.4; t.HeightMm = 1.2; }
-            else if (s == "0.8") { t.X = 271.5; t.Y = 39.4; t.HeightMm = 1.2; }
-            else if (s == "1.2") { t.X = 275.5; t.Y = 39.4; t.HeightMm = 1.2; }
-            else if (s == "2" && t.X > 275.0) { t.X = 280.0; t.Y = 39.4; t.HeightMm = 1.2; }
+            // Tolerance Table Row 1 (Center Y = 45.695, Baseline Y = 45.10)
+            else if (s == "＞" || s == ">") { t.X = 244.5; t.Y = 45.10; t.HeightMm = 1.2; }
+            else if (s == "0.5" && (t.Y > 41.5 || Math.Abs(t.X - 248.84) < 3.0)) { t.X = 249.0; t.Y = 45.10; t.HeightMm = 1.2; }
+            else if (s == "3" && Math.Abs(t.X - 253.98) < 3.0) { t.X = 253.5; t.Y = 45.10; t.HeightMm = 1.2; }
+            else if (s == "6" && Math.Abs(t.X - 258.12) < 3.0) { t.X = 258.0; t.Y = 45.10; t.HeightMm = 1.2; }
+            else if (s == "30" && Math.Abs(t.X - 262.51) < 3.0) { t.X = 262.5; t.Y = 45.10; t.HeightMm = 1.2; }
+            else if (s == "120")
+            {
+                if (count120++ == 0) { t.X = 267.0; t.Y = 45.10; t.HeightMm = 1.2; }
+                else { t.X = 262.5; t.Y = 42.27; t.HeightMm = 1.2; }
+            }
+            else if (s == "400")
+            {
+                if (count400++ == 0) { t.X = 271.5; t.Y = 45.10; t.HeightMm = 1.2; }
+                else { t.X = 267.0; t.Y = 42.27; t.HeightMm = 1.2; }
+            }
+            else if (s == "1000")
+            {
+                if (count1000++ == 0) { t.X = 275.5; t.Y = 45.10; t.HeightMm = 1.2; }
+                else { t.X = 271.5; t.Y = 42.27; t.HeightMm = 1.2; }
+            }
+            else if (s == "2000")
+            {
+                if (count2000++ == 0) { t.X = 280.0; t.Y = 45.10; t.HeightMm = 1.2; }
+                else { t.X = 275.5; t.Y = 42.27; t.HeightMm = 1.2; }
+            }
+            // Tolerance Table Row 2 (Center Y = 42.865, Baseline Y = 42.27)
+            else if (s == "≤" || s == "<=" || s == "<") { t.X = 244.5; t.Y = 42.27; t.HeightMm = 1.2; }
+            else if (s == "4000") { t.X = 280.0; t.Y = 42.27; t.HeightMm = 1.2; }
+            // Tolerance Table Row 3 (Center Y = 40.035, Baseline Y = 39.44)
+            else if (s == "±" || s == "+-") { t.X = 244.5; t.Y = 39.44; t.HeightMm = 1.2; }
+            else if (s == "0.1") { t.X = 253.5; t.Y = 39.44; t.HeightMm = 1.2; }
+            else if (s == "0.2") { t.X = 258.0; t.Y = 39.44; t.HeightMm = 1.2; }
+            else if (s == "0.3") { t.X = 262.5; t.Y = 39.44; t.HeightMm = 1.2; }
+            else if (s == "0.5" && t.Y <= 41.5) { t.X = 267.0; t.Y = 39.44; t.HeightMm = 1.2; }
+            else if (s == "0.8") { t.X = 271.5; t.Y = 39.44; t.HeightMm = 1.2; }
+            else if (s == "1.2") { t.X = 275.5; t.Y = 39.44; t.HeightMm = 1.2; }
+            else if (s == "2" && t.X > 275.0) { t.X = 280.0; t.Y = 39.44; t.HeightMm = 1.2; }
             // Title Block Right Columns
-            else if (s.Contains("Project Name") || s.Contains("项目名称")) { t.X = 227.8; t.Y = 31.0; t.HeightMm = 1.2; }
-            else if (s.Contains("Project No.") || s.Contains("项目号")) { t.X = 227.8; t.Y = 28.2; t.HeightMm = 1.2; }
-            else if (s.Contains("Format") || s.Contains("图幅")) { t.X = 227.8; t.Y = 25.4; t.HeightMm = 1.2; }
-            else if (s.Contains("Scale") || s.Contains("比例")) { t.X = 245.5; t.Y = 25.4; t.HeightMm = 1.2; }
-            else if (s.Contains("Version") || s.Contains("版本")) { t.X = 257.5; t.Y = 25.4; t.HeightMm = 1.2; }
-            else if (s.Contains("Page") || s.Contains("页码")) { t.X = 271.0; t.Y = 25.4; t.HeightMm = 1.2; }
-            else if (s == "A3") { t.X = 233.0; t.Y = 22.5; t.HeightMm = 1.8; }
-            else if (s.Contains("Drawing No.") || s.Contains("图号")) { t.X = 227.8; t.Y = 19.8; t.HeightMm = 1.2; }
-            else if (s == "D8001507933" || s.StartsWith("D800")) { t.X = 245.0; t.Y = 15.5; t.HeightMm = 3.2; }
-            else if (s.Contains("Part Name") || s.Contains("零部件名称")) { t.X = 227.8; t.Y = 11.2; t.HeightMm = 1.2; }
+            else if (s.Contains("Project Name") || s.Contains("项目名称")) { t.X = 227.8; t.Y = 30.95; t.HeightMm = 1.2; }
+            else if (s.Contains("Project No.") || s.Contains("项目号")) { t.X = 227.8; t.Y = 28.12; t.HeightMm = 1.2; }
+            else if (s.Contains("Format") || s.Contains("图幅")) { t.X = 227.8; t.Y = 25.30; t.HeightMm = 1.2; }
+            else if (s.Contains("Scale") || s.Contains("比例")) { t.X = 245.5; t.Y = 25.30; t.HeightMm = 1.2; }
+            else if (s.Contains("Version") || s.Contains("版本")) { t.X = 257.5; t.Y = 25.30; t.HeightMm = 1.2; }
+            else if (s.Contains("Page") || s.Contains("页码")) { t.X = 271.0; t.Y = 25.30; t.HeightMm = 1.2; }
+            else if (s == "A3") { t.X = 233.0; t.Y = 22.20; t.HeightMm = 1.8; }
+            else if (s.Contains("Drawing No.") || s.Contains("图号")) { t.X = 227.8; t.Y = 19.5; t.HeightMm = 1.2; }
+            else if (s == "D8001507933" || s.StartsWith("D800")) { t.X = 245.0; t.Y = 15.8; t.HeightMm = 3.2; }
+            else if (s.Contains("Part Name") || s.Contains("零部件名称")) { t.X = 227.8; t.Y = 10.6; t.HeightMm = 1.2; }
             // Title Block Left Columns (Approval & Revision)
-            else if (s.Contains("Designed") || s.Contains("设计")) { t.X = 157.0; t.Y = 13.8; t.HeightMm = 1.2; }
-            else if (s.Contains("Checked 1") || s.Contains("审核1")) { t.X = 157.0; t.Y = 11.0; t.HeightMm = 1.2; }
-            else if (s.Contains("Checked 2") || s.Contains("审核2")) { t.X = 157.0; t.Y = 8.2; t.HeightMm = 1.2; }
-            else if (s.Contains("Technologized") || s.Contains("工艺")) { t.X = 157.0; t.Y = 5.4; t.HeightMm = 1.2; }
-            else if (s.Contains("Standardized") || s.Contains("标准化")) { t.X = 190.5; t.Y = 11.0; t.HeightMm = 1.2; }
-            else if (s.Contains("Approved") || s.Contains("批准")) { t.X = 190.5; t.Y = 5.4; t.HeightMm = 1.2; }
-            else if (s.Contains("Material") || s.Contains("材料")) { t.X = 169.5; t.Y = 19.8; t.HeightMm = 1.2; }
-            else if (s.Contains("Mark") || s.Contains("标记")) { t.X = 181.5; t.Y = 22.5; t.HeightMm = 1.2; }
-            else if (s.Contains("Num") || s.Contains("处数")) { t.X = 189.0; t.Y = 22.5; t.HeightMm = 1.2; }
-            else if (s.Contains("Changed No.") || s.Contains("更改号")) { t.X = 195.5; t.Y = 22.5; t.HeightMm = 1.2; }
+            else if (s.Contains("Designed") || s.Contains("设计")) { t.X = 157.0; t.Y = 13.98; t.HeightMm = 1.2; }
+            else if (s.Contains("Checked 1") || s.Contains("审核1")) { t.X = 157.0; t.Y = 11.16; t.HeightMm = 1.2; }
+            else if (s.Contains("Checked 2") || s.Contains("审核2")) { t.X = 157.0; t.Y = 8.33; t.HeightMm = 1.2; }
+            else if (s.Contains("Technologized") || s.Contains("工艺")) { t.X = 157.0; t.Y = 5.50; t.HeightMm = 1.2; }
+            else if (s.Contains("Standardized") || s.Contains("标准化")) { t.X = 190.5; t.Y = 11.16; t.HeightMm = 1.2; }
+            else if (s.Contains("Approved") || s.Contains("批准")) { t.X = 190.5; t.Y = 5.50; t.HeightMm = 1.2; }
+            else if (s.Contains("Material") || s.Contains("材料")) { t.X = 169.5; t.Y = 18.23; t.HeightMm = 1.2; }
+            else if (s.Contains("Mark") || s.Contains("标记")) { t.X = 181.5; t.Y = 22.47; t.HeightMm = 1.2; }
+            else if (s.Contains("Num") || s.Contains("处数")) { t.X = 189.0; t.Y = 22.47; t.HeightMm = 1.2; }
+            else if (s.Contains("Changed No.") || s.Contains("更改号")) { t.X = 195.5; t.Y = 22.47; t.HeightMm = 1.2; }
             else if (s.Contains("Signature") || s.Contains("签名"))
             {
                 t.HeightMm = 1.2;
-                if (t.Y > 20.0) { t.X = 210.0; t.Y = 22.5; }
-                else if (t.X < 190.0) { t.X = 169.5; t.Y = 13.8; }
-                else { t.X = 205.0; t.Y = 13.8; }
+                if (t.Y > 20.0) { t.X = 210.0; t.Y = 22.47; }
+                else if (t.X < 190.0) { t.X = 169.5; t.Y = 13.98; }
+                else { t.X = 205.0; t.Y = 13.98; }
             }
             else if (s.Contains("Date") || s.Contains("日期"))
             {
                 t.HeightMm = 1.2;
-                if (t.Y > 20.0) { t.X = 221.0; t.Y = 22.5; }
-                else if (t.X < 195.0) { t.X = 181.0; t.Y = 13.8; }
-                else { t.X = 216.0; t.Y = 13.8; }
+                if (t.Y > 20.0) { t.X = 221.0; t.Y = 22.47; }
+                else if (t.X < 195.0) { t.X = 181.0; t.Y = 13.98; }
+                else { t.X = 216.0; t.Y = 13.98; }
             }
         }
     }
