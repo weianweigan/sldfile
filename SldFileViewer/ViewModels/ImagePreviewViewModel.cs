@@ -72,7 +72,7 @@ public partial class ImagePreviewViewModel : ObservableObject
         {
             if (value && OverlayMode == DrawingOverlayMode.Off)
             {
-                OverlayMode = DrawingOverlayMode.PureVectorCad;
+                OverlayMode = DrawingOverlayMode.SheetNotesOnly;
             }
             else if (!value)
             {
@@ -159,7 +159,7 @@ public partial class ImagePreviewViewModel : ObservableObject
     {
         if (OverlayMode == DrawingOverlayMode.Off)
         {
-            OverlayMode = DrawingOverlayMode.PureVectorCad;
+            OverlayMode = DrawingOverlayMode.SheetNotesOnly;
         }
         else
         {
@@ -172,10 +172,9 @@ public partial class ImagePreviewViewModel : ObservableObject
     {
         OverlayMode = OverlayMode switch
         {
-            DrawingOverlayMode.PureVectorCad => DrawingOverlayMode.SheetNotesOnly,
-            DrawingOverlayMode.SheetNotesOnly => DrawingOverlayMode.Off,
-            DrawingOverlayMode.Off => DrawingOverlayMode.PureVectorCad,
-            _ => DrawingOverlayMode.PureVectorCad
+            DrawingOverlayMode.Off => DrawingOverlayMode.SheetNotesOnly,
+            DrawingOverlayMode.SheetNotesOnly => DrawingOverlayMode.PureVectorCad,
+            _ => DrawingOverlayMode.Off
         };
     }
 
@@ -309,12 +308,8 @@ public partial class ImagePreviewViewModel : ObservableObject
             if (VectorData != null && VectorData.HasVectorData)
             {
                 VectorData.CalculatePixelCoordinates(bmp.PixelWidth, bmp.PixelHeight);
-                OverlayMode = DrawingOverlayMode.PureVectorCad;
             }
-            else
-            {
-                OverlayMode = DrawingOverlayMode.Off;
-            }
+            OverlayMode = DrawingOverlayMode.Off;
 
             string hdTag = IsHighDefinition ? " [高清]" : "";
             string vectorTag = (VectorData != null && VectorData.HasVectorData)
