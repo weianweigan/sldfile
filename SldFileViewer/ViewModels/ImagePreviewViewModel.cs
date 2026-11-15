@@ -63,9 +63,7 @@ public partial class ImagePreviewViewModel : ObservableObject
 
     public bool IsRasterImageVisible =>
         OverlayMode != DrawingOverlayMode.PureVectorCad ||
-        VectorData == null ||
-        !VectorData.HasLines ||
-        VectorData.Lines.Count < 2000;
+        VectorData == null;
 
     public bool IsVectorOverlayEnabled
     {
@@ -74,7 +72,7 @@ public partial class ImagePreviewViewModel : ObservableObject
         {
             if (value && OverlayMode == DrawingOverlayMode.Off)
             {
-                OverlayMode = DrawingOverlayMode.SheetNotesOnly;
+                OverlayMode = DrawingOverlayMode.PureVectorCad;
             }
             else if (!value)
             {
@@ -161,7 +159,7 @@ public partial class ImagePreviewViewModel : ObservableObject
     {
         if (OverlayMode == DrawingOverlayMode.Off)
         {
-            OverlayMode = DrawingOverlayMode.SheetNotesOnly;
+            OverlayMode = DrawingOverlayMode.PureVectorCad;
         }
         else
         {
@@ -174,9 +172,10 @@ public partial class ImagePreviewViewModel : ObservableObject
     {
         OverlayMode = OverlayMode switch
         {
-            DrawingOverlayMode.Off => DrawingOverlayMode.SheetNotesOnly,
-            DrawingOverlayMode.SheetNotesOnly => DrawingOverlayMode.PureVectorCad,
-            _ => DrawingOverlayMode.Off
+            DrawingOverlayMode.PureVectorCad => DrawingOverlayMode.SheetNotesOnly,
+            DrawingOverlayMode.SheetNotesOnly => DrawingOverlayMode.Off,
+            DrawingOverlayMode.Off => DrawingOverlayMode.PureVectorCad,
+            _ => DrawingOverlayMode.PureVectorCad
         };
     }
 
@@ -310,8 +309,12 @@ public partial class ImagePreviewViewModel : ObservableObject
             if (VectorData != null && VectorData.HasVectorData)
             {
                 VectorData.CalculatePixelCoordinates(bmp.PixelWidth, bmp.PixelHeight);
+                OverlayMode = DrawingOverlayMode.PureVectorCad;
             }
-            OverlayMode = DrawingOverlayMode.Off;
+            else
+            {
+                OverlayMode = DrawingOverlayMode.Off;
+            }
 
             string hdTag = IsHighDefinition ? " [高清]" : "";
             string vectorTag = (VectorData != null && VectorData.HasVectorData)
