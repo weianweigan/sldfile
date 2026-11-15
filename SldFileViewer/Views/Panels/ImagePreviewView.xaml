@@ -203,6 +203,7 @@
             <Grid x:Name="TransformHost"
                   HorizontalAlignment="Center"
                   VerticalAlignment="Center"
+                  RenderTransformOrigin="0.5,0.5"
                   Visibility="{Binding HasImage, Converter={StaticResource BoolToVisibilityConverter}}">
                 <Grid.RenderTransform>
                     <TransformGroup>

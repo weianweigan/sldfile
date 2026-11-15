@@ -58,17 +58,17 @@ public sealed class DrawingVectorText
     /// <summary>
     /// Physical X position on sheet in millimeters (CAD coordinate, origin at sheet lower-left).
     /// </summary>
-    public double X { get; }
+    public double X { get; internal set; }
 
     /// <summary>
     /// Physical Y position on sheet in millimeters (CAD coordinate, origin at sheet lower-left).
     /// </summary>
-    public double Y { get; }
+    public double Y { get; internal set; }
 
     /// <summary>
     /// Physical Z position or depth on sheet in millimeters.
     /// </summary>
-    public double Z { get; }
+    public double Z { get; internal set; }
 
     /// <summary>
     /// Font family name (e.g. "新宋体", "Century Gothic", "SimSun").

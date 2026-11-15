@@ -58,6 +58,7 @@ public static class DrawingSvgWriter
         writer.WriteLine("      .hidden-line { stroke: #616161; stroke-width: 0.25; stroke-dasharray: 3,2; fill: none; }");
         writer.WriteLine("      .dimension-line { stroke: #0055A5; stroke-width: 0.25; fill: none; }");
         writer.WriteLine("      .cad-text { font-family: 'Century Gothic', 'SimSun', 'Microsoft YaHei', Arial, sans-serif; fill: #000000; }");
+        writer.WriteLine("      .tb-text { font-family: 'Century Gothic', 'SimSun', 'Microsoft YaHei', Arial, sans-serif; fill: #111111; letter-spacing: -0.04em; }");
         writer.WriteLine("      .dim-text { font-family: 'Century Gothic', 'SimSun', Arial, sans-serif; fill: #0055A5; }");
         writer.WriteLine("    </style>");
 
@@ -192,9 +193,15 @@ public static class DrawingSvgWriter
 
                 double x = text.X;
                 double y = ToSvgY(text.Y);
-                double fontSize = text.HeightMm > 0.5 ? text.HeightMm : 2.5;
+                double fontSize = text.HeightMm > 0.1 ? text.HeightMm : 2.5;
 
-                string cls = (text.Category == DrawingVectorTextCategory.ViewAnnotation) ? "dim-text" : "cad-text";
+                string cls = text.Category switch
+                {
+                    DrawingVectorTextCategory.ViewAnnotation => "dim-text",
+                    DrawingVectorTextCategory.ToleranceTable => "tb-text",
+                    DrawingVectorTextCategory.TitleBlock => "tb-text",
+                    _ => "cad-text"
+                };
                 string escapedContent = SecurityElement.Escape(text.CleanText);
 
                 if (Math.Abs(text.AngleRad) > 1e-4)

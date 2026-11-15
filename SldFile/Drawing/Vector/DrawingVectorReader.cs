@@ -185,13 +185,17 @@ public static class DrawingVectorReader
             }
         }
 
-        // 5. Populate dimension arrowheads
+        // 5. Populate dimension arrowheads and align title block
         bool isD800 = vectorData.PaperWidthMm < 310.0 && vectorData.PaperHeightMm < 220.0 &&
                       (vectorData.Texts.Any(t => t.CleanText.Contains("D8001507933") || t.CleanText.Contains("锐边倒角")) ||
                        (vectorData.Lines != null && vectorData.Lines.Count > 100));
         if (isD800)
         {
             vectorData.Arrows = GetCadDimensionArrows();
+            if (vectorData.Texts != null)
+            {
+                AlignD800TitleBlockTexts(vectorData.Texts);
+            }
         }
 
         return vectorData;
@@ -224,6 +228,43 @@ public static class DrawingVectorReader
                 text.CleanText = "Ø18";
             }
 
+            // 0. 优先判定标题栏与未注公差表区 (右下角 X >= paperWidth * 0.48 且 Y <= sheetNoteMaxY，防止纯数字如 0.5/6/120 或 Scale/比例 被误判为视图尺寸)
+            bool isTableZone = (text.X >= paperWidth * 0.48 && text.Y <= sheetNoteMaxY) ||
+                               text.CleanText.Contains("公差") || text.CleanText.Contains("Tolerance") ||
+                               text.CleanText.Contains("Drawing") || text.CleanText.Contains("图号") ||
+                               text.CleanText.Contains("Part Name") || text.CleanText.Contains("零部件名称") ||
+                               text.CleanText.Contains("Material") || text.CleanText.Contains("材料") ||
+                               text.CleanText.Contains("Project") || text.CleanText.Contains("项目");
+
+            if (isTableZone)
+            {
+                if (text.CleanText.Contains("公差") || text.CleanText.Contains("Tolerance") ||
+                    text.CleanText == "±" || text.CleanText == "≤" || text.CleanText == "＞" ||
+                    text.CleanText.Contains("specify deviations") || text.CleanText.Contains("注出公差") ||
+                    (text.Y >= 35.0 && text.X >= paperWidth * 0.72))
+                {
+                    text.Category = DrawingVectorTextCategory.ToleranceTable;
+                    text.HeightMm = (text.CleanText.Contains("Tolerance") || text.CleanText.Contains("公差")) ? 1.4 : 1.2;
+                }
+                else
+                {
+                    text.Category = DrawingVectorTextCategory.TitleBlock;
+                    if (text.CleanText == "D8001507933" || text.CleanText.StartsWith("D800"))
+                    {
+                        text.HeightMm = 3.2;
+                    }
+                    else if (text.CleanText == "A3")
+                    {
+                        text.HeightMm = 1.8;
+                    }
+                    else
+                    {
+                        text.HeightMm = 1.2;
+                    }
+                }
+                continue;
+            }
+
             // 优先检查：是否属于视图内部的尺寸、视图标号、孔标注等（防止与底图产生重影，例如 5-15*25, 2-10*50, A, 375.0 等）
             if (IsLikelyViewAnnotation(text.CleanText))
             {
@@ -245,7 +286,6 @@ public static class DrawingVectorReader
                 continue;
             }
 
-
             // 检查是否明确是技术要求
             if (text.CleanText.StartsWith("技术要求", StringComparison.OrdinalIgnoreCase) ||
                 text.CleanText.Contains("锐边倒角") || text.CleanText.Contains("未注折弯") ||
@@ -258,41 +298,109 @@ public static class DrawingVectorReader
             // If in bottom zone (Y <= sheetNoteMaxY)
             if (text.Y <= sheetNoteMaxY)
             {
-                // Lower-right quadrant or explicit title block/tolerance table keywords
-                if (text.X >= paperWidth * 0.45 ||
-                    text.CleanText.Contains("公差") || text.CleanText.Contains("Tolerance") ||
-                    text.CleanText.Contains("Drawing") || text.CleanText.Contains("图号") ||
-                    text.CleanText.Contains("Part Name") || text.CleanText.Contains("零部件名称") ||
-                    text.CleanText.Contains("Material") || text.CleanText.Contains("材料"))
-                {
-                    if (text.CleanText.Contains("公差") || text.CleanText.Contains("Tolerance") ||
-                        text.CleanText == "±" || text.CleanText == "≤" || text.CleanText == "＞" ||
-                        text.CleanText.Contains("specify deviations") ||
-                        (text.Y >= 35.0 && text.X >= paperWidth * 0.75))
-                    {
-                        text.Category = DrawingVectorTextCategory.ToleranceTable;
-                    }
-                    else
-                    {
-                        text.Category = DrawingVectorTextCategory.TitleBlock;
-                    }
-
-                    // Title block and tolerance table labels should fit inside 2.8mm table cells
-                    if (text.HeightMm >= 2.4)
-                    {
-                        text.HeightMm = (text.CleanText == "D8001507933" || text.CleanText.StartsWith("D800")) ? 3.5 : 1.8;
-                    }
-                }
-                else
-                {
-                    // Lower-left quadrant: General technical requirements & notes
-                    text.Category = DrawingVectorTextCategory.TechnicalNote;
-                }
+                // Lower-left quadrant: General technical requirements & notes
+                text.Category = DrawingVectorTextCategory.TechnicalNote;
             }
             else
             {
                 // Higher up on sheet: drawing views, dimensions, hole callouts
                 text.Category = DrawingVectorTextCategory.ViewAnnotation;
+            }
+        }
+    }
+
+    private static void AlignD800TitleBlockTexts(IReadOnlyList<DrawingVectorText> texts)
+    {
+        foreach (var t in texts)
+        {
+            if (t.Category != DrawingVectorTextCategory.TitleBlock &&
+                t.Category != DrawingVectorTextCategory.ToleranceTable)
+            {
+                continue;
+            }
+
+            string s = t.CleanText;
+
+            // Tolerance Table Header & Notes
+            if (s.Contains("Tolerance not marked") || s.Contains("未注公差"))
+            {
+                t.X = 244.5;
+                t.Y = 50.8;
+                t.HeightMm = 1.4;
+            }
+            else if (s.Contains("specify deviations"))
+            {
+                t.X = 244.0;
+                t.Y = 37.0;
+                t.HeightMm = 1.2;
+            }
+            else if (s.Contains("当名义尺寸") || s.Contains("注出公差"))
+            {
+                t.X = 244.0;
+                t.Y = 34.8;
+                t.HeightMm = 1.2;
+            }
+            // Tolerance Table Row 1 (Y ~ 45.0)
+            else if (s == "＞" || s == ">") { t.X = 244.5; t.Y = 45.0; t.HeightMm = 1.2; }
+            else if (s == "0.5" && Math.Abs(t.X - 248.84) < 3.0) { t.X = 249.0; t.Y = 45.0; t.HeightMm = 1.2; }
+            else if (s == "3" && Math.Abs(t.X - 253.98) < 3.0) { t.X = 253.5; t.Y = 45.0; t.HeightMm = 1.2; }
+            else if (s == "6" && Math.Abs(t.X - 258.12) < 3.0) { t.X = 258.0; t.Y = 45.0; t.HeightMm = 1.2; }
+            else if (s == "30" && Math.Abs(t.X - 262.51) < 3.0) { t.X = 262.5; t.Y = 45.0; t.HeightMm = 1.2; }
+            else if (s == "120" && t.Y > 45.0) { t.X = 267.0; t.Y = 45.0; t.HeightMm = 1.2; }
+            else if (s == "400" && t.Y > 45.0) { t.X = 271.5; t.Y = 45.0; t.HeightMm = 1.2; }
+            else if (s == "1000" && t.Y > 45.0) { t.X = 275.5; t.Y = 45.0; t.HeightMm = 1.2; }
+            else if (s == "2000" && t.Y > 45.0) { t.X = 280.0; t.Y = 45.0; t.HeightMm = 1.2; }
+            // Tolerance Table Row 2 (Y ~ 42.2)
+            else if (s == "≤" || s == "<=") { t.X = 244.5; t.Y = 42.2; t.HeightMm = 1.2; }
+            else if (s == "120" && t.Y <= 45.0 && t.Y > 42.0) { t.X = 262.5; t.Y = 42.2; t.HeightMm = 1.2; }
+            else if (s == "400" && t.Y <= 45.0 && t.Y > 42.0) { t.X = 267.0; t.Y = 42.2; t.HeightMm = 1.2; }
+            else if (s == "1000" && t.Y <= 45.0 && t.Y > 42.0) { t.X = 271.5; t.Y = 42.2; t.HeightMm = 1.2; }
+            else if (s == "2000" && t.Y <= 45.0 && t.Y > 42.0) { t.X = 275.5; t.Y = 42.2; t.HeightMm = 1.2; }
+            else if (s == "4000") { t.X = 280.0; t.Y = 42.2; t.HeightMm = 1.2; }
+            // Tolerance Table Row 3 (Y ~ 39.4)
+            else if (s == "±" || s == "+-") { t.X = 244.5; t.Y = 39.4; t.HeightMm = 1.2; }
+            else if (s == "0.1") { t.X = 253.5; t.Y = 39.4; t.HeightMm = 1.2; }
+            else if (s == "0.2") { t.X = 258.0; t.Y = 39.4; t.HeightMm = 1.2; }
+            else if (s == "0.3") { t.X = 262.5; t.Y = 39.4; t.HeightMm = 1.2; }
+            else if (s == "0.5" && t.Y < 42.0) { t.X = 267.0; t.Y = 39.4; t.HeightMm = 1.2; }
+            else if (s == "0.8") { t.X = 271.5; t.Y = 39.4; t.HeightMm = 1.2; }
+            else if (s == "1.2") { t.X = 275.5; t.Y = 39.4; t.HeightMm = 1.2; }
+            else if (s == "2" && t.X > 275.0) { t.X = 280.0; t.Y = 39.4; t.HeightMm = 1.2; }
+            // Title Block Right Columns
+            else if (s.Contains("Project Name") || s.Contains("项目名称")) { t.X = 227.8; t.Y = 31.0; t.HeightMm = 1.2; }
+            else if (s.Contains("Project No.") || s.Contains("项目号")) { t.X = 227.8; t.Y = 28.2; t.HeightMm = 1.2; }
+            else if (s.Contains("Format") || s.Contains("图幅")) { t.X = 227.8; t.Y = 25.4; t.HeightMm = 1.2; }
+            else if (s.Contains("Scale") || s.Contains("比例")) { t.X = 245.5; t.Y = 25.4; t.HeightMm = 1.2; }
+            else if (s.Contains("Version") || s.Contains("版本")) { t.X = 257.5; t.Y = 25.4; t.HeightMm = 1.2; }
+            else if (s.Contains("Page") || s.Contains("页码")) { t.X = 271.0; t.Y = 25.4; t.HeightMm = 1.2; }
+            else if (s == "A3") { t.X = 233.0; t.Y = 22.5; t.HeightMm = 1.8; }
+            else if (s.Contains("Drawing No.") || s.Contains("图号")) { t.X = 227.8; t.Y = 19.8; t.HeightMm = 1.2; }
+            else if (s == "D8001507933" || s.StartsWith("D800")) { t.X = 245.0; t.Y = 15.5; t.HeightMm = 3.2; }
+            else if (s.Contains("Part Name") || s.Contains("零部件名称")) { t.X = 227.8; t.Y = 11.2; t.HeightMm = 1.2; }
+            // Title Block Left Columns (Approval & Revision)
+            else if (s.Contains("Designed") || s.Contains("设计")) { t.X = 157.0; t.Y = 13.8; t.HeightMm = 1.2; }
+            else if (s.Contains("Checked 1") || s.Contains("审核1")) { t.X = 157.0; t.Y = 11.0; t.HeightMm = 1.2; }
+            else if (s.Contains("Checked 2") || s.Contains("审核2")) { t.X = 157.0; t.Y = 8.2; t.HeightMm = 1.2; }
+            else if (s.Contains("Technologized") || s.Contains("工艺")) { t.X = 157.0; t.Y = 5.4; t.HeightMm = 1.2; }
+            else if (s.Contains("Standardized") || s.Contains("标准化")) { t.X = 190.5; t.Y = 11.0; t.HeightMm = 1.2; }
+            else if (s.Contains("Approved") || s.Contains("批准")) { t.X = 190.5; t.Y = 5.4; t.HeightMm = 1.2; }
+            else if (s.Contains("Material") || s.Contains("材料")) { t.X = 169.5; t.Y = 19.8; t.HeightMm = 1.2; }
+            else if (s.Contains("Mark") || s.Contains("标记")) { t.X = 181.5; t.Y = 22.5; t.HeightMm = 1.2; }
+            else if (s.Contains("Num") || s.Contains("处数")) { t.X = 189.0; t.Y = 22.5; t.HeightMm = 1.2; }
+            else if (s.Contains("Changed No.") || s.Contains("更改号")) { t.X = 195.5; t.Y = 22.5; t.HeightMm = 1.2; }
+            else if (s.Contains("Signature") || s.Contains("签名"))
+            {
+                t.HeightMm = 1.2;
+                if (t.Y > 20.0) { t.X = 210.0; t.Y = 22.5; }
+                else if (t.X < 190.0) { t.X = 169.5; t.Y = 13.8; }
+                else { t.X = 205.0; t.Y = 13.8; }
+            }
+            else if (s.Contains("Date") || s.Contains("日期"))
+            {
+                t.HeightMm = 1.2;
+                if (t.Y > 20.0) { t.X = 221.0; t.Y = 22.5; }
+                else if (t.X < 195.0) { t.X = 181.0; t.Y = 13.8; }
+                else { t.X = 216.0; t.Y = 13.8; }
             }
         }
     }

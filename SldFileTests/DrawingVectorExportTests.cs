@@ -164,6 +164,7 @@ public class DrawingVectorExportTests
 
         string svg = drawing.ExportSheetSvg(0);
         Assert.False(string.IsNullOrWhiteSpace(svg));
+        drawing.ExportSheetSvg(0, @"C:\Users\HP\Desktop\New folder\D8001507933.svg");
         var xdoc = XDocument.Parse(svg);
         Assert.NotNull(xdoc.Root);
 

@@ -199,10 +199,12 @@ public static class DrawingDxfWriter
                 if (text.Category == DrawingVectorTextCategory.Metadata) continue;
 
                 string layer = (text.Category == DrawingVectorTextCategory.ViewAnnotation) ? "DIMENSION" : "ANNOTATIONS";
-                double height = text.HeightMm > 0.5 ? text.HeightMm : 2.5;
+                double height = text.HeightMm > 0.1 ? text.HeightMm : 2.5;
                 double rotationDeg = text.AngleRad * (180.0 / Math.PI);
+                double widthFactor = (text.Category == DrawingVectorTextCategory.ToleranceTable ||
+                                      text.Category == DrawingVectorTextCategory.TitleBlock) ? 0.75 : 1.0;
 
-                WriteTextEntity(writer, layer, text.CleanText, text.X, text.Y, height, rotationDeg);
+                WriteTextEntity(writer, layer, text.CleanText, text.X, text.Y, height, rotationDeg, widthFactor);
             }
         }
 
@@ -234,7 +236,7 @@ public static class DrawingDxfWriter
         writer.WriteLine("0.0");
     }
 
-    private static void WriteTextEntity(TextWriter writer, string layer, string text, double x, double y, double height, double rotationDeg)
+    private static void WriteTextEntity(TextWriter writer, string layer, string text, double x, double y, double height, double rotationDeg, double widthFactor = 1.0)
     {
         writer.WriteLine("0");
         writer.WriteLine("TEXT");
@@ -250,6 +252,11 @@ public static class DrawingDxfWriter
         writer.WriteLine("0.0");
         writer.WriteLine("40");
         writer.WriteLine(height.ToString("F3", CultureInfo.InvariantCulture));
+        if (Math.Abs(widthFactor - 1.0) > 1e-3)
+        {
+            writer.WriteLine("41");
+            writer.WriteLine(widthFactor.ToString("F2", CultureInfo.InvariantCulture));
+        }
         writer.WriteLine("1");
         writer.WriteLine(SanitizeDxfText(text));
 
