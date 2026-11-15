@@ -73,7 +73,7 @@ public class DrawingAndPreviewTests
             if (isDrawing)
             {
                 Assert.True(imgVm.HasImage);
-                Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.PureVectorCad, imgVm.OverlayMode);
+                Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.Off, imgVm.OverlayMode);
             }
         }
 
@@ -192,23 +192,25 @@ public class DrawingAndPreviewTests
         imgVm.LoadImage(bmp, "测试工程图", vectorData);
 
         Assert.True(imgVm.HasVectorData);
-        Assert.True(imgVm.IsVectorOverlayEnabled);
-        Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.PureVectorCad, imgVm.OverlayMode);
-        Assert.Equal("🎨 纯矢量 CAD", imgVm.VectorOverlayButtonText);
-        Assert.False(imgVm.IsRasterImageVisible);
-        Assert.Contains("纯矢量 CAD", imgVm.VectorStatusText);
-
-        // Toggle from PureVectorCad to Off
-        imgVm.ToggleVectorOverlayCommand.Execute(null);
         Assert.False(imgVm.IsVectorOverlayEnabled);
+        Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.Off, imgVm.OverlayMode);
         Assert.Equal("📐 原生工程图", imgVm.VectorOverlayButtonText);
         Assert.True(imgVm.IsRasterImageVisible);
+        Assert.Contains("原生工程图", imgVm.VectorStatusText);
 
         // Toggle from Off to SheetNotesOnly
         imgVm.ToggleVectorOverlayCommand.Execute(null);
         Assert.True(imgVm.IsVectorOverlayEnabled);
         Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.SheetNotesOnly, imgVm.OverlayMode);
         Assert.Equal("🔤 矢量增强: 图纸注释", imgVm.VectorOverlayButtonText);
+        Assert.True(imgVm.IsRasterImageVisible);
+
+        // Toggle from SheetNotesOnly to Off
+        imgVm.ToggleVectorOverlayCommand.Execute(null);
+        Assert.False(imgVm.IsVectorOverlayEnabled);
+        Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.Off, imgVm.OverlayMode);
+        Assert.Equal("📐 原生工程图", imgVm.VectorOverlayButtonText);
+        Assert.True(imgVm.IsRasterImageVisible);
 
     }
 

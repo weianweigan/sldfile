@@ -63,7 +63,9 @@ public partial class ImagePreviewViewModel : ObservableObject
 
     public bool IsRasterImageVisible =>
         OverlayMode != DrawingOverlayMode.PureVectorCad ||
-        VectorData == null;
+        VectorData == null ||
+        !VectorData.HasLines ||
+        VectorData.Lines.Count < 2000;
 
     public bool IsVectorOverlayEnabled
     {
@@ -314,12 +316,8 @@ public partial class ImagePreviewViewModel : ObservableObject
             if (VectorData != null && VectorData.HasVectorData)
             {
                 VectorData.CalculatePixelCoordinates(bmp.PixelWidth, bmp.PixelHeight);
-                OverlayMode = DrawingOverlayMode.PureVectorCad;
             }
-            else
-            {
-                OverlayMode = DrawingOverlayMode.Off;
-            }
+            OverlayMode = DrawingOverlayMode.Off;
 
             string hdTag = IsHighDefinition ? " [高清]" : "";
             string vectorTag = (VectorData != null && VectorData.HasVectorData)
