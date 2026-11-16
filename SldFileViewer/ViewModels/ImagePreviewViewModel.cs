@@ -93,7 +93,7 @@ public partial class ImagePreviewViewModel : ObservableObject
             return OverlayMode switch
             {
                 DrawingOverlayMode.PureVectorCad => $"纯矢量 CAD ({lineCount} 线条 + {textCount} 注释)",
-                DrawingOverlayMode.SheetNotesOnly => $"矢量注释 ({(VectorData!.Texts != null ? VectorData!.Texts.Count(t => t.IsSheetLevelNote) : 0)} 项图纸文字)",
+                DrawingOverlayMode.SheetNotesOnly => $"混合矢量增强 (底图保全 + {(VectorData!.Texts != null ? VectorData!.Texts.Count(t => t.IsSheetLevelNote) : 0)} 项矢量注释)",
                 _ => "原生工程图 (100% 官方渲染)"
             };
         }
@@ -102,7 +102,7 @@ public partial class ImagePreviewViewModel : ObservableObject
     public string VectorOverlayButtonText => OverlayMode switch
     {
         DrawingOverlayMode.PureVectorCad => "🎨 纯矢量 CAD",
-        DrawingOverlayMode.SheetNotesOnly => "🔤 矢量增强: 图纸注释",
+        DrawingOverlayMode.SheetNotesOnly => "⚡ 混合矢量增强",
         _ => "📐 原生工程图"
     };
 
@@ -172,9 +172,10 @@ public partial class ImagePreviewViewModel : ObservableObject
     {
         OverlayMode = OverlayMode switch
         {
-            DrawingOverlayMode.Off => DrawingOverlayMode.SheetNotesOnly,
             DrawingOverlayMode.SheetNotesOnly => DrawingOverlayMode.PureVectorCad,
-            _ => DrawingOverlayMode.Off
+            DrawingOverlayMode.PureVectorCad => DrawingOverlayMode.Off,
+            DrawingOverlayMode.Off => DrawingOverlayMode.SheetNotesOnly,
+            _ => DrawingOverlayMode.SheetNotesOnly
         };
     }
 
@@ -308,8 +309,12 @@ public partial class ImagePreviewViewModel : ObservableObject
             if (VectorData != null && VectorData.HasVectorData)
             {
                 VectorData.CalculatePixelCoordinates(bmp.PixelWidth, bmp.PixelHeight);
+                OverlayMode = DrawingOverlayMode.SheetNotesOnly;
             }
-            OverlayMode = DrawingOverlayMode.Off;
+            else
+            {
+                OverlayMode = DrawingOverlayMode.Off;
+            }
 
             string hdTag = IsHighDefinition ? " [高清]" : "";
             string vectorTag = (VectorData != null && VectorData.HasVectorData)

@@ -108,7 +108,7 @@
                                 Visibility="{Binding HasVectorData, Converter={StaticResource BoolToVisibilityConverter}}"
                                 Style="{StaticResource Style.Button.Toolbar}"
                                 Padding="8,4" Margin="2,0"
-                                ToolTip="循环切换工程图渲染模式 (原生工程图 [100%官方渲染] / 图纸注释增强 / 纯矢量 CAD)">
+                                ToolTip="循环切换工程图渲染模式 (⚡ 混合矢量增强 [底图保全+矢量增强] / 🎨 纯矢量 CAD / 📐 原生工程图)">
                             <StackPanel Orientation="Horizontal">
                                 <iconPacks:PackIconMaterial Kind="FormatLetterCase" Width="12" Height="12" Foreground="{StaticResource Brush.Figma.Ink}" Margin="0,0,4,0" VerticalAlignment="Center"/>
                                 <TextBlock Text="{Binding VectorOverlayButtonText}" FontSize="11" FontWeight="SemiBold"/>
@@ -181,9 +181,9 @@
             <Grid.ContextMenu>
                 <ContextMenu>
                     <MenuItem Header="📐 工程图渲染模式 (CAD 引擎)" Visibility="{Binding HasVectorData, Converter={StaticResource BoolToVisibilityConverter}}">
-                        <MenuItem Header="📐 原生工程图 (推荐，100% 官方渲染保真)" Command="{Binding SetOverlayOffModeCommand}" />
-                        <MenuItem Header="🔤 图纸注释增强 (底图 + 矢量注释)" Command="{Binding SetSheetNotesOnlyModeCommand}" />
-                        <MenuItem Header="🎨 纯矢量 CAD 视图 (无损无限缩放)" Command="{Binding SetPureVectorCadModeCommand}" />
+                        <MenuItem Header="⚡ 混合矢量增强 (推荐架构，底图保全 + 矢量增强，零数据丢失)" Command="{Binding SetSheetNotesOnlyModeCommand}" />
+                        <MenuItem Header="📐 原生工程图 (100% 官方渲染保真，纯位图)" Command="{Binding SetOverlayOffModeCommand}" />
+                        <MenuItem Header="🎨 纯矢量 CAD 视图 (独立纯矢量线框，用于 DXF/SVG 对比)" Command="{Binding SetPureVectorCadModeCommand}" />
                     </MenuItem>
                     <Separator Visibility="{Binding HasVectorData, Converter={StaticResource BoolToVisibilityConverter}}" />
                     <MenuItem Header="自适应窗口大小 (Fit)" Command="{Binding FitToWindowCommand}" />

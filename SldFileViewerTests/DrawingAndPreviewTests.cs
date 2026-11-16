@@ -73,7 +73,7 @@ public class DrawingAndPreviewTests
             if (isDrawing)
             {
                 Assert.True(imgVm.HasImage);
-                Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.Off, imgVm.OverlayMode);
+                Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.SheetNotesOnly, imgVm.OverlayMode);
             }
         }
 
@@ -192,24 +192,24 @@ public class DrawingAndPreviewTests
         imgVm.LoadImage(bmp, "测试工程图", vectorData);
 
         Assert.True(imgVm.HasVectorData);
-        Assert.False(imgVm.IsVectorOverlayEnabled);
-        Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.Off, imgVm.OverlayMode);
-        Assert.Equal("📐 原生工程图", imgVm.VectorOverlayButtonText);
-        Assert.True(imgVm.IsRasterImageVisible);
-        Assert.Contains("原生工程图", imgVm.VectorStatusText);
-
-        // Toggle from Off to SheetNotesOnly
-        imgVm.ToggleVectorOverlayCommand.Execute(null);
         Assert.True(imgVm.IsVectorOverlayEnabled);
         Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.SheetNotesOnly, imgVm.OverlayMode);
-        Assert.Equal("🔤 矢量增强: 图纸注释", imgVm.VectorOverlayButtonText);
+        Assert.Equal("⚡ 混合矢量增强", imgVm.VectorOverlayButtonText);
         Assert.True(imgVm.IsRasterImageVisible);
+        Assert.Contains("混合矢量增强", imgVm.VectorStatusText);
 
         // Toggle from SheetNotesOnly to Off
         imgVm.ToggleVectorOverlayCommand.Execute(null);
         Assert.False(imgVm.IsVectorOverlayEnabled);
         Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.Off, imgVm.OverlayMode);
         Assert.Equal("📐 原生工程图", imgVm.VectorOverlayButtonText);
+        Assert.True(imgVm.IsRasterImageVisible);
+
+        // Toggle from Off to SheetNotesOnly
+        imgVm.ToggleVectorOverlayCommand.Execute(null);
+        Assert.True(imgVm.IsVectorOverlayEnabled);
+        Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.SheetNotesOnly, imgVm.OverlayMode);
+        Assert.Equal("⚡ 混合矢量增强", imgVm.VectorOverlayButtonText);
         Assert.True(imgVm.IsRasterImageVisible);
 
     }
@@ -243,7 +243,7 @@ public class DrawingAndPreviewTests
 
         // Verify Vector Typography Data loaded!
         Assert.True(imgVm.HasVectorData, "Expected drawing to contain vector CAD metadata");
-        Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.Off, imgVm.OverlayMode);
+        Assert.Equal(SldFileViewer.Views.Controls.DrawingOverlayMode.SheetNotesOnly, imgVm.OverlayMode);
         Assert.True(imgVm.VectorData!.Texts.Count > 50, $"Expected >50 vector texts, got {imgVm.VectorData!.Texts.Count}");
 
         // Verify key title block and note texts
