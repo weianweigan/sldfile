@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
+using SldFile.Mfc.Base;
+
 namespace SldFile.Mfc;
 
 /// <summary>One captured tag (class + raw payload) of the region selection context.</summary>

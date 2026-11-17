@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using SldFile;
+using SldFile.Mfc.Base;
 using Xunit;
 
 namespace SldFileTests;
