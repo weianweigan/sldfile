@@ -79,19 +79,16 @@ public partial class SldDrawing : SwFile
     {
         if (_viewBuckets != null) return _viewBuckets;
 
-        byte[]? vblists = null;
-        if (RawStreams.TryGetValue("Contents/VBLists", out var raw) && raw != null)
+        byte[]? vblists = GetDrawingPreviewStreamBytes("Contents/VBLists");
+        if (vblists == null)
         {
-            vblists = raw;
-        }
-        else if (RawStreams.TryGetValue("Contents/VBLists__ZLB", out var zlb) && zlb != null)
-        {
-            vblists = zlb;
+            if (RawStreams.TryGetValue("Contents/VBLists", out var raw) && raw != null) vblists = raw;
+            else if (RawStreams.TryGetValue("Contents/VBLists__ZLB", out var zlb) && zlb != null) vblists = zlb;
         }
 
         if (vblists != null)
         {
-            _viewBuckets = DrViewBucketMfcModel.ParseAllBuckets(vblists);
+            _viewBuckets = DrViewBucketMfcModel.ParseAllBuckets(vblists, GetNativeDrawingDocumentVersion());
         }
         else
         {
@@ -122,5 +119,32 @@ public partial class SldDrawing : SwFile
             Directory.CreateDirectory(dir);
         }
         File.WriteAllText(outputPath, svg, Encoding.UTF8);
+    }
+
+    /// <summary>
+    /// Renders the specified sheet's vector geometry and annotations as an AutoCAD R12 (AC1009) DXF string.
+    /// </summary>
+    public string ExportSheetDxf(int sheetIndex = 0, bool fitPolylineArcs = true)
+    {
+        var preview = GetDrawingPreview(sheetIndex, includeTransformedItems: true);
+        var sheet = Sheets[sheetIndex];
+        double scaleDenom = sheet.FormatInfo?.ScaleDenominator ?? 1.0;
+        double marginH = sheet.FormatInfo?.FrameMarginHorizontalMm ?? 0.0;
+        double marginV = sheet.FormatInfo?.FrameMarginVerticalMm ?? 0.0;
+        return Drawing.DrawingPreviewDxfWriter.Write(preview, scaleDenom, marginH, marginV, fitPolylineArcs);
+    }
+
+    /// <summary>
+    /// Exports the specified sheet as an AutoCAD R12 (AC1009) DXF file to the given output path.
+    /// </summary>
+    public void ExportSheetDxf(int sheetIndex, string outputPath, bool fitPolylineArcs = true)
+    {
+        string dxf = ExportSheetDxf(sheetIndex, fitPolylineArcs);
+        var dir = Path.GetDirectoryName(outputPath);
+        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+        {
+            Directory.CreateDirectory(dir);
+        }
+        File.WriteAllText(outputPath, dxf, Encoding.UTF8);
     }
 }

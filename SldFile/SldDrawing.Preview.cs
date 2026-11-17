@@ -11,17 +11,29 @@ namespace SldFile;
 public partial class SldDrawing
 {
     /// <summary>Gets a detached public definition of the saved native preview, in metres/radians.</summary>
-    public DrawingPreviewDefinition GetDrawingPreview(int sheetIndex = 0)
+    public DrawingPreviewDefinition GetDrawingPreview(int sheetIndex = 0) =>
+        GetDrawingPreview(sheetIndex, includeTransformedItems: false);
+
+    /// <summary>
+    /// Gets a detached public definition of the saved native preview, optionally applying local transforms
+    /// to symbol/text display items.
+    /// </summary>
+    public DrawingPreviewDefinition GetDrawingPreview(int sheetIndex, bool includeTransformedItems)
     {
         var sheets = Sheets;
         if (sheetIndex < 0 || sheetIndex >= sheets.Count) throw new ArgumentOutOfRangeException(nameof(sheetIndex));
-        var stream = ReadPreviewModel("Contents/DisplayLists");
+        if (!includeTransformedItems) return sheets[sheetIndex].Preview.Clone();
+        var stream = ReadPreviewModel("Contents/DisplayLists", includeTransformedItems);
         var result = stream.ToDefinition(sheetIndex, sheets.Count);
-        if (sheets.Count == 1) DrawingPreviewComposer.AppendViews(result,
-            GetDrawingPreviewStreamBytes("Contents/Definition"), GetDrawingPreviewStreamBytes("Contents/VBLists"),
-            sheets.SelectMany(s => s.Views).Select(v => v.Name).Distinct().ToArray());
-        var vector = sheets[sheetIndex].VectorData;
-        if (vector != null) { result.PaperWidth = vector.PaperWidthMm / 1000; result.PaperHeight = vector.PaperHeightMm / 1000; }
+        result.PaperWidth = sheets[sheetIndex].Preview.PaperWidth;
+        result.PaperHeight = sheets[sheetIndex].Preview.PaperHeight;
+        if (sheets.Count == 1 && stream.NativeArchive != null)
+        {
+            var names = sheets[sheetIndex].Preview.Views.Select(v => v.Name).ToArray();
+            var cache = DrawingViewCacheArchive.Read(GetDrawingPreviewStreamBytes("Contents/VBLists"), false, names,
+                GetNativeDrawingDocumentVersion(), true);
+            DrawingPreviewComposer.AppendViews(result, stream.NativeArchive, cache, names);
+        }
         return result;
     }
 
@@ -34,15 +46,13 @@ public partial class SldDrawing
     {
         var result = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
         var names = Sheets.SelectMany(s => s.Views).Select(v => v.Name).Distinct().ToArray();
-        var nativeNames = DrawingPreviewComposer.ReadCache(GetDrawingPreviewStreamBytes("Contents/VBLists"), false, names)
-            .Fragments.Where(f => f.Owner.Length > 0).Select(f => f.Owner).Distinct().ToArray();
         foreach (var name in new[] { "Contents/Definition", "Contents/VBLists", "Contents/DisplayLists" })
         {
             string path = GetStreamBytes(name) != null ? name : name + "__ZLB";
             byte[]? original = GetStreamBytes(path);
             if (original == null) continue;
             IMfcSerializable source = name == "Contents/DisplayLists" ? ReadPreviewModel(name) :
-                DrawingPreviewComposer.ReadCache(GetDrawingPreviewStreamBytes(name), name == "Contents/Definition", nativeNames.Length > 0 ? nativeNames : names);
+                DrawingViewCacheArchive.Read(GetDrawingPreviewStreamBytes(name), name == "Contents/Definition", names, GetNativeDrawingDocumentVersion());
             byte[] bytes = MfcArchive.Serialize(source);
             byte[]? payload = GetDrawingPreviewStreamBytes(name);
             if (payload != null && bytes.SequenceEqual(payload)) result[path] = (byte[])original.Clone();
@@ -70,7 +80,8 @@ public partial class SldDrawing
         var cacheOriginals = current.Primitives.Where(p => p.Id.StartsWith("VB:", StringComparison.Ordinal)).ToDictionary(p => p.Id);
         var cacheEdits = definition.Primitives.Where(p => p.Id.StartsWith("VB:", StringComparison.Ordinal)).ToList();
         if (cacheEdits.Count != cacheOriginals.Count || cacheEdits.Any(p => !cacheOriginals.TryGetValue(p.Id, out var original) ||
-            !p.Points.SequenceEqual(original.Points) || p.LineStyle != original.LineStyle || p.ColorRgb != original.ColorRgb || p.LineWidth != original.LineWidth))
+            !p.Points.SequenceEqual(original.Points) || p.Kind != original.Kind || !p.Normal.Equals(original.Normal) ||
+            p.ViewName != original.ViewName || p.LineStyle != original.LineStyle || p.ColorRgb != original.ColorRgb || p.LineWidth != original.LineWidth))
             throw new NotSupportedException("Edit native model-space edge records rather than projected/cropped sheet segments.");
         source.FromDefinition(new DrawingPreviewDefinition { SheetIndex = definition.SheetIndex,
             Primitives = definition.Primitives.Where(p => !p.Id.StartsWith("VB:", StringComparison.Ordinal)).ToArray() });
@@ -82,10 +93,11 @@ public partial class SldDrawing
         _sheets = null;
     }
 
-    private DrawingPreviewStreamModel ReadPreviewModel(string name)
+    private DrawingPreviewStreamModel ReadPreviewModel(string name, bool includeTransformedItems = false)
     {
-        var model = new DrawingPreviewStreamModel { DecodeCommands = name == "Contents/DisplayLists" };
+        var model = new DrawingPreviewStreamModel { DecodeCommands = name == "Contents/DisplayLists", IncludeTransformedItems = includeTransformedItems };
         using var ar = MfcArchive.CreateReader(GetDrawingPreviewStreamBytes(name) ?? Array.Empty<byte>());
+        ar.DocumentVersion = GetNativeDrawingDocumentVersion();
         model.Serialize(ar);
         return model;
     }

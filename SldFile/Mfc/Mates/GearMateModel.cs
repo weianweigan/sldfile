@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using SldFile.Assembly.Mate;
 using SldFile.Binary;
 
 namespace SldFile.Mfc;

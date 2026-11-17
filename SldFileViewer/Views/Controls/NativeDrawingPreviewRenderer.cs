@@ -4,17 +4,15 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Media;
 using SldFile.Drawing;
-using SldFile.Drawing.Vector;
 
 namespace SldFileViewer.Views.Controls;
 
 /// <summary>Renders saved commands in sheet coordinates without fitting or inventing model geometry.</summary>
 internal static class NativeDrawingPreviewRenderer
 {
-    internal static void Draw(DrawingContext dc, DrawingSheetVectorData data, DrawingOverlayMode mode,
+    internal static void Draw(DrawingContext dc, DrawingPreviewDefinition preview, DrawingOverlayMode mode,
         double width, double height, double pixelsPerDip, bool hasRaster)
     {
-        var preview = data.Preview!;
         if (preview.PaperWidth <= 0 || preview.PaperHeight <= 0 || width <= 0 || height <= 0) return;
         // One uniform transform for every primitive. The native paper origin is lower left.
         double inset = hasRaster ? Math.Max(4, height * 0.018) : 0;
@@ -22,39 +20,67 @@ internal static class NativeDrawingPreviewRenderer
         double left = (width - preview.PaperWidth * scale) / 2;
         double bottom = (height + preview.PaperHeight * scale) / 2;
         Point Map(DrawingPreviewPoint p) => new(left + p.X * scale, bottom - p.Y * scale);
-        if (!hasRaster || preview.IsResolved && mode == DrawingOverlayMode.PureVectorCad)
+        if (!hasRaster)
             dc.DrawRectangle(Brushes.White, null, new Rect(0, 0, width, height));
         dc.PushClip(new RectangleGeometry(new Rect(0, 0, width, height)));
         foreach (var primitive in preview.Primitives)
         {
             var brush = new SolidColorBrush(Color.FromRgb((byte)(primitive.ColorRgb >> 16), (byte)(primitive.ColorRgb >> 8), (byte)primitive.ColorRgb));
             brush.Freeze();
-            var pen = new Pen(brush, Math.Max(0.1, primitive.LineWidth * scale));
-            if (primitive.LineStyle.Contains("CENTER", StringComparison.OrdinalIgnoreCase)) pen.DashStyle = DashStyles.DashDot;
-            else if (primitive.LineStyle.Contains("HIDDEN", StringComparison.OrdinalIgnoreCase)) pen.DashStyle = DashStyles.Dash;
+            var pen = new Pen(brush, Math.Max(0.1, primitive.LineWidth * scale))
+            {
+                StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round
+            };
+            var dash = primitive.GetDashPattern();
+            if (dash.Count > 0) pen.DashStyle = new DashStyle(dash.Select(d => d * scale / pen.Thickness), 0);
             pen.Freeze();
             if (primitive.Kind == DrawingPreviewPrimitiveKind.Text)
             {
-                if (mode == DrawingOverlayMode.SheetNotesOnly &&
-                    !data.Texts.Any(t => t.RawText == primitive.Text && t.IsSheetLevelNote)) continue;
+                if (mode == DrawingOverlayMode.SheetNotesOnly && !primitive.IsSheetLevelNote) continue;
                 var p = Map(primitive.Points[0]);
-                var text = new FormattedText(primitive.Text, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+                FormattedText Format(string value) => new FormattedText(value, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
                     new Typeface(new FontFamily(primitive.FontName), FontStyles.Normal,
                         primitive.IsBold ? FontWeights.Bold : FontWeights.Normal, FontStretches.Normal),
                     Math.Max(0.1, primitive.TextHeight * scale), brush, pixelsPerDip);
                 dc.PushTransform(new RotateTransform(-primitive.Angle * 180 / Math.PI, p.X, p.Y));
-                double nativeWidth = primitive.CharacterAdvances.Sum() * scale;
-                double stretch = nativeWidth > 0 && text.WidthIncludingTrailingWhitespace > 0
-                    ? nativeWidth / text.WidthIncludingTrailingWhitespace : primitive.WidthFactor;
-                dc.PushTransform(new ScaleTransform(stretch, 1, p.X, p.Y));
-                dc.DrawText(text, new Point(p.X, p.Y - text.Baseline));
-                dc.Pop(); dc.Pop();
+                var text = Format(primitive.Text);
+                var cells = primitive.GetTextElements();
+                if (cells.Count > 0)
+                {
+                    foreach (var cell in cells)
+                    {
+                        var glyph = Format(cell.Text);
+                        double x = p.X + cell.Offset * scale;
+                        double stretch = cell.Advance > 0 && glyph.WidthIncludingTrailingWhitespace > 0
+                            ? cell.Advance * scale / glyph.WidthIncludingTrailingWhitespace : 1;
+                        dc.PushTransform(new ScaleTransform(stretch, 1, x, p.Y));
+                        dc.DrawText(glyph, new Point(x, p.Y - text.Height));
+                        dc.Pop();
+                    }
+                }
+                else
+                {
+                    dc.PushTransform(new ScaleTransform(primitive.WidthFactor, 1, p.X, p.Y));
+                    dc.DrawText(text, new Point(p.X, p.Y - text.Height));
+                    dc.Pop();
+                }
+                dc.Pop();
                 continue;
             }
             if (mode == DrawingOverlayMode.SheetNotesOnly) continue;
             var points = primitive.Points;
             if (primitive.Kind == DrawingPreviewPrimitiveKind.Line)
-                dc.DrawLine(pen, Map(points[0]), Map(points[1]));
+            {
+                var geometry = new StreamGeometry();
+                bool closed = points.Count > 2 && (Map(points[0]) - Map(points[points.Count - 1])).Length < 1e-7;
+                using (var ctx = geometry.Open())
+                {
+                    ctx.BeginFigure(Map(points[0]), false, closed);
+                    int count = closed ? points.Count - 1 : points.Count;
+                    for (int i = 1; i < count; i++) ctx.LineTo(Map(points[i]), true, false);
+                }
+                geometry.Freeze(); dc.DrawGeometry(null, pen, geometry);
+            }
             else if (primitive.Kind == DrawingPreviewPrimitiveKind.Triangle)
             {
                 var geometry = new StreamGeometry();

@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Threading.Tasks;
-using SldFile;
+using SldFile.Assembly.Bom;
 using SldFile.Mfc;
 using SldFileViewer.Models;
 using SldFileViewer.Services;

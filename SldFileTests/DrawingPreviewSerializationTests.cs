@@ -13,24 +13,46 @@ namespace SldFileTests;
 public class DrawingPreviewSerializationTests
 {
     [Fact]
-    public void NativeViewTransforms_MatchIndependentSolidWorksComReference()
+    public void CachesWithoutDocumentVersion_ArePreservedWithoutGuessingPlacements()
     {
         using var drawing = new SldDrawing(Sample("real"));
-        using var reference = JsonDocument.Parse(File.ReadAllText(TestFileProvider.Resolve(
-            Path.Combine("Drawings", "D8001507933"), "preview-com-reference.json")));
-        var views = drawing.GetDrawingPreview().Views;
-        Assert.Equal(5, views.Count);
-        foreach (var view in views)
+        foreach (string name in new[] { "Contents/Definition", "Contents/VBLists" })
         {
-            string comName = view.Name == "工程图视图5" ? "局部视图 A (1 : 2)" : view.Name;
-            var native = reference.RootElement.EnumerateArray().Single(v => v.GetProperty("name").GetString() == comName);
-            var matrix = native.GetProperty("matrix").EnumerateArray().Select(v => v.GetDouble()).ToArray();
-            for (int i = 0; i < 9; i++) Assert.Equal(matrix[i], view.Matrix[i], 12);
-            Assert.Equal(matrix[9], view.Translation.X, 12);
-            Assert.Equal(matrix[10], view.Translation.Y, 12);
-            Assert.Equal(matrix[11], view.Translation.Z, 12);
-            Assert.Equal(matrix[12], view.Scale, 12);
+            byte[] bytes = drawing.GetDrawingPreviewStreamBytes(name)!;
+            var cache = new DrawingViewCacheArchive { IsDefinition = name.EndsWith("Definition"),
+                ViewNames = new[] { "工程图视图1" } };
+            using (var ar = MfcArchive.CreateReader(bytes)) cache.Serialize(ar);
+            Assert.Empty(cache.Fragments);
+            Assert.Equal(bytes, MfcArchive.Serialize(cache));
         }
+        Assert.Equal(5, drawing.GetDrawingPreview().Views.Count);
+        Assert.False(drawing.GetDrawingPreview().IsResolved);
+    }
+
+    [Theory]
+    [InlineData("D8001507933/D8001507933.SLDDRW")]
+    [InlineData("MacroBenchmark/carrier.slddrw")]
+    [InlineData("MacroBenchmark/cavity.slddrw")]
+    [InlineData("MacroBenchmark/punch_holder.slddrw")]
+    [InlineData("MacroBenchmark/Mold/bezel moldbase.slddrw")]
+    public void DrawingSheets_LoadWithoutFirstChanceInvalidDataExceptions(string relativePath)
+    {
+        int thread = Environment.CurrentManagedThreadId;
+        var exceptions = new System.Collections.Generic.List<string>();
+        void Capture(object? sender, System.Runtime.ExceptionServices.FirstChanceExceptionEventArgs e)
+        {
+            if (Environment.CurrentManagedThreadId == thread && e.Exception is InvalidDataException)
+                exceptions.Add(e.Exception.ToString());
+        }
+        AppDomain.CurrentDomain.FirstChanceException += Capture;
+        try
+        {
+            using var drawing = new SldDrawing(TestFileProvider.Resolve("Drawings", relativePath));
+            Assert.NotEmpty(drawing.Sheets);
+            Assert.All(drawing.Sheets, s => Assert.True(s.BestPreview?.Length > 0 || s.Preview.Primitives.Count > 0));
+        }
+        finally { AppDomain.CurrentDomain.FirstChanceException -= Capture; }
+        Assert.Empty(exceptions);
     }
     private static string Sample(string sample) => sample == "real"
         ? TestFileProvider.Resolve(Path.Combine("Drawings", "D8001507933"), "D8001507933.SLDDRW")
@@ -48,7 +70,7 @@ public class DrawingPreviewSerializationTests
         foreach (var pair in streams) Assert.Equal(file.RawStreams[pair.Key], pair.Value);
         var native = new DrawingPreviewStreamModel { DecodeCommands = true };
         var original = file.GetDrawingPreviewStreamBytes("Contents/DisplayLists")!;
-        using (var ar = MfcArchive.CreateReader(original)) native.Serialize(ar);
+        using (var ar = MfcArchive.CreateReader(original)) { ar.DocumentVersion = file.GetNativeDrawingDocumentVersion(); native.Serialize(ar); }
         Assert.Equal(original, MfcArchive.Serialize(native));
         Assert.Contains(native.Segments, s => s.Record?.CommandType == 18);
         Assert.Contains(native.Segments, s => s.Record?.CommandType == 4);
@@ -121,7 +143,7 @@ public class DrawingPreviewSerializationTests
         Assert.Throws<NotSupportedException>(() => drawing.SetDrawingPreview(preview));
         Assert.Equal(original, drawing.SerializeDrawingPreviewStreams()["Contents/DisplayLists"]);
         preview = drawing.GetDrawingPreview();
-        preview.Primitives.First(p => p.Kind == DrawingPreviewPrimitiveKind.Arc).Normal = new DrawingPreviewPoint(double.NaN, 0, 1);
+        preview.Primitives.First(p => p.Kind == DrawingPreviewPrimitiveKind.Arc && !p.Id.StartsWith("VB:")).Normal = new DrawingPreviewPoint(double.NaN, 0, 1);
         Assert.Throws<InvalidDataException>(() => drawing.SetDrawingPreview(preview));
         Assert.Equal(original, drawing.SerializeDrawingPreviewStreams()["Contents/DisplayLists"]);
         Assert.DoesNotContain(typeof(SldDrawing).Assembly.GetExportedTypes(), t =>

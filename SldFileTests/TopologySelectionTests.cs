@@ -29,6 +29,7 @@ public class TopologySelectionTests
     [InlineData("extrude_10mm.SLDPRT")]
     [InlineData("extrude_20mm.SLDPRT")]
     [InlineData("extrude_30mm.SLDPRT")]
+
     [InlineData("extrude_midplane.SLDPRT")]
     public void Extrude_ShouldExtractAvailableContoursAndCandidateSketchName(string fileName)
     {

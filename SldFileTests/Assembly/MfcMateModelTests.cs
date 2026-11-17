@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using SldFile;
+using SldFile.Assembly.Mate;
 using SldFile.Binary;
 using SldFile.Mfc;
 using Xunit;
@@ -567,7 +567,7 @@ public class MfcMateModelTests
         var sldAssemblyType = typeof(SldAssembly);
         Assert.True(sldAssemblyType.IsPublic);
 
-        var assembly = typeof(SldFile.AssemblyMateDefinitionData).Assembly;
+        var assembly = typeof(AssemblyMateDefinitionData).Assembly;
         var publicTypes = assembly.GetExportedTypes();
 
         // 1. All MateDefinitionData types must be public and in namespace SldFile

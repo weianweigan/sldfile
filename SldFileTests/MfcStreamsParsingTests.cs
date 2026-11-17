@@ -1,6 +1,6 @@
-using SldFile.Mfc;
 using SldFile;
 using SldFile.Binary;
+using SldFile.Mfc.General;
 
 namespace SldFileTests;
 

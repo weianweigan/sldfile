@@ -3,7 +3,7 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Binary;
-using SldFile.Mfc;
+using SldFile.Mfc.Features;
 using Xunit;
 
 namespace SldFileTests;

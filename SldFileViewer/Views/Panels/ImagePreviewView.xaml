@@ -39,6 +39,10 @@
                             VerticalAlignment="Center">
                         <TextBlock Text="{Binding ImageInfo}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Brush.Figma.Ink}" />
                     </Border>
+                    <TextBlock Text="{Binding VectorStatusText}" ToolTip="{Binding VectorDiagnosticText}"
+                               Visibility="{Binding HasVectorData, Converter={StaticResource BoolToVisibilityConverter}}"
+                               FontSize="11" Margin="10,0,0,0" MaxWidth="250" TextTrimming="CharacterEllipsis"
+                               Foreground="{StaticResource Brush.Figma.Ink}" VerticalAlignment="Center" />
                 </StackPanel>
 
                 <!-- Right: Action Tools & Switch to 3D -->
@@ -210,7 +214,7 @@
                         <controls:DrawingVectorCanvas
                             Width="{Binding PixelWidth}"
                             Height="{Binding PixelHeight}"
-                            VectorData="{Binding VectorData}"
+                            Preview="{Binding Preview}"
                             HasRasterImage="{Binding HasRasterImage}"
                             OverlayMode="{Binding OverlayMode}"
                             IsOverlayEnabled="{Binding IsVectorOverlayEnabled}"

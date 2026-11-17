@@ -54,6 +54,9 @@ internal class SolidWorksInformation
     
     /// <summary>Mass properties serialized string.</summary>
     public string? MassPropConfig0 { get; set; }
+
+    /// <summary>Raw "SW-All Sheet Format Data" string for drawings.</summary>
+    public string? AllSheetFormatData { get; set; }
     
     /// <summary>Boolean flag (int) indicating if the part has a design table.</summary>
     public int? HasDesignTable { get; set; }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using SldFile;
 using SldFile.Assembly;
+using SldFile.Assembly.Bom;
 using SldFile.Mfc;
 using SldFileViewer.Models;
 

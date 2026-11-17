@@ -180,7 +180,7 @@ internal sealed class EndFace3IntSurfIdRepData : IFeatureData
 /// <summary>
 /// From-sketch-entity 3-intersection surface ID representation (moFromSktEnt3IntSurfIdRep_c).
 /// </summary>
-internal sealed class FromSktEnt3IntSurfIdRepData : IFeatureData
+internal sealed partial class FromSktEnt3IntSurfIdRepData : IFeatureData
 {
     public string ClassName => "moFromSktEnt3IntSurfIdRep_c";
     public uint TypeId => 0;

@@ -53,4 +53,10 @@
         <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Mfc\Assembly\" />
+      <Folder Include="Mfc\Sketches\" />
+      <Folder Include="Mfc\Drawings\" />
+    </ItemGroup>
+
 </Project>

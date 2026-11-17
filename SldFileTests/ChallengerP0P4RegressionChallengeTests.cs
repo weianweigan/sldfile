@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using SldFile;
+using SldFile.Assembly.Mate;
 using SldFile.Binary;
-using SldFile.Mfc;
+using SldFile.Mfc.Configs;
 using Xunit;
 
 namespace SldFileTests;

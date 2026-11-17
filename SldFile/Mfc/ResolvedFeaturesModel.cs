@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using SldFile.Mfc;
+using SldFile.Mfc.Features;
 
 using SldFile.Binary;
 namespace SldFile.Mfc;

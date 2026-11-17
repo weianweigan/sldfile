@@ -128,21 +128,21 @@ public partial class MainViewModel : ObservableObject
             string initCfgName = SelectedConfiguration?.Name ?? "默认";
             byte[]? initialImage = null;
             string previewDesc = $"模型预览 (配置: {initCfgName})";
-            SldFile.Drawing.Vector.DrawingSheetVectorData? initialVectorData = null;
+            SldFile.Drawing.DrawingPreviewDefinition? initialVectorData = null;
             if (sw.Kind == DocumentKind.Drawing)
             {
                 var sheets = _docService.GetDrawingSheets();
                 var firstSheet = sheets.FirstOrDefault();
                 initialImage = _docService.GetBestSheetPreviewImage(0) ?? firstSheet?.BestPreview ?? _docService.GetBestPreviewImage(0);
                 previewDesc = firstSheet != null ? $"工程图纸: {firstSheet.Name}" : "工程图预览";
-                initialVectorData = firstSheet?.VectorData;
+                initialVectorData = firstSheet?.Preview;
             }
             else
             {
                 initialImage = _docService.GetBestPreviewImage(initCfgIdx);
             }
 
-            if (initialImage != null || initialVectorData?.HasVectorData == true)
+            if (initialImage != null || initialVectorData?.Primitives.Count > 0)
             {
                 ImagePreview.LoadImage(initialImage, previewDesc, initialVectorData, sw.Kind == DocumentKind.Drawing ? 0 : -1);
             }
@@ -261,21 +261,21 @@ public partial class MainViewModel : ObservableObject
                 string cfgName = SelectedConfiguration?.Name ?? "默认";
                 byte[]? img = null;
                 string desc = $"模型预览 (配置: {cfgName})";
-                SldFile.Drawing.Vector.DrawingSheetVectorData? vectorData = null;
+                SldFile.Drawing.DrawingPreviewDefinition? vectorData = null;
                 if (_docService.CurrentFile?.Kind == DocumentKind.Drawing)
                 {
                     var sheets = _docService.GetDrawingSheets();
                     var firstSheet = sheets.FirstOrDefault();
                     img = _docService.GetBestSheetPreviewImage(0) ?? firstSheet?.BestPreview ?? _docService.GetBestPreviewImage(0);
                     desc = firstSheet != null ? $"工程图纸: {firstSheet.Name}" : "工程图预览";
-                    vectorData = firstSheet?.VectorData;
+                    vectorData = firstSheet?.Preview;
                 }
                 else
                 {
                     img = _docService.GetBestPreviewImage(cfgIdx);
                 }
 
-                if (img != null || vectorData?.HasVectorData == true)
+                if (img != null || vectorData?.Primitives.Count > 0)
                 {
                     ImagePreview.LoadImage(img, desc, vectorData, _docService.CurrentFile?.Kind == DocumentKind.Drawing ? 0 : -1);
                 }
@@ -364,7 +364,7 @@ public partial class MainViewModel : ObservableObject
                 if (node.Tag is DrawingSheetInfo sheet)
                 {
                     var sheetImg = _docService.GetBestSheetPreviewImage(sheet.SheetIndex) ?? sheet.BestPreview ?? sheet.PreviewPng;
-                    ImagePreview.LoadImage(sheetImg, $"工程图纸: {sheet.Name}", sheet.VectorData, sheet.SheetIndex);
+                    ImagePreview.LoadImage(sheetImg, $"工程图纸: {sheet.Name}", sheet.Preview, sheet.SheetIndex);
                     CurrentView = ImagePreview;
                 }
                 break;

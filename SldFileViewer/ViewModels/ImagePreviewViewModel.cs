@@ -5,7 +5,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using SldFile.Drawing.Vector;
+using SldFile.Drawing;
 using SldFile;
 using SldFileViewer.Services;
 using SldFileViewer.Views.Controls;
@@ -61,7 +61,9 @@ public partial class ImagePreviewViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasVectorData))]
     [NotifyPropertyChangedFor(nameof(VectorStatusText))]
-    private DrawingSheetVectorData? _vectorData;
+    [NotifyPropertyChangedFor(nameof(VectorDiagnosticText))]
+    [NotifyPropertyChangedFor(nameof(IsRasterImageVisible))]
+    private DrawingPreviewDefinition? _preview;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(VectorOverlayButtonText))]
@@ -74,9 +76,7 @@ public partial class ImagePreviewViewModel : ObservableObject
 
     public bool IsRasterImageVisible => HasRasterImage && (
         OverlayMode != DrawingOverlayMode.PureVectorCad ||
-        VectorData == null ||
-        VectorData.Preview?.IsResolved == false ||
-        !VectorData.HasLines);
+        !HasVectorData);
 
     public bool IsVectorOverlayEnabled
     {
@@ -94,21 +94,25 @@ public partial class ImagePreviewViewModel : ObservableObject
         }
     }
 
-    public bool HasVectorData => VectorData != null && VectorData.HasVectorData;
+    public bool HasVectorData => Preview?.Primitives.Count > 0;
+
+    public string VectorDiagnosticText => Preview == null ? string.Empty : string.Join(Environment.NewLine,
+        Preview.Issues.Select(i => $"{i.Code}: {i.Source}" +
+            (i.FirstOffset is int offset ? $" @0x{offset:X8}" : string.Empty) + $" — {i.Message} ×{i.Occurrences}"));
 
     public string VectorStatusText
     {
         get
         {
             if (!HasVectorData) return "无矢量数据";
-            if (VectorData!.Preview is { IsResolved: false } preview)
-                return $"原生矢量预览: {preview.Primitives.Count} 图元（部分解析）";
-            int lineCount = VectorData!.Lines?.Count ?? 0;
-            int textCount = VectorData!.Texts?.Count ?? 0;
+            if (Preview is { IsResolved: false } preview)
+                return $"原生矢量预览: {preview.Primitives.Count} 图元（部分解析，{preview.Issues.Count} 类缺失）";
+            int lineCount = Preview!.Primitives.Count(p => p.Kind != DrawingPreviewPrimitiveKind.Text);
+            int textCount = Preview.Primitives.Count(p => p.Kind == DrawingPreviewPrimitiveKind.Text);
             return OverlayMode switch
             {
                 DrawingOverlayMode.PureVectorCad => $"纯矢量 CAD ({lineCount} 线条 + {textCount} 注释)",
-                DrawingOverlayMode.SheetNotesOnly => $"矢量注释 ({(VectorData!.Texts != null ? VectorData!.Texts.Count(t => t.IsSheetLevelNote) : 0)} 项图纸文字)",
+                DrawingOverlayMode.SheetNotesOnly => $"矢量注释 ({Preview.Primitives.Count(p => p.Kind == DrawingPreviewPrimitiveKind.Text && p.IsSheetLevelNote)} 项图纸文字)",
                 DrawingOverlayMode.AllAnnotations => $"全图 CAD ({textCount} 图元)",
                 _ => "矢量增强: 关"
             };
@@ -245,12 +249,12 @@ public partial class ImagePreviewViewModel : ObservableObject
         ZoomText = $"{Math.Round(zoomRatio * 100):0}%";
     }
 
-    public void LoadImage(byte[]? imageBytes, string description = "", DrawingSheetVectorData? vectorData = null, int sheetIndex = -1)
+    public void LoadImage(byte[]? imageBytes, string description = "", DrawingPreviewDefinition? preview = null, int sheetIndex = -1)
     {
-        VectorData = vectorData;
+        Preview = preview;
         CurrentSheetIndex = sheetIndex;
         IsDrawingSheet = _docService.CurrentFile is SldDrawing && sheetIndex >= 0;
-        OverlayMode = DrawingOverlayMode.SheetNotesOnly;
+        OverlayMode = preview?.Views.Count > 0 ? DrawingOverlayMode.PureVectorCad : DrawingOverlayMode.SheetNotesOnly;
 
         if (imageBytes == null || imageBytes.Length == 0)
         {
@@ -259,11 +263,10 @@ public partial class ImagePreviewViewModel : ObservableObject
             if (HasVectorData)
             {
                 HasImage = true;
-                PixelWidth = Math.Max(1, (int)Math.Ceiling(VectorData!.PaperWidthMm * 96 / 25.4));
-                PixelHeight = Math.Max(1, (int)Math.Ceiling(VectorData.PaperHeightMm * 96 / 25.4));
-                VectorData.CalculatePixelCoordinates(PixelWidth, PixelHeight);
+                PixelWidth = Math.Max(1, (int)Math.Ceiling(Preview!.PaperWidth * 96 / 0.0254));
+                PixelHeight = Math.Max(1, (int)Math.Ceiling(Preview.PaperHeight * 96 / 0.0254));
                 IsHighDefinition = false;
-                OverlayMode = DrawingOverlayMode.AllAnnotations;
+                OverlayMode = Preview.Views.Count > 0 ? DrawingOverlayMode.PureVectorCad : DrawingOverlayMode.AllAnnotations;
                 ImageInfo = $"{description} - 原生矢量预览";
                 RequestFitToWindow?.Invoke();
                 return;
@@ -293,16 +296,9 @@ public partial class ImagePreviewViewModel : ObservableObject
             PixelHeight = bmp.PixelHeight;
             IsHighDefinition = bmp.PixelWidth >= 1920 || bmp.PixelHeight >= 1080;
 
-            if (VectorData != null && VectorData.HasVectorData)
-            {
-                VectorData.CalculatePixelCoordinates(bmp.PixelWidth, bmp.PixelHeight);
-            }
-
             string hdTag = IsHighDefinition ? " [高清]" : "";
-            string vectorTag = (VectorData != null && VectorData.HasVectorData)
-                ? (VectorData.HasLines
-                    ? $" [矢量 CAD: {VectorData.Lines.Count} 线条, {VectorData.Texts.Count} 注释]"
-                    : $" [矢量 CAD: {VectorData.Texts.Count} 图元]")
+            string vectorTag = HasVectorData
+                ? $" [矢量 CAD: {Preview!.Primitives.Count} 图元]"
                 : "";
             ImageInfo = $"{description}{hdTag}{vectorTag} - 分辨率: {bmp.PixelWidth} x {bmp.PixelHeight} px ({(imageBytes.Length + 1023) / 1024} KB)";
 

@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Xml.Linq;
 using SldFile;
 using SldFile.Assembly;
+using SldFile.Assembly.Bom;
 using SldFile.Mfc;
 using SldFileViewer.Models;
 
@@ -320,7 +321,9 @@ public sealed class SwDocumentService : ISwDocumentService
 
     public IReadOnlyList<DrawingSheetInfo> GetDrawingSheets()
     {
-        return _currentFile?.GetDrawingSheets() ?? Array.Empty<DrawingSheetInfo>();
+        // Tree construction and initial preview share the same decoded sheets.
+        return _currentFile is SldDrawing drawing ? drawing.Sheets :
+            _currentFile?.GetDrawingSheets() ?? Array.Empty<DrawingSheetInfo>();
     }
 
     public byte[]? GetSheetPreviewPng(int sheetIndex)

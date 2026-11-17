@@ -6,6 +6,8 @@ using System.Text;
 using System.Linq;
 using System.Threading.Tasks;
 using SldFile.Binary;
+using SldFile.Assembly.Bom;
+using SldFile.Mfc.Features;
 
 namespace SldFile;
 
@@ -585,7 +587,23 @@ public abstract partial class SwFile
         var defnStream = GetDrawingPreviewStreamBytes("Contents/Definition");
         var vbListsStream = GetDrawingPreviewStreamBytes("Contents/VBLists");
         var displayListsStream = GetDrawingPreviewStreamBytes("Contents/DisplayLists");
-        return DrawingReader.ReadSheets(keywordsXml, DrawingSheetNames, GetSheetPreviewPng, GetBestSheetPreviewImage, defnStream, vbListsStream, displayListsStream);
+        string? sheetFormatData = _metadataStore?.ReadSheetFormatData() ?? SolidWorksInformation.AllSheetFormatData;
+        return DrawingReader.ReadSheets(keywordsXml, DrawingSheetNames, GetSheetPreviewPng, GetBestSheetPreviewImage, defnStream, vbListsStream, displayListsStream, GetNativeDrawingDocumentVersion(), sheetFormatData);
+    }
+
+    internal int GetNativeDrawingDocumentVersion()
+    {
+        const string prefix = "_MO_VERSION_";
+        int version = 0;
+        foreach (string path in RawStreams.Keys)
+        {
+            int end = path.IndexOf('/');
+            if (end <= prefix.Length || !path.StartsWith(prefix, StringComparison.Ordinal)) continue;
+            if (!int.TryParse(path.Substring(prefix.Length, end - prefix.Length), out int candidate)) continue;
+            if (version != 0 && candidate != version) return 0;
+            version = candidate;
+        }
+        return version;
     }
 
     internal byte[]? GetDrawingPreviewStreamBytes(string name)

@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using SldFile;
 using SldFile.Assembly;
+using SldFile.Assembly.Bom;
 using SldFile.Mfc;
 using Xunit;
 

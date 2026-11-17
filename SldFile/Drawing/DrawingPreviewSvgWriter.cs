@@ -1,7 +1,6 @@
 using System;
 using System.Globalization;
 using System.Linq;
-using System.Text;
 using System.Xml.Linq;
 
 namespace SldFile.Drawing;
@@ -16,9 +15,13 @@ internal static class DrawingPreviewSvgWriter
             new XAttribute("width", N(preview.PaperWidth * 1000) + "mm"),
             new XAttribute("height", N(preview.PaperHeight * 1000) + "mm"),
             new XAttribute("viewBox", $"0 0 {N(preview.PaperWidth)} {N(preview.PaperHeight)}"));
-        root.Add(new XElement(svg + "metadata", preview.ResolutionMessage));
+        root.Add(new XElement(svg + "metadata", preview.ResolutionMessage,
+            preview.Issues.Select(i => new XElement("issue", new XAttribute("code", i.Code),
+                new XAttribute("source", i.Source), new XAttribute("occurrences", i.Occurrences),
+                i.CommandType is int type ? new XAttribute("command", type) : null,
+                i.FirstOffset is int offset ? new XAttribute("offset", $"0x{offset:X8}") : null, i.Message))));
         root.Add(new XElement(svg + "rect", new XAttribute("width", "100%"), new XAttribute("height", "100%"), new XAttribute("fill", "white")));
-        if (!preview.IsResolved && fallback?.Length > 0)
+        if (preview.Primitives.Count == 0 && fallback?.Length > 0)
         {
             string mime = fallback[0] == 0x42 ? "image/bmp" : "image/png";
             root.Add(new XElement(svg + "image", new XAttribute("width", N(preview.PaperWidth)), new XAttribute("height", N(preview.PaperHeight)),
@@ -41,13 +44,32 @@ internal static class DrawingPreviewSvgWriter
                 double x = points[0].X, y = preview.PaperHeight - points[0].Y;
                 element = new XElement(svg + "text", new XAttribute("x", N(x)), new XAttribute("y", N(y)),
                     new XAttribute("font-family", p.FontName), new XAttribute("font-size", N(p.TextHeight)),
+                    new XAttribute("dominant-baseline", "text-after-edge"),
+                    new XAttribute("font-weight", p.IsBold ? "bold" : "normal"),
                     new XAttribute("fill", color),
                     new XAttribute("transform", $"translate({N(x)} {N(y)}) rotate({N(-p.Angle * 180 / Math.PI)}) scale({N(p.WidthFactor)} 1) translate({N(-x)} {N(-y)})"), p.Text);
+                var textElements = p.GetTextElements();
+                if (textElements.Count > 0 && p.WidthFactor > 0)
+                {
+                    element.RemoveNodes();
+                    foreach (var cell in textElements)
+                    {
+                        var span = new XElement(svg + "tspan", new XAttribute("x", N(x + cell.Offset / p.WidthFactor)), cell.Text);
+                        if (cell.Advance > 0)
+                        {
+                            span.SetAttributeValue("textLength", N(cell.Advance / p.WidthFactor));
+                            span.SetAttributeValue("lengthAdjust", "spacingAndGlyphs");
+                        }
+                        element.Add(span);
+                    }
+                }
                 notes.Add(element); continue;
             }
             if (p.Kind == DrawingPreviewPrimitiveKind.Line)
-                element = new XElement(svg + "line", new XAttribute("x1", N(points[0].X)), new XAttribute("y1", N(points[0].Y)),
-                    new XAttribute("x2", N(points[1].X)), new XAttribute("y2", N(points[1].Y)));
+                element = points.Count == 2
+                    ? new XElement(svg + "line", new XAttribute("x1", N(points[0].X)), new XAttribute("y1", N(points[0].Y)),
+                        new XAttribute("x2", N(points[1].X)), new XAttribute("y2", N(points[1].Y)))
+                    : new XElement(svg + "polyline", new XAttribute("points", string.Join(" ", points.Select(pt => N(pt.X) + "," + N(pt.Y)))));
             else if (p.Kind == DrawingPreviewPrimitiveKind.Triangle)
                 element = new XElement(svg + "polygon", new XAttribute("points", string.Join(" ", points.Select(pt => N(pt.X) + "," + N(pt.Y)))), new XAttribute("fill", color));
             else
@@ -66,14 +88,15 @@ internal static class DrawingPreviewSvgWriter
                 }
             }
             element.Add(new XAttribute("stroke", color), new XAttribute("stroke-width", N(p.LineWidth)));
+            element.Add(new XAttribute("stroke-linecap", "round"), new XAttribute("stroke-linejoin", "round"));
             if (p.Kind != DrawingPreviewPrimitiveKind.Triangle) element.Add(new XAttribute("fill", "none"));
-            if (p.LineStyle.IndexOf("CENTER", StringComparison.OrdinalIgnoreCase) >= 0)
-                element.Add(new XAttribute("stroke-dasharray", ".003 .001 .0005 .001"));
-            else if (p.LineStyle.IndexOf("HIDDEN", StringComparison.OrdinalIgnoreCase) >= 0)
+            var dash = p.GetDashPattern();
+            if (dash.Count > 0) element.Add(new XAttribute("stroke-dasharray", string.Join(" ", dash.Select(N))));
+            if (p.LineStyle.IndexOf("HIDDEN", StringComparison.OrdinalIgnoreCase) >= 0)
             {
-                element.Add(new XAttribute("stroke-dasharray", ".002 .001"));
                 element.Add(new XAttribute("class", "hidden-line"));
             }
+            if (p.ViewName.Length > 0) element.SetAttributeValue("data-view", p.ViewName);
             geometry.Add(element);
         }
         return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" + root.ToString();

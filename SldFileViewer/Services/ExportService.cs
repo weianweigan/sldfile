@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using SldFile;
-using SldFile.Assembly;
+using SldFile.Assembly.Bom;
 using SldFile.Geometry.Step;
 using SldFileViewer.Models;
 

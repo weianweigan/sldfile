@@ -1,152 +1,88 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Xml;
 using System.Xml.Linq;
-using SldFile.Drawing.Vector;
+using SldFile.Drawing;
+using SldFile.Mfc;
 
 namespace SldFile;
 
-/// <summary>
-/// Reads drawing sheets, views, sheet previews, and vector graphic metadata from drawing streams.
-/// </summary>
+/// <summary>Reads sheet metadata and the saved native preview without a second vector model.</summary>
 internal static class DrawingReader
 {
+    internal static bool IsSheetFormat(string? type) =>
+        string.Equals(type, "图纸格式", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(type, "SheetFormat", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(type, "Sheet Format", StringComparison.OrdinalIgnoreCase);
+
     public static IReadOnlyList<DrawingSheetInfo> ReadSheets(
-        string? keywordsXml,
-        IReadOnlyList<string> sheetNamesFromStream,
-        Func<int, byte[]?> getSheetPreview,
-        Func<int, byte[]?>? getHighResPreview = null,
-        byte[]? definitionStream = null,
-        byte[]? vbListsStream = null,
-        byte[]? displayListsStream = null)
+        string? keywordsXml, IReadOnlyList<string> sheetNamesFromStream,
+        Func<int, byte[]?> getSheetPreview, Func<int, byte[]?>? getHighResPreview = null,
+        byte[]? definitionStream = null, byte[]? vbListsStream = null, byte[]? displayListsStream = null,
+        int documentVersion = 0, string? sheetFormatData = null)
     {
         var sheets = new List<DrawingSheetInfo>();
-
-        if (!string.IsNullOrEmpty(keywordsXml))
+        var formats = DrawingSheetFormatInfo.ParseAll(sheetFormatData);
+        var xmlSheets = Array.Empty<XElement>();
+        int start = keywordsXml?.IndexOf('<') ?? -1;
+        if (start >= 0)
         {
-            int start = keywordsXml!.IndexOf('<');
-            if (start >= 0)
+            try
             {
-                if (start > 0) keywordsXml = keywordsXml.Substring(start);
-                try
-                {
-                    var doc = XDocument.Parse(keywordsXml);
-                    int sheetIdx = 0;
-                    foreach (var sheetElem in doc.Descendants().Where(e => e.Name.LocalName == "Sheet"))
-                    {
-                        string sheetType = sheetElem.Attribute("Type")?.Value ?? string.Empty;
-                        // Filter out sheet formats, keep real drawing sheets
-                        if (sheetType.Equals("图纸格式", StringComparison.OrdinalIgnoreCase) ||
-                            sheetType.Equals("SheetFormat", StringComparison.OrdinalIgnoreCase))
-                        {
-                            continue;
-                        }
-
-                        string sheetName = sheetElem.Attribute("Name")?.Value ?? $"Sheet{sheetIdx + 1}";
-                        var views = new List<DrawingViewInfo>();
-
-                        foreach (var viewElem in sheetElem.Elements().Where(e => e.Name.LocalName == "View"))
-                        {
-                            string viewName = viewElem.Attribute("Name")?.Value ?? string.Empty;
-                            string cfg = viewElem.Attribute("Description")?.Value ?? string.Empty;
-                            string modelPath = viewElem.Value?.Trim() ?? string.Empty;
-
-                            views.Add(new DrawingViewInfo
-                            {
-                                Name = viewName,
-                                ReferencedModelPath = modelPath,
-                                ReferencedConfiguration = cfg,
-                            });
-                        }
-
-                        byte[]? preview = getSheetPreview(sheetIdx);
-                        byte[]? highRes = getHighResPreview?.Invoke(sheetIdx);
-
-                        DrawingSheetVectorData? vectorData = null;
-                        if ((definitionStream != null && definitionStream.Length > 0) ||
-                            (displayListsStream != null && displayListsStream.Length > 0))
-                        {
-                            vectorData = DrawingVectorReader.ReadVectorData(definitionStream, keywordsXml, sheetIdx, vbListsStream, displayListsStream, sheetNamesFromStream.Count);
-                            byte[]? bestImage = highRes ?? preview;
-                            if (bestImage != null && vectorData != null && vectorData.HasVectorData)
-                            {
-                                var (w, h) = SwFile.GetImageDimensions(bestImage);
-                                if (w > 0 && h > 0)
-                                {
-                                    vectorData.CalculatePixelCoordinates(w, h);
-                                }
-                            }
-                        }
-
-                        sheets.Add(new DrawingSheetInfo
-                        {
-                            Name = sheetName,
-                            SheetIndex = sheetIdx,
-                            PreviewPng = preview,
-                            HighResPreview = highRes,
-                            VectorData = vectorData,
-                            Views = views.AsReadOnly()
-                        });
-                        sheetIdx++;
-                    }
-                }
-                catch
-                {
-                    // XML parse failure, fallback
-                }
+                xmlSheets = XDocument.Parse(keywordsXml!.Substring(start)).Descendants()
+                    .Where(e => e.Name.LocalName == "Sheet" && !IsSheetFormat(e.Attribute("Type")?.Value)).ToArray();
             }
+            catch (XmlException) { }
         }
-
-        // Fallback: use sheet names from SheetNames stream if XML yielded nothing
-        if (sheets.Count == 0 && sheetNamesFromStream.Count > 0)
+        int count = Math.Max(1, xmlSheets.Length > 0 ? xmlSheets.Length : sheetNamesFromStream.Count);
+        var display = new DrawingPreviewStreamModel { DecodeCommands = true };
+        using (var ar = MfcArchive.CreateReader(displayListsStream ?? Array.Empty<byte>()))
         {
-            for (int i = 0; i < sheetNamesFromStream.Count; i++)
+            ar.DocumentVersion = documentVersion; display.Serialize(ar);
+        }
+        // Read the native Definition prefix once for all sheets. The remaining
+        // root data stays opaque in its lossless serializer.
+        var definition = DrawingViewCacheArchive.Read(definitionStream, true, Array.Empty<string>(), documentVersion);
+        var nativeDisplay = display.NativeArchive;
+        var viewNames = definition.Fragments.Select(f => f.Owner).ToArray();
+        if (viewNames.Length == 0 && xmlSheets.Length == 1)
+            viewNames = xmlSheets[0].Elements().Where(e => e.Name.LocalName == "View").Select(e => e.Attribute("Name")?.Value ?? string.Empty).ToArray();
+        DrawingViewCacheArchive? buckets = count == 1 && nativeDisplay?.Views.Length > 0
+            ? DrawingViewCacheArchive.Read(vbListsStream, false, viewNames, documentVersion, true)
+            : null;
+        for (int i = 0; i < count; i++)
+        {
+            var element = i < xmlSheets.Length ? xmlSheets[i] : null;
+            string name = element?.Attribute("Name")?.Value ?? (i < sheetNamesFromStream.Count ? sheetNamesFromStream[i] : "Sheet1");
+            var format = formats.FirstOrDefault(f => string.Equals(f.SheetName, name, StringComparison.OrdinalIgnoreCase))
+                ?? (i < formats.Count ? formats[i] : formats.FirstOrDefault());
+            var preview = display.ToDefinition(i, count);
+            var nativeSheet = i < definition.NativeSheets.Length ? definition.NativeSheets[i].NativeSheet : null;
+            if (format != null)
             {
-                byte[]? preview = getSheetPreview(i);
-                byte[]? highRes = getHighResPreview?.Invoke(i);
-
-                DrawingSheetVectorData? vectorData = null;
-                if ((definitionStream != null && definitionStream.Length > 0) ||
-                    (displayListsStream != null && displayListsStream.Length > 0))
-                {
-                    vectorData = DrawingVectorReader.ReadVectorData(definitionStream, keywordsXml, i, vbListsStream, displayListsStream, sheetNamesFromStream.Count);
-                    byte[]? bestImage = highRes ?? preview;
-                    if (bestImage != null && vectorData != null && vectorData.HasVectorData)
-                    {
-                        var (w, h) = SwFile.GetImageDimensions(bestImage);
-                        if (w > 0 && h > 0)
-                        {
-                            vectorData.CalculatePixelCoordinates(w, h);
-                        }
-                    }
-                }
-
-                sheets.Add(new DrawingSheetInfo
-                {
-                    Name = sheetNamesFromStream[i],
-                    SheetIndex = i,
-                    PreviewPng = preview,
-                    HighResPreview = highRes,
-                    VectorData = vectorData,
-                    Views = Array.Empty<DrawingViewInfo>()
-                });
+                preview.PaperWidth = format.PaperWidthMm / 1000;
+                preview.PaperHeight = format.PaperHeightMm / 1000;
             }
-        }
-
-        // Final fallback: single default sheet
-        if (sheets.Count == 0)
-        {
+            else if (nativeSheet != null && nativeSheet.State3F0 > 0 && nativeSheet.State3F8 > 0)
+            {
+                preview.PaperWidth = nativeSheet.State3F0;
+                preview.PaperHeight = nativeSheet.State3F8;
+            }
+            if (buckets != null && nativeDisplay != null) DrawingPreviewComposer.AppendViews(preview, nativeDisplay, buckets, viewNames);
+            else if (nativeDisplay?.Views.Length > 0)
+                preview.AddIssue("ViewCacheUnavailable", "Saved view geometry is unavailable for this sheet.", "Contents/VBLists");
             sheets.Add(new DrawingSheetInfo
             {
-                Name = "Sheet1",
-                SheetIndex = 0,
-                PreviewPng = getSheetPreview(0),
-                HighResPreview = getHighResPreview?.Invoke(0),
-                VectorData = DrawingVectorReader.ReadVectorData(definitionStream, keywordsXml, 0, vbListsStream, displayListsStream),
-                Views = Array.Empty<DrawingViewInfo>(),
+                Name = name, SheetIndex = i, PreviewPng = getSheetPreview(i), HighResPreview = getHighResPreview?.Invoke(i),
+                Preview = preview, FormatInfo = format,
+                Views = element?.Elements().Where(e => e.Name.LocalName == "View").Select(e => new DrawingViewInfo
+                {
+                    Name = e.Attribute("Name")?.Value ?? string.Empty,
+                    ReferencedModelPath = e.Value.Trim(), ReferencedConfiguration = e.Attribute("Description")?.Value ?? string.Empty
+                }).ToArray() ?? Array.Empty<DrawingViewInfo>()
             });
         }
-
         return sheets;
     }
 }

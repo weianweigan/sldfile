@@ -109,7 +109,7 @@ internal sealed class DrCachedPolyline
 /// Drawing sheet MFC model (moDrSheet, swFmDrSheet = 40).
 /// Bi-directionally serializes sheet metadata, paper dimensions, and coordinate frames.
 /// </summary>
-internal sealed class DrSheetMfcModel : IMfcSerializable
+internal sealed partial class DrSheetMfcModel : IMfcSerializable
 {
     public const string MfcClassName = "moDrSheet";
     public const uint TypeId = 40; // swFmDrSheet
@@ -139,6 +139,7 @@ internal sealed class DrSheetMfcModel : IMfcSerializable
 
     public void Serialize(MfcArchive ar)
     {
+        if (NativeSheet != null) { NativeSheet.Serialize(ar); return; }
         if (ar.IsStoring)
         {
             if (RawData != null && RawData.Length > 0)
@@ -249,7 +250,7 @@ internal sealed class DrSheetMfcModel : IMfcSerializable
 /// Drawing sheet template MFC model (moDrTemplate_c, swFmDrTemplate = 41).
 /// Reads sheet template format lines and title blocks.
 /// </summary>
-internal sealed class DrTemplateMfcModel : IMfcSerializable
+internal sealed partial class DrTemplateMfcModel : IMfcSerializable
 {
     public const string MfcClassName = "moDrTemplate_c";
     public const uint TypeId = 41;
@@ -265,6 +266,7 @@ internal sealed class DrTemplateMfcModel : IMfcSerializable
 
     public void Serialize(MfcArchive ar)
     {
+        if (NativeTemplate != null) { NativeTemplate.Serialize(ar); return; }
         if (ar.IsStoring)
         {
             if (RawData != null && RawData.Length > 0)
@@ -312,7 +314,7 @@ internal sealed class DrTemplateMfcModel : IMfcSerializable
 /// Drawing view MFC model (moDrView_c, moDrAbsoluteView_c, moDrUnfoldedView_c).
 /// Stores drawing view position, orientation, scale, and referenced model.
 /// </summary>
-internal sealed class DrViewMfcModel : IMfcSerializable
+internal sealed partial class DrViewMfcModel : IMfcSerializable
 {
     public const string GenericViewClassName = "moView_c";
     public const string AbsoluteViewClassName = "moAbsoluteView";
@@ -343,6 +345,7 @@ internal sealed class DrViewMfcModel : IMfcSerializable
 
     public void Serialize(MfcArchive ar)
     {
+        if (NativeView != null) { NativeView.Serialize(ar); return; }
         if (ar.IsStoring)
         {
             if (RawData != null && RawData.Length > 0)
@@ -458,7 +461,7 @@ internal sealed class DrViewMfcModel : IMfcSerializable
 /// Drawing note / annotation MFC model (moDisplayNote_c, moCompNote_c).
 /// Reads text, font, leader line geometry, and balloon properties.
 /// </summary>
-internal sealed class DrNoteMfcModel : IMfcSerializable
+internal sealed partial class DrNoteMfcModel : IMfcSerializable
 {
     public const string DisplayNoteClassName = "moDisplayNote_c";
     public const string CompNoteClassName = "moCompNote_c";
@@ -487,6 +490,9 @@ internal sealed class DrNoteMfcModel : IMfcSerializable
 
     public void Serialize(MfcArchive ar)
     {
+        if (NativeComponent != null) { NativeComponent.Serialize(ar); return; }
+        if (NativeData != null) { NativeData.Serialize(ar); return; }
+        if (NativeDisplay != null) { NativeDisplay.Serialize(ar); return; }
         if (ar.IsStoring)
         {
             if (RawData != null && RawData.Length > 0)
@@ -590,7 +596,7 @@ internal sealed class DrNoteMfcModel : IMfcSerializable
 /// Drawing dimension MFC model (moDimBackupDef_c, moDisplayDistanceDim_c).
 /// Decodes dimension value, text override, witness and leader lines.
 /// </summary>
-internal sealed class DrDimensionMfcModel : IMfcSerializable
+internal sealed partial class DrDimensionMfcModel : IMfcSerializable
 {
     public const string DimBackupDefClassName = "moDimBackupDef_c";
     public const string DisplayDistanceDimClassName = "moDisplayDistanceDim_c";
@@ -605,6 +611,8 @@ internal sealed class DrDimensionMfcModel : IMfcSerializable
 
     public DrDimensionMfcModel() { }
 
+    internal NativeBackupState? NativeBackup;
+
     public DrDimensionMfcModel(string text, double? value, double posX, double posY)
     {
         Text = text;
@@ -615,6 +623,7 @@ internal sealed class DrDimensionMfcModel : IMfcSerializable
 
     public void Serialize(MfcArchive ar)
     {
+        if (NativeBackup != null) { NativeBackup.Serialize(ar); return; }
         if (ar.IsStoring)
         {
             if (RawData != null && RawData.Length > 0)
@@ -734,6 +743,7 @@ internal sealed class DrViewBucketMfcModel : IMfcSerializable
 
     public List<DrCachedLineSegment> Lines { get; } = new();
     public List<DrCachedPolyline> Polylines { get; } = new();
+    public List<IReadOnlyList<DrVector3D>> Polylines3D { get; } = new();
 
     public IReadOnlyList<DrCachedLineSegment> VisibleLines => Lines.Where(l => !l.IsHidden).ToList();
     public IReadOnlyList<DrCachedLineSegment> HiddenLines => Lines.Where(l => l.IsHidden).ToList();
@@ -748,13 +758,16 @@ internal sealed class DrViewBucketMfcModel : IMfcSerializable
     public void ComputeBasis()
     {
         var dir = Direction.Normalize();
+        if (dir.Length < 1e-6) dir = new DrVector3D(0, 0, 1);
         var up = UpVector.Normalize();
-        if (Math.Abs(dir.Dot(up)) > 0.99)
+        if (up.Length < 1e-6 || Math.Abs(dir.Dot(up)) > 0.99)
         {
             up = Math.Abs(dir.Y) < 0.9 ? new DrVector3D(0, 1, 0) : new DrVector3D(1, 0, 0);
         }
         HorizontalBasis = up.Cross(dir).Normalize();
+        if (HorizontalBasis.Length < 1e-6) HorizontalBasis = new DrVector3D(1, 0, 0);
         VerticalBasis = dir.Cross(HorizontalBasis).Normalize();
+        if (VerticalBasis.Length < 1e-6) VerticalBasis = new DrVector3D(0, 1, 0);
     }
 
     public DrPoint2D Project(DrVector3D pt)
@@ -762,6 +775,103 @@ internal sealed class DrViewBucketMfcModel : IMfcSerializable
         double u = pt.Dot(HorizontalBasis) * Scale;
         double v = pt.Dot(VerticalBasis) * Scale;
         return new DrPoint2D(u, v);
+    }
+
+    internal void PopulateFromNativeViewBucket(NativeDrawingViewBucketModel vb, int index)
+    {
+        Lines.Clear();
+        Polylines.Clear();
+        Polylines3D.Clear();
+        ReferencedViewName = $"ViewBucket_{index + 1}";
+
+        var b = vb.Bucket;
+        var dir = new DrVector3D(b.Direction.X, b.Direction.Y, b.Direction.Z);
+        if (dir.Length > 1e-6 && !double.IsNaN(dir.Length) && !double.IsInfinity(dir.Length))
+        {
+            Direction = dir.Normalize();
+        }
+        if (b.HasTransform != 0 && b.Transform.Scale > 1e-5 && b.Transform.Scale < 1000.0 && !double.IsNaN(b.Transform.Scale))
+        {
+            Scale = b.Transform.Scale;
+        }
+        else if (vb.HasFirstTransform != 0 && vb.FirstTransform.Scale > 1e-5 && vb.FirstTransform.Scale < 1000.0 && !double.IsNaN(vb.FirstTransform.Scale))
+        {
+            Scale = vb.FirstTransform.Scale;
+        }
+        ComputeBasis();
+
+        void AddNativeBucket(NativeDrawingBucketModel bucket)
+        {
+            void AddPolyList(NativeDrawingBucketPolyModel[]? polyList, bool isHidden, byte recType)
+            {
+                if (polyList == null) return;
+                foreach (var poly in polyList)
+                {
+                    var rawPts = poly.GetPoints();
+                    if (rawPts.Length < 2) continue;
+
+                    var pts3D = new List<DrVector3D>(rawPts.Length);
+                    var pts2D = new List<DrPoint2D>(rawPts.Length);
+                    for (int i = 0; i < rawPts.Length; i++)
+                    {
+                        var v3 = new DrVector3D(rawPts[i].X, rawPts[i].Y, rawPts[i].Z);
+                        pts3D.Add(v3);
+                        pts2D.Add(poly.TwoDimensional ? new DrPoint2D(v3.X, v3.Y) : Project(v3));
+                    }
+                    Polylines3D.Add(pts3D);
+                    var cachedPoly = new DrCachedPolyline(pts2D, isHidden, recType);
+                    Polylines.Add(cachedPoly);
+                    for (int i = 0; i + 1 < pts2D.Count; i++)
+                    {
+                        Lines.Add(new DrCachedLineSegment(pts2D[i], pts2D[i + 1], isHidden, cachedPoly.Color));
+                    }
+                }
+            }
+
+            for (int setIdx = 0; setIdx < bucket.PolygonSets.Length; setIdx++)
+            {
+                bool hidden = setIdx == 1 || setIdx == 3 || setIdx == 5;
+                AddPolyList(bucket.PolygonSets[setIdx], hidden, hidden ? (byte)0x31 : (byte)0x21);
+            }
+            if (bucket.PolygonMaps != null)
+            {
+                foreach (var map in bucket.PolygonMaps)
+                {
+                    if (map == null) continue;
+                    foreach (var entry in map)
+                    {
+                        AddPolyList(entry?.Polygons, false, 0x21);
+                    }
+                }
+            }
+            AddPolyList(bucket.ExtraPolygons, false, 0x21);
+
+            void AddDisplayItems(NativeDrawingDisplayItemModel[]? items)
+            {
+                if (items == null) return;
+                foreach (var item in items)
+                {
+                    if ((item.Type == 4 || item.Type == 5 || item.Type == 100) && item.Points.Count >= 2)
+                    {
+                        var pts3D = item.Points.Select(p => new DrVector3D(p.X, p.Y, p.Z)).ToList();
+                        var pts2D = item.Points.Select(p => new DrPoint2D(p.X, p.Y)).ToList();
+                        Polylines3D.Add(pts3D);
+                        Polylines.Add(new DrCachedPolyline(pts2D, false, 0x21));
+                        for (int i = 0; i + 1 < pts2D.Count; i++)
+                        {
+                            Lines.Add(new DrCachedLineSegment(pts2D[i], pts2D[i + 1], false));
+                        }
+                    }
+                }
+            }
+
+            AddDisplayItems(bucket.Items);
+            AddDisplayItems(bucket.OtherItems);
+            AddDisplayItems(bucket.DetailItems);
+        }
+
+        AddNativeBucket(vb.Bucket);
+        if (vb.HasDetailBucket != 0) AddNativeBucket(vb.DetailBucket);
     }
 
     public void Serialize(MfcArchive ar)
@@ -823,24 +933,44 @@ internal sealed class DrViewBucketMfcModel : IMfcSerializable
     {
         Lines.Clear();
         Polylines.Clear();
+        Polylines3D.Clear();
 
         if (data.Length >= 24)
         {
             double dx = BitConverter.ToDouble(data, 0);
             double dy = BitConverter.ToDouble(data, 8);
             double dz = BitConverter.ToDouble(data, 16);
-            if (!double.IsNaN(dx) && !double.IsInfinity(dx) && (Math.Abs(dx) > 1e-6 || Math.Abs(dy) > 1e-6 || Math.Abs(dz) > 1e-6))
+            if (!double.IsNaN(dx) && !double.IsInfinity(dx) && (Math.Abs(dx) > 1e-6 || Math.Abs(dy) > 1e-6 || Math.Abs(dz) > 1e-6) &&
+                Math.Abs(dx) <= 10.0 && Math.Abs(dy) <= 10.0 && Math.Abs(dz) <= 10.0)
             {
                 Direction = new DrVector3D(dx, dy, dz).Normalize();
             }
         }
 
-        if (data.Length >= 40)
+        if (data.Length >= 48)
         {
-            double scale = BitConverter.ToDouble(data, 32);
-            if (!double.IsNaN(scale) && !double.IsInfinity(scale) && scale > 1e-4 && scale < 1000.0)
+            int hasTransform = BitConverter.ToInt32(data, 44);
+            if (hasTransform != 0 && data.Length >= 82)
             {
-                Scale = scale;
+                int tfOffset = 48;
+                byte hasRot = data[tfOffset];
+                int scaleOffset = tfOffset + 1 + (hasRot != 0 ? 72 : 0) + 24;
+                if (scaleOffset + 8 <= data.Length)
+                {
+                    double tfScale = BitConverter.ToDouble(data, scaleOffset);
+                    if (!double.IsNaN(tfScale) && !double.IsInfinity(tfScale) && tfScale > 1e-4 && tfScale < 1000.0)
+                    {
+                        Scale = tfScale;
+                    }
+                }
+            }
+            else
+            {
+                double scalar = BitConverter.ToDouble(data, 32);
+                if (!double.IsNaN(scalar) && !double.IsInfinity(scalar) && scalar > 1e-4 && scalar < 1000.0)
+                {
+                    Scale = scalar;
+                }
             }
         }
 
@@ -864,75 +994,258 @@ internal sealed class DrViewBucketMfcModel : IMfcSerializable
             }
         }
 
-        int scanOffset = 48;
-        while (scanOffset + 8 <= data.Length)
-        {
-            byte recordType = data[scanOffset];
-            bool isVisible = (recordType == 0x21 || recordType == 0x23);
-            bool isHidden = (recordType == 0x31 || recordType == 0x33);
+        // Phase 1: Exact gcBucketPoly_c element-chain parser (ported from sldprt-drwgeom.cpp --elements)
+        TryParseElementChains(data);
 
-            if (isVisible || isHidden)
-            {
-                int ptCount = BitConverter.ToInt32(data, scanOffset + 4);
-                if (ptCount >= 2 && ptCount <= 10000 && scanOffset + 8 + ptCount * 24 <= data.Length)
-                {
-                    var polyPoints = new List<DrPoint2D>(ptCount);
-                    int ptOffset = scanOffset + 8;
-                    for (int p = 0; p < ptCount; p++)
-                    {
-                        double px = BitConverter.ToDouble(data, ptOffset);
-                        double py = BitConverter.ToDouble(data, ptOffset + 8);
-                        double pz = BitConverter.ToDouble(data, ptOffset + 16);
-                        polyPoints.Add(Project(new DrVector3D(px, py, pz)));
-                        ptOffset += 24;
-                    }
-
-                    var poly = new DrCachedPolyline(polyPoints, isHidden, recordType);
-                    Polylines.Add(poly);
-
-                    for (int i = 0; i + 1 < polyPoints.Count; i++)
-                    {
-                        Lines.Add(new DrCachedLineSegment(polyPoints[i], polyPoints[i + 1], isHidden, poly.Color));
-                    }
-
-                    scanOffset = ptOffset;
-                    continue;
-                }
-            }
-
-            scanOffset += 4;
-        }
-
+        // Phase 2: Containment-deduplicated 8-alignment 3D f64 run scanner (ported from sldprt-drwgeom.cpp ListFloatRuns)
         if (Lines.Count == 0)
         {
-            var reader = new MfcReader(data);
-            var points = new List<DrPoint2D>();
-            while (reader.Remaining >= 16)
+            ScanFloatRunsDedup(data);
+        }
+    }
+
+    private void TryParseElementChains(byte[] d)
+    {
+        bool TryElem(int off, bool modernLayout, out int nextOff, out uint flags, out List<DrVector3D>? pts)
+        {
+            nextOff = 0;
+            flags = 0;
+            pts = null;
+            if (off < 0 || off + 16 > d.Length) return false;
+
+            flags = BitConverter.ToUInt32(d, off + 8);
+            int np = BitConverter.ToInt32(d, off + 12);
+            if (np < 2 || np > 50000) return false;
+            int pbytes = np * 24;
+            if (off + 16 + pbytes + 1 > d.Length) return false;
+
+            var list = new List<DrVector3D>(np);
+            double minX = 1e30, minY = 1e30, minZ = 1e30;
+            double maxX = -1e30, maxY = -1e30, maxZ = -1e30;
+            int pOff = off + 16;
+            for (int i = 0; i < np; i++)
             {
-                double x = BitConverter.ToDouble(reader.Data, reader.Offset);
-                double y = BitConverter.ToDouble(reader.Data, reader.Offset + 8);
-                if (!double.IsNaN(x) && !double.IsInfinity(x) &&
-                    !double.IsNaN(y) && !double.IsInfinity(y) &&
-                    Math.Abs(x) >= 0.001 && Math.Abs(x) <= 5.0 &&
-                    Math.Abs(y) >= 0.001 && Math.Abs(y) <= 5.0)
+                double x = BitConverter.ToDouble(d, pOff);
+                double y = BitConverter.ToDouble(d, pOff + 8);
+                double z = BitConverter.ToDouble(d, pOff + 16);
+                if (double.IsNaN(x) || double.IsInfinity(x) || Math.Abs(x) > 1e4 ||
+                    double.IsNaN(y) || double.IsInfinity(y) || Math.Abs(y) > 1e4 ||
+                    double.IsNaN(z) || double.IsInfinity(z) || Math.Abs(z) > 1e4)
+                    return false;
+                var v = new DrVector3D(x, y, z);
+                if (i > 0)
                 {
-                    points.Add(new DrPoint2D(x, y));
-                    reader.Skip(16);
+                    var prev = list[i - 1];
+                    double dx = v.X - prev.X, dy = v.Y - prev.Y, dz = v.Z - prev.Z;
+                    if (Math.Sqrt(dx * dx + dy * dy + dz * dz) > 2.5) return false;
+                }
+                if (x < minX) minX = x; if (x > maxX) maxX = x;
+                if (y < minY) minY = y; if (y > maxY) maxY = y;
+                if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
+                list.Add(v);
+                pOff += 24;
+            }
+            if ((maxX - minX) > 5.0 || (maxY - minY) > 5.0 || (maxZ - minZ) > 5.0) return false;
+            if (np == 2)
+            {
+                double dx = list[1].X - list[0].X, dy = list[1].Y - list[0].Y, dz = list[1].Z - list[0].Z;
+                if (Math.Sqrt(dx * dx + dy * dy + dz * dz) < 1e-9) return false;
+            }
+
+            off = pOff;
+            byte hasVis = d[off++];
+            if (hasVis != 0) return false; // Chain scanner targets standard unoverridden bucket polys
+
+            if (off + 4 > d.Length) return false;
+            int paramType = BitConverter.ToInt32(d, off);
+            off += 4;
+            if (paramType < 0 || paramType > 3) return false;
+            if (paramType >= 1)
+            {
+                if (off + 4 > d.Length) return false;
+                int n2 = BitConverter.ToInt32(d, off);
+                off += 4;
+                if (n2 < 0 || n2 > 100000 || off + n2 * 8 > d.Length) return false;
+                off += n2 * 8;
+            }
+
+            if (modernLayout)
+            {
+                if (off + 20 > d.Length) return false;
+                off += 20;
+                if ((flags & 0x20u) != 0)
+                {
+                    if (off + 83 > d.Length) return false;
+                    off += 83;
+                }
+                if (off + 32 > d.Length) return false;
+                off += 32;
+            }
+            else
+            {
+                if (off + 48 > d.Length) return false;
+                off += 44;
+                int f1b = BitConverter.ToInt32(d, off);
+                off += 4;
+                if (f1b != 0)
+                {
+                    if (off + 82 > d.Length) return false;
+                    off += 82;
+                }
+                if (off + 36 > d.Length) return false;
+                off += 36;
+            }
+
+            nextOff = off;
+            pts = list;
+            return true;
+        }
+
+        foreach (bool modern in new[] { true, false })
+        {
+            for (int pos = 0; pos + 64 < d.Length; pos++)
+            {
+                int cur = pos;
+                int ok = 0;
+                var chain = new List<(uint Flags, List<DrVector3D> Pts)>();
+                while (cur < d.Length && TryElem(cur, modern, out int nxt, out uint flg, out var pts) && pts != null)
+                {
+                    chain.Add((flg, pts));
+                    cur = nxt;
+                    ok++;
+                    if (ok > 20000) break;
+                }
+                if (ok >= 3)
+                {
+                    foreach (var (flg, pts3D) in chain)
+                    {
+                        bool isHidden = (flg & 0x10u) != 0;
+                        byte recType = isHidden ? (byte)0x31 : (byte)0x21;
+                        Polylines3D.Add(pts3D);
+                        var pts2D = pts3D.Select(Project).ToList();
+                        var poly = new DrCachedPolyline(pts2D, isHidden, recType);
+                        Polylines.Add(poly);
+                        for (int i = 0; i + 1 < pts2D.Count; i++)
+                        {
+                            Lines.Add(new DrCachedLineSegment(pts2D[i], pts2D[i + 1], isHidden, poly.Color));
+                        }
+                    }
+                    pos = cur - 1;
+                }
+            }
+            if (Lines.Count > 0) return;
+        }
+    }
+
+    private void ScanFloatRunsDedup(byte[] d)
+    {
+        static bool ReasonableDouble(double v) =>
+            !double.IsNaN(v) && !double.IsInfinity(v) && Math.Abs(v) <= 1e4 && (v == 0.0 || Math.Abs(v) >= 1e-7);
+
+        var rawRuns = new List<(int Off, int Count)>();
+        for (int align = 0; align < 8; align++)
+        {
+            int i = align;
+            while (i + 8 <= d.Length)
+            {
+                double v = BitConverter.ToDouble(d, i);
+                if (ReasonableDouble(v))
+                {
+                    int start = i;
+                    int count = 0;
+                    int nonZero = 0;
+                    while (i + 8 <= d.Length)
+                    {
+                        double w = BitConverter.ToDouble(d, i);
+                        if (!ReasonableDouble(w)) break;
+                        if (Math.Abs(w) >= 1e-6) nonZero++;
+                        count++;
+                        i += 8;
+                    }
+                    // Exclude 3-point bounding box records (count 9..11); keep 2-point segments (6) and polylines (>=12)
+                    if ((count == 6 || count >= 12) && nonZero >= count / 3)
+                    {
+                        rawRuns.Add((start, count));
+                    }
                 }
                 else
                 {
-                    reader.Skip(4);
+                    i += 8;
                 }
             }
+        }
 
-            for (int i = 0; i + 1 < points.Count; i += 2)
+        // Sort by byte length descending and deduplicate contained intervals (from sldprt-drwgeom.cpp)
+        rawRuns.Sort((a, b) =>
+        {
+            int cmp = b.Count.CompareTo(a.Count);
+            return cmp != 0 ? cmp : a.Off.CompareTo(b.Off);
+        });
+
+        var kept = new List<(int Off, int Count)>();
+        foreach (var r in rawRuns)
+        {
+            int rEnd = r.Off + r.Count * 8;
+            bool covered = false;
+            foreach (var k in kept)
             {
-                Lines.Add(new DrCachedLineSegment(points[i], points[i + 1]));
+                int kEnd = k.Off + k.Count * 8;
+                if (r.Off >= k.Off && rEnd <= kEnd)
+                {
+                    covered = true;
+                    break;
+                }
+            }
+            if (!covered) kept.Add(r);
+        }
+        kept.Sort((a, b) => a.Off.CompareTo(b.Off));
+
+        foreach (var run in kept)
+        {
+            int nPts = run.Count / 3;
+            if (nPts < 2) continue;
+            var pts3D = new List<DrVector3D>(nPts);
+            bool valid = true;
+            for (int p = 0; p < nPts; p++)
+            {
+                int off = run.Off + p * 24;
+                double x = BitConverter.ToDouble(d, off);
+                double y = BitConverter.ToDouble(d, off + 8);
+                double z = BitConverter.ToDouble(d, off + 16);
+                if (Math.Abs(x) > 5.0 || Math.Abs(y) > 5.0 || Math.Abs(z) > 5.0)
+                {
+                    valid = false;
+                    break;
+                }
+                var cur = new DrVector3D(x, y, z);
+                if (p > 0)
+                {
+                    var prev = pts3D[p - 1];
+                    double step = Math.Sqrt((cur.X - prev.X) * (cur.X - prev.X) +
+                                            (cur.Y - prev.Y) * (cur.Y - prev.Y) +
+                                            (cur.Z - prev.Z) * (cur.Z - prev.Z));
+                    if (step > 2.5)
+                    {
+                        valid = false;
+                        break;
+                    }
+                }
+                pts3D.Add(cur);
+            }
+            if (!valid || pts3D.Count < 2) continue;
+
+            Polylines3D.Add(pts3D);
+            var pts2D = pts3D.Select(Project).ToList();
+            var poly = new DrCachedPolyline(pts2D, false, 0x21);
+            Polylines.Add(poly);
+            for (int i = 0; i + 1 < pts2D.Count; i++)
+            {
+                Lines.Add(new DrCachedLineSegment(pts2D[i], pts2D[i + 1], false, poly.Color));
             }
         }
     }
 
-    public static IReadOnlyList<DrViewBucketMfcModel> ParseAllBuckets(byte[] streamData)
+    public static IReadOnlyList<DrViewBucketMfcModel> ParseAllBuckets(byte[] streamData, int documentVersion = 0)
     {
         var buckets = new List<DrViewBucketMfcModel>();
         if (streamData == null || streamData.Length == 0) return buckets;
@@ -949,18 +1262,53 @@ internal sealed class DrViewBucketMfcModel : IMfcSerializable
             }
         }
 
-        var doc = MfcDocument.Parse(payload);
-        foreach (var el in doc.AllElements)
+        // First try structured NativeDrawingVbArchive deserialization
+        int[] candidateVersions = documentVersion >= 5000
+            ? new[] { documentVersion, 19000, 18000, 16801, 5000 }
+            : new[] { 19000, 18000, 16801, 5000 };
+
+        foreach (int ver in candidateVersions.Distinct())
         {
-            if (el.ClassName == MfcClassName)
+            try
             {
-                var bucket = new DrViewBucketMfcModel();
-                int available = Math.Min(payload.Length - el.DataStart, Math.Max(el.DataLength, 128));
-                byte[] bucketSlice = new byte[available];
-                Array.Copy(payload, el.DataStart, bucketSlice, 0, available);
-                bucket.ParseBucketWireFormat(bucketSlice);
-                buckets.Add(bucket);
+                using var ar = MfcArchive.CreateReader(payload);
+                ar.DocumentVersion = ver;
+                var nativeVb = new NativeDrawingVbArchive();
+                nativeVb.Serialize(ar);
+                if (ar.Remaining == 0 && nativeVb.Views.Length > 0)
+                {
+                    for (int i = 0; i < nativeVb.Views.Length; i++)
+                    {
+                        if (nativeVb.Views[i]?.Payload is NativeDrawingViewBucketModel vbModel)
+                        {
+                            var b = new DrViewBucketMfcModel { RawData = payload };
+                            b.PopulateFromNativeViewBucket(vbModel, i);
+                            buckets.Add(b);
+                        }
+                    }
+                    if (buckets.Count > 0)
+                        return buckets;
+                }
             }
+            catch
+            {
+                buckets.Clear();
+            }
+        }
+
+        var doc = MfcDocument.Parse(payload);
+        var tagOffsets = doc.AllElements.Where(e => e.ClassName == MfcClassName).Select(e => e.DataStart).OrderBy(x => x).ToList();
+        for (int idx = 0; idx < tagOffsets.Count; idx++)
+        {
+            int start = tagOffsets[idx];
+            int end = (idx + 1 < tagOffsets.Count) ? tagOffsets[idx + 1] : payload.Length;
+            int available = Math.Max(0, end - start);
+            if (available < 24) continue;
+            byte[] bucketSlice = new byte[available];
+            Array.Copy(payload, start, bucketSlice, 0, available);
+            var bucket = new DrViewBucketMfcModel();
+            bucket.ParseBucketWireFormat(bucketSlice);
+            buckets.Add(bucket);
         }
 
         if (buckets.Count == 0 && payload.Length > 0)
@@ -1530,6 +1878,10 @@ internal sealed class DrBomRowModel
 /// </summary>
 internal sealed class DrBomTableMfcModel : IMfcSerializable
 {
+    // Native moBomTemplate is a table anchor, not the aggregate row format.
+    // 0x4BDCDBA0 has the same model-feature/point wire as moTableAnchor
+    // for the supported versions (>=5000).
+    internal NativeDrawingTableAnchorModel? NativeAnchor;
     public const string MfcClassName = "moBomTemplate_c";
     public const string TableTemplateClassName = "moTableTemplate_c";
 
@@ -1552,6 +1904,7 @@ internal sealed class DrBomTableMfcModel : IMfcSerializable
 
     public void Serialize(MfcArchive ar)
     {
+        if (NativeAnchor != null) { NativeAnchor.Serialize(ar); return; }
         if (ar.IsStoring)
         {
             if (RawData != null && RawData.Length > 0)

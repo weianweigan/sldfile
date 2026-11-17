@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using SldFile;
-using SldFile.Assembly;
+using SldFile.Assembly.Bom;
 using SldFileViewer.Models;
 
 namespace SldFileViewer.Services;

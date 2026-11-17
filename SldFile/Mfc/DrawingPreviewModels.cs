@@ -45,9 +45,18 @@ internal sealed class DrawingPreviewRecordModel : IMfcSerializable
 
     public void Serialize(MfcArchive ar)
     {
+        if (!TrySerialize(ar)) throw new InvalidDataException("Invalid or unsupported display command.");
+    }
+
+    internal bool TrySerialize(MfcArchive ar)
+    {
+        if (ar.IsLoading && ar.Remaining < 8) return false;
         ar.U32(ref DeclaredSize);
         ar.U32(ref CommandType);
-        if (!IsHeader(DeclaredSize, CommandType)) throw new InvalidDataException("Unsupported display command.");
+        if (!IsHeader(DeclaredSize, CommandType)) return false;
+        int minimum = CommandType switch { 30 => 28, 9 => DeclaredSize == 56 ? 30 : 34,
+            1 => 32, 29 => 36, 12 => 18, 4 => 49, 2 => 100, 6 => 8, 10 => 32, 18 => 40, _ => 0 };
+        if (ar.IsLoading && ar.Remaining < minimum) return false;
         switch (CommandType)
         {
             case 30:
@@ -67,11 +76,13 @@ internal sealed class DrawingPreviewRecordModel : IMfcSerializable
                 break;
             case 29:
                 for (int i = 0; i < GroupFields.Length; i++) ar.U32(ref GroupFields[i]);
-                for (int i = 0; i < GroupStrings.Length; i++) String(ar, ref GroupStrings[i]);
+                for (int i = 0; i < GroupStrings.Length; i++)
+                    if (!TryString(ar, ref GroupStrings[i])) return false;
                 break;
             case 12:
                 ar.U32(ref Color); ar.U16(ref Reserved16); ar.F32(ref Width);
-                ar.I32(ref Layer); ar.I32(ref Reserved32); String(ar, ref Value);
+                ar.I32(ref Layer); ar.I32(ref Reserved32);
+                if (!TryString(ar, ref Value)) return false;
                 break;
             case 4:
                 PointArray(ar, 2); ar.Byte(ref Flag);
@@ -84,50 +95,54 @@ internal sealed class DrawingPreviewRecordModel : IMfcSerializable
                 ar.U32(ref TriangleFlags);
                 uint count = (uint)Points.Length; ar.U32(ref count);
                 if (count < 3 || count > 100000 || (ar.IsLoading && count > ar.Remaining / 24))
-                    throw new InvalidDataException("Invalid polygon point count.");
+                    return false;
                 PointArray(ar, (int)count);
                 break;
             case 10:
                 ar.F64(ref Height); ar.U32(ref FontPointSize); ar.U32(ref FontAttributes); ar.U32(ref FontReserved);
-                ar.F64(ref FontMetric); ar.U32(ref FontFlags); String(ar, ref Value);
+                ar.F64(ref FontMetric); ar.U32(ref FontFlags);
+                if (!TryString(ar, ref Value) || ar.IsLoading && ar.Remaining < 16) return false;
                 ar.F64(ref WidthFactor); ar.F64(ref FontSpacing);
                 break;
             case 18:
                 PointArray(ar, 1); ar.U32(ref TextAlignment); ar.F64(ref Angle); ar.U32(ref TextReserved);
-                String(ar, ref Value); ar.U16(ref TextFlags);
+                if (!TryString(ar, ref Value) || ar.IsLoading && ar.Remaining < 6) return false;
+                ar.U16(ref TextFlags);
                 uint widths = (uint)CharacterWidths.Length; ar.U32(ref widths);
                 if (widths > 1000000 || (ar.IsLoading && widths > ar.Remaining / 4))
-                    throw new InvalidDataException("Invalid character width count.");
+                    return false;
                 if (ar.IsLoading) CharacterWidths = new float[widths];
                 for (int i = 0; i < CharacterWidths.Length; i++) ar.F32(ref CharacterWidths[i]);
                 // The 2012 layout has no trailing reserved word / scale; the newer
                 // native command advertises 32 additional in-memory bytes in its declaration.
                 if (DeclaredSize == 146 + 10 * (Value?.Length ?? 0))
                 {
+                    if (ar.IsLoading && ar.Remaining < 12) return false;
                     ar.U32(ref FontReserved); ar.F64(ref TextScale);
                 }
                 break;
         }
-        Validate();
+        return Valid();
     }
 
-    private void Validate()
+    private bool Valid()
     {
         uint expectedSize = CommandType == 12 ? checked((uint)(58 + 2 * (Value?.Length ?? 0))) :
             CommandType == 10 ? checked((uint)(98 + 2 * (Value?.Length ?? 0))) :
             CommandType == 18 ? checked((uint)((DeclaredSize == 114 + 10 * (Value?.Length ?? 0) ? 114 : 146) + 10 * (Value?.Length ?? 0))) :
             CommandType == 6 ? checked((uint)(48 + 24 * Points.Length)) : DeclaredSize;
-        if (DeclaredSize != expectedSize) throw new InvalidDataException("Unverified display command layout.");
+        if (DeclaredSize != expectedSize) return false;
         foreach (var p in Points)
-            if (!Finite(p.X) || !Finite(p.Y) || !Finite(p.Z)) throw new InvalidDataException("Nonfinite preview point.");
+            if (!Finite(p.X) || !Finite(p.Y) || !Finite(p.Z)) return false;
         if (CommandType == 2 && (!Finite(Normal.X) || !Finite(Normal.Y) || !Finite(Normal.Z) ||
             Math.Abs(Normal.X * Normal.X + Normal.Y * Normal.Y + Normal.Z * Normal.Z - 1) > 1e-8))
-            throw new InvalidDataException("Invalid arc normal.");
+            return false;
         if (CommandType == 18 && (CharacterWidths.Length != (Value?.Length ?? 0) || CharacterWidths.Any(w => !Finite(w) || w < 0)))
-            throw new InvalidDataException("Invalid native glyph advances.");
-        if (!Finite(Height) || !Finite(Angle) || !Finite(WidthFactor)) throw new InvalidDataException("Nonfinite text geometry.");
+            return false;
+        if (!Finite(Height) || !Finite(Angle) || !Finite(WidthFactor)) return false;
         if ((CommandType == 10) && ((Height <= 0 && Height != -1) || WidthFactor <= 0))
-            throw new InvalidDataException("Invalid font metrics.");
+            return false;
+        return true;
     }
 
     private void PointArray(MfcArchive ar, int count)
@@ -150,19 +165,35 @@ internal sealed class DrawingPreviewRecordModel : IMfcSerializable
 
     internal static void String(MfcArchive ar, ref string? value)
     {
+        if (!TryString(ar, ref value)) throw new InvalidDataException("Invalid preview CString.");
+    }
+
+    internal static bool TryString(MfcArchive ar, ref string? value)
+    {
         // MfcArchive.WChar is tolerant for legacy callers; this wire codec is strict.
         if (ar.IsLoading)
         {
             int start = ar.Position;
+            if (ar.Remaining < 4) return false;
             byte[] prefix = ar.ReadBytes(4);
             if (prefix.Length != 4 || prefix[0] != 255 || prefix[1] != 254 || prefix[2] != 255)
-                throw new InvalidDataException("Missing CString marker.");
+                return false;
             long count = prefix[3];
-            if (count == 255) { ushort n = 0; ar.U16(ref n); count = n; if (n == 65535) { uint n32 = 0; ar.U32(ref n32); count = n32; } }
-            if (count > ar.Remaining / 2) throw new EndOfStreamException();
+            if (count == 255)
+            {
+                if (ar.Remaining < 2) return false;
+                ushort n = 0; ar.U16(ref n); count = n;
+                if (n == 65535)
+                {
+                    if (ar.Remaining < 4) return false;
+                    uint n32 = 0; ar.U32(ref n32); count = n32;
+                }
+            }
+            if (count > ar.Remaining / 2) return false;
             ar.Position = start;
         }
         ar.WChar(ref value);
+        return true;
     }
 
     private static bool Finite(double v) => !double.IsNaN(v) && !double.IsInfinity(v);
@@ -174,49 +205,103 @@ internal sealed class DrawingPreviewStreamModel : IMfcSerializable
     {
         internal byte[] Raw = Array.Empty<byte>();
         internal DrawingPreviewRecordModel? Record;
+        internal NativeDrawingDisplayItemModel? NativeRecord;
+        internal int Scope;
+        internal bool IsSheetFormat;
     }
     internal readonly List<Segment> Segments = new List<Segment>();
     internal bool DecodeCommands;
+    internal bool IncludeTransformedItems;
     internal int Length;
+    private NativeDrawingDisplayArchive? _native;
+    private byte[] _suffix = Array.Empty<byte>();
+    private int _decodedLength;
+    internal string? DecodeFailure;
+    internal int FormatBucketCount => _native?.Formats.Length ?? 0;
+    internal NativeDrawingDisplayArchive? NativeArchive => _native;
 
     public void Serialize(MfcArchive ar)
     {
         if (ar.IsStoring)
         {
+            if (_native != null)
+            {
+                foreach (var segment in Segments)
+                    if (segment.Record != null && segment.NativeRecord != null)
+                        NativeDrawingPreviewAdapter.WriteGeometry(segment.Record, segment.NativeRecord);
+                _native.Serialize(ar); ar.WriteBytes(_suffix);
+                return;
+            }
             foreach (var segment in Segments)
                 if (segment.Record != null) segment.Record.Serialize(ar);
                 else ar.WriteBytes(segment.Raw);
             return;
         }
-        Segments.Clear(); Length = ar.Remaining;
+        Segments.Clear(); Length = ar.Remaining; _native = null; _decodedLength = 0; DecodeFailure = null;
         var bytes = ar.ReadRemainingBytes();
-        int offset = 0, rawStart = 0;
-        while (DecodeCommands && offset <= bytes.Length - 8)
+        if (!DecodeCommands || bytes.Length == 0) { AddRaw(bytes, 0, bytes.Length); return; }
+        // The global _MO_VERSION value selects the actual native serializers.
+        // Never scan for plausible command headers or infer a version from size.
+        if (ar.DocumentVersion < 5000)
         {
-            uint op = BitConverter.ToUInt32(bytes, offset), signature = BitConverter.ToUInt32(bytes, offset + 4);
-            if (DrawingPreviewRecordModel.IsHeader(op, signature))
-            {
-                try
-                {
-                    using var recordArchive = MfcArchive.CreateReader(bytes, offset);
-                    var record = new DrawingPreviewRecordModel { Id = offset.ToString("X8") };
-                    record.Serialize(recordArchive);
-                    int consumed = recordArchive.Position;
-                    // A serializable record is accepted only if its canonical form preserves every byte.
-                    // Noncanonical strings and unverified variants remain opaque instead of being normalized.
-                    byte[] roundtrip = MfcArchive.Serialize(record);
-                    if (consumed != roundtrip.Length || !bytes.AsSpan(offset, consumed).SequenceEqual(roundtrip))
-                        throw new InvalidDataException("Unverified display command variant.");
-                    if (offset > rawStart) AddRaw(bytes, rawStart, offset - rawStart);
-                    Segments.Add(new Segment { Record = record });
-                    offset += consumed; rawStart = offset;
-                    continue;
-                }
-                catch (Exception ex) when (ex is InvalidDataException || ex is EndOfStreamException || ex is OverflowException) { }
-            }
-            offset++;
+            DecodeFailure = "A verified native drawing document version is required.";
+            AddRaw(bytes, 0, bytes.Length); return;
         }
-        if (rawStart < bytes.Length) AddRaw(bytes, rawStart, bytes.Length - rawStart);
+        try
+        {
+            using var input = MfcArchive.CreateReader(bytes);
+            input.DocumentVersion = ar.DocumentVersion;
+            var native = new NativeDrawingDisplayArchive(); native.Serialize(input);
+            _decodedLength = input.Position;
+            _suffix = input.ReadRemainingBytes();
+            _native = native;
+            foreach (var format in native.Formats) AddItems(format.Items, isSheetFormat: true);
+            foreach (var view in native.Views) { AddItems(view.Items); AddItems(view.DetailItems); }
+        }
+        catch (Exception ex) when (ex is InvalidDataException || ex is EndOfStreamException || ex is OverflowException || ex is NotSupportedException)
+        {
+            DecodeFailure = ex.Message; _native = null; _decodedLength = 0;
+            Segments.Clear(); AddRaw(bytes, 0, bytes.Length);
+        }
+    }
+
+    private void AddItems(NativeDrawingDisplayItemModel[] items, NativeDrawingTransformModel? parentTransform = null, bool isSheetFormat = false)
+    {
+        // Each list is a separate display state scope; don't inherit style/font
+        // from the preceding format or view bucket.
+        Segments.Add(new Segment());
+        foreach (var item in items)
+            AddItem(item, string.Empty, parentTransform, isSheetFormat);
+    }
+
+    private void AddItem(NativeDrawingDisplayItemModel item, string owner, NativeDrawingTransformModel? parentTransform = null, bool isSheetFormat = false)
+    {
+        if (item.Type == 19)
+        {
+            // uoDisplaySimpleSymbol ctor -> 0x3CB9E530 clones the supplied
+            // display recording using 0x3CB9EE50, preserving its coordinates.
+            // The two-dimensional cache already contains placed geometry; its
+            // origin/angle/height must not be applied again unless IncludeTransformedItems is enabled.
+            if (item.Transform != null && !IncludeTransformedItems)
+            {
+                Segments.Add(new Segment { NativeRecord = item, IsSheetFormat = isSheetFormat });
+                return;
+            }
+            Segments.Add(new Segment { Scope = 1 });
+            string path = owner + "SYM:" + item.Offset.ToString("X8") + "/";
+            var childTransform = item.Transform ?? parentTransform;
+            foreach (var child in item.Children) AddItem(child, path, childTransform, isSheetFormat);
+            Segments.Add(new Segment { Scope = 2 });
+            return;
+        }
+        var record = NativeDrawingPreviewAdapter.Read(item, IncludeTransformedItems, parentTransform);
+        if (record == null)
+        {
+            if (item.Type != 0) Segments.Add(new Segment { NativeRecord = item, IsSheetFormat = isSheetFormat });
+            return;
+        }
+        record.Id = owner + record.Id;
+        Segments.Add(new Segment { Record = record, NativeRecord = item, IsSheetFormat = isSheetFormat });
     }
 
     private void AddRaw(byte[] bytes, int offset, int length)
@@ -228,29 +313,91 @@ internal sealed class DrawingPreviewStreamModel : IMfcSerializable
     internal DrawingPreviewDefinition ToDefinition(int sheetIndex, int sheetCount)
     {
         var result = new DrawingPreviewDefinition { SheetIndex = sheetIndex,
-            PreservedByteCount = Segments.Sum(s => s.Raw.Length),
-            DecodedByteCount = Segments.Where(s => s.Record != null).Sum(s => MfcArchive.Serialize(s.Record!).Length) };
+            IsResolved = true,
+            PreservedByteCount = _native == null ? Length : _suffix.Length,
+            DecodedByteCount = _decodedLength };
+        if (_native != null)
+            result.NativeLineStyles = Array.AsReadOnly(_native.LineStyles.Select(n => n?.Payload)
+                .OfType<NativeDrawingLineStyleModel>().Select(s => new DrawingPreviewLineStyle(s.Name ?? string.Empty,
+                    Array.AsReadOnly(s.Segments.ToArray()), s.Flags)).ToArray());
+        if (DecodeFailure != null) result.AddIssue("DisplayDecode", DecodeFailure, "Contents/DisplayLists");
+        else if (_native == null && Length > 0) result.AddIssue("OpaqueDisplay", "Display commands were not decoded.", "Contents/DisplayLists");
+        if (_suffix.Length > 0) result.AddIssue("DisplaySuffix", $"{_suffix.Length} trailing bytes are preserved without a presentation mapping.", "Contents/DisplayLists");
         // The observed native drawing streams contain document-wide display commands.
         // Page ownership must be established before any of these commands is shown on a multi-sheet document.
-        if (sheetIndex != 0 || sheetCount != 1)
+        if (sheetIndex < 0 || sheetIndex >= Math.Max(1, sheetCount) ||
+            (sheetCount > 1 && (_native == null || _native.Formats.Length != sheetCount)))
         {
-            result.ResolutionMessage = "Native display commands have unresolved sheet ownership.";
+            result.AddIssue("SheetOwnership", "Native display commands have unresolved sheet ownership.", "Contents/DisplayLists");
             return result;
+        }
+        IEnumerable<Segment> sourceSegments = Segments;
+        if (sheetCount > 1 && _native != null && sheetIndex < _native.Formats.Length)
+        {
+            var sheetSegments = new List<Segment>();
+            void AppendSheetItems(IEnumerable<NativeDrawingDisplayItemModel> list, string owner, NativeDrawingTransformModel? tf)
+            {
+                foreach (var item in list)
+                {
+                    if (item.Type == 19)
+                    {
+                        if (item.Transform != null && !IncludeTransformedItems)
+                        {
+                            sheetSegments.Add(new Segment { NativeRecord = item });
+                            continue;
+                        }
+                        sheetSegments.Add(new Segment { Scope = 1 });
+                        string path = owner + "SYM:" + item.Offset.ToString("X8") + "/";
+                        AppendSheetItems(item.Children, path, item.Transform ?? tf);
+                        sheetSegments.Add(new Segment { Scope = 2 });
+                        continue;
+                    }
+                    var rec = NativeDrawingPreviewAdapter.Read(item, IncludeTransformedItems, tf);
+                    if (rec == null)
+                    {
+                        if (item.Type != 0) sheetSegments.Add(new Segment { NativeRecord = item });
+                        continue;
+                    }
+                    rec.Id = owner + rec.Id;
+                    sheetSegments.Add(new Segment { Record = rec, NativeRecord = item, IsSheetFormat = true });
+                }
+            }
+            sheetSegments.Add(new Segment());
+            AppendSheetItems(_native.Formats[sheetIndex].Items, string.Empty, null);
+            sourceSegments = sheetSegments;
+            if (_native.Views.Length > 0) result.AddIssue("ViewSheetOwnership", "View-to-sheet ownership is not mapped.", "Contents/DisplayLists");
         }
         var primitives = new List<DrawingPreviewPrimitive>();
         DrawingPreviewRecordModel? style = null, font = null;
-        foreach (var segment in Segments)
+        var nativeStyles = Segments.Where(s => s.Record != null && s.NativeRecord?.Type == 9)
+            .GroupBy(s => s.Record!.Id).ToDictionary(g => g.Key, g => g.First().NativeRecord!);
+        var scopes = new Stack<(DrawingPreviewRecordModel? Style, DrawingPreviewRecordModel? Font)>();
+        foreach (var segment in sourceSegments)
         {
+            if (segment.Scope == 1) { scopes.Push((style, font)); continue; }
+            if (segment.Scope == 2) { (style, font) = scopes.Pop(); continue; }
             var r = segment.Record;
-            if (r == null) continue;
-            if (r.CommandType == 12) { style = r; continue; }
+            if (r == null)
+            {
+                if (segment.NativeRecord is { } skipped)
+                    result.AddIssue("DisplayCommand", $"Command {skipped.Type} has no verified presentation mapping.",
+                        "Contents/DisplayLists", skipped.Type, skipped.Offset);
+                else { style = null; font = null; }
+                continue;
+            }
+            if (r.CommandType == 12 || r.CommandType == 9) { style = r; continue; }
             if (r.CommandType == 10) { font = r; continue; }
             if (r.CommandType == 1 || r.CommandType == 9 || r.CommandType == 29 || r.CommandType == 30) continue;
-            if (style == null) continue;
-            if (r.CommandType == 18 && font == null) continue;
+            if (style == null || (r.CommandType == 18 && font == null))
+            {
+                result.AddIssue("MissingDisplayState", "Geometry has no decoded pen or text font.", "Contents/DisplayLists",
+                    (int)r.CommandType, segment.NativeRecord?.Offset);
+                continue;
+            }
             var p = new DrawingPreviewPrimitive
             {
                 Id = r.Id, Points = r.Points.ToArray(), Normal = r.Normal,
+                IsSheetLevelNote = segment.IsSheetFormat,
                 ColorRgb = ((style.Color & 255) << 16) | (style.Color & 0xFF00) | ((style.Color >> 16) & 255),
                 LayerId = style.Layer, LineStyle = style.Value ?? string.Empty,
                 LineWidth = style.Width > 0 ? style.Width : 0.00025,
@@ -264,11 +411,18 @@ internal sealed class DrawingPreviewStreamModel : IMfcSerializable
                 p.TextHeight = font.FontPointSize * 0.0254 / 72;
             p.IsBold = ((font?.FontFlags ?? 0) & 8) != 0;
             if (r.CommandType == 18) p.CharacterAdvances = r.CharacterWidths.Select(w => (double)w).ToArray();
+            if (nativeStyles.TryGetValue(style.Id, out var nativePen))
+            {
+                int styleId = nativePen.Integers[3];
+                p.NativeLineStyleId = styleId;
+                result.AddIssue("PenLineStyle", $"Native pen style IDs require a verified named-style mapping (first ID {styleId}).",
+                    "Contents/DisplayLists", 9, nativePen.Offset);
+            }
+            if (p.Kind == DrawingPreviewPrimitiveKind.Text && ((font?.FontFlags ?? 0) & ~8u) != 0)
+                result.AddIssue("FontFlags", "Additional font flags are preserved without a presentation mapping.", "Contents/DisplayLists", 10);
             primitives.Add(p);
         }
         result.Primitives = primitives.AsReadOnly();
-        result.IsResolved = result.PreservedByteCount == 0;
-        result.ResolutionMessage = result.IsResolved ? string.Empty : "Unverified native commands are preserved; raster preview remains available.";
         return result;
     }
 
@@ -283,6 +437,11 @@ internal sealed class DrawingPreviewStreamModel : IMfcSerializable
         {
             if (!originals.TryGetValue(p.Id, out var original) || p.Kind != original.Kind)
                 throw new ArgumentException("Preview record identity or kind changed.", nameof(definition));
+            if (p.Points.Count != original.Points.Count || p.Points.Any(point =>
+                    double.IsNaN(point.X) || double.IsInfinity(point.X) || double.IsNaN(point.Y) || double.IsInfinity(point.Y) || double.IsNaN(point.Z) || double.IsInfinity(point.Z)) ||
+                double.IsNaN(p.Normal.X) || double.IsInfinity(p.Normal.X) || double.IsNaN(p.Normal.Y) || double.IsInfinity(p.Normal.Y) || double.IsNaN(p.Normal.Z) || double.IsInfinity(p.Normal.Z) ||
+                double.IsNaN(p.Angle) || double.IsInfinity(p.Angle))
+                throw new InvalidDataException("Invalid native preview geometry.");
             // State records may be shared by many primitives. Reject unsupported state edits rather than changing unrelated entities.
             if (p.ColorRgb != original.ColorRgb || p.LineStyle != original.LineStyle || p.LayerId != original.LayerId ||
                 p.LineWidth != original.LineWidth || p.FontName != original.FontName || p.TextHeight != original.TextHeight ||
@@ -295,7 +454,14 @@ internal sealed class DrawingPreviewStreamModel : IMfcSerializable
                 r.Value = p.Text; r.Angle = p.Angle;
             }
             // Validate before replacing the live document's stream.
-            MfcArchive.Serialize(r);
+            var segment = Segments.Single(s => ReferenceEquals(s.Record, r));
+            if (segment.NativeRecord != null)
+            {
+                NativeDrawingPreviewAdapter.WriteGeometry(r, segment.NativeRecord);
+                using var validation = MfcArchive.CreateWriter(); validation.DocumentVersion = _native!.DocumentVersion;
+                segment.NativeRecord.Serialize(validation);
+            }
+            else MfcArchive.Serialize(r);
         }
     }
 }

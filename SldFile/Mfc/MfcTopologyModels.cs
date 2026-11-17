@@ -26,7 +26,7 @@ public sealed class SktEntSurfMapping
 /// Sketch region model inside a sketch node (moSketchRegion_c).
 /// Represents a closed planar partition in multi-contour sketches.
 /// </summary>
-public sealed class MfcSketchRegionModel : IMfcSerializable
+public sealed partial class MfcSketchRegionModel : IMfcSerializable
 {
     public const string MfcClassName = "moSketchRegion_c";
 
@@ -48,6 +48,7 @@ public sealed class MfcSketchRegionModel : IMfcSerializable
 
     public void Serialize(MfcArchive ar)
     {
+        if (NativeWire) { SerializeNative(ar); return; }
         if (ar.IsStoring)
         {
             if (RawData != null && RawData.Length > 0)
@@ -89,7 +90,7 @@ public sealed class MfcSketchRegionModel : IMfcSerializable
 /// Component edge reference (moCompEdge_c).
 /// Points to an edge in a body/component.
 /// </summary>
-public sealed class MfcCompEdgeModel : IMfcSerializable
+public sealed partial class MfcCompEdgeModel : IMfcSerializable
 {
     public const string MfcClassName = "moCompEdge_c";
 
@@ -102,8 +103,11 @@ public sealed class MfcCompEdgeModel : IMfcSerializable
 
     public MfcCompEdgeModel() { }
 
+    internal NativeState? NativeEdge;
+
     public void Serialize(MfcArchive ar)
     {
+        if (NativeEdge != null) { NativeEdge.Serialize(ar); return; }
         if (ar.IsStoring)
         {
             if (RawData != null && RawData.Length > 0)
@@ -148,7 +152,7 @@ public sealed class MfcCompEdgeModel : IMfcSerializable
 /// Edge reference container (moEdgeRef_c).
 /// Contains edge selection counts, types, and topological identifiers.
 /// </summary>
-public sealed class MfcEdgeRefModel : IMfcSerializable
+public sealed partial class MfcEdgeRefModel : IMfcSerializable
 {
     public const string MfcClassName = "moEdgeRef_c";
 
@@ -161,8 +165,11 @@ public sealed class MfcEdgeRefModel : IMfcSerializable
 
     public MfcEdgeRefModel() { }
 
+    internal NativeState? NativeReference;
+
     public void Serialize(MfcArchive ar)
     {
+        if (NativeReference != null) { NativeReference.Serialize(ar); return; }
         if (ar.IsStoring)
         {
             if (RawData != null && RawData.Length > 0)
