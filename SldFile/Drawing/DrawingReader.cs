@@ -125,6 +125,10 @@ internal static class DrawingReader
 
                 byte[]? preview = getSheetPreview(i);
                 byte[]? highRes = getHighResPreview?.Invoke(i);
+                if (highRes != null && preview != null && highRes.Length == preview.Length)
+                {
+                    highRes = null;
+                }
 
                 DrawingSheetVectorData? vectorData = null;
                 if ((definitionStream != null && definitionStream.Length > 0) ||
@@ -231,6 +235,10 @@ internal static class DrawingReader
 
                 byte[]? preview = getSheetPreview(sheetIdx);
                 byte[]? highRes = getHighResPreview?.Invoke(sheetIdx);
+                if (highRes != null && preview != null && highRes.Length == preview.Length)
+                {
+                    highRes = null;
+                }
 
                 DrawingSheetVectorData? vectorData = null;
                 if ((definitionStream != null && definitionStream.Length > 0) ||

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using SldFile;
@@ -53,6 +54,43 @@ public class MultiSheetInspectionTests
         // 4. Assert Sheet 0 and Sheet 2 line counts
         Assert.InRange(sheets[0].VectorData!.Lines.Count, 300, 600);
         Assert.InRange(sheets[2].VectorData!.Lines.Count, 300, 500);
+    }
+
+    [Fact]
+    public void MultiSheet_NB81052_InspectSheetSwitching()
+    {
+        string path = @"C:\Users\HP\Desktop\New folder\NB81052_单向滑轮总成-GY-加球标调整.SLDDRW";
+        if (!File.Exists(path)) return;
+
+        using var file = SwFile.Open(path);
+        var sheets = file.GetDrawingSheets();
+        Assert.Equal(15, sheets.Count);
+
+        var s0Best = file.GetBestSheetPreviewImage(0);
+        var s1Best = file.GetBestSheetPreviewImage(1);
+        var s2Best = file.GetBestSheetPreviewImage(2);
+
+        Assert.NotNull(s0Best);
+        Assert.NotNull(s1Best);
+        Assert.NotNull(s2Best);
+
+        // Assert each sheet gets its own dedicated preview PNG, not the root document preview
+        var s0Png = file.GetSheetPreviewPng(0);
+        var s1Png = file.GetSheetPreviewPng(1);
+        var s2Png = file.GetSheetPreviewPng(2);
+
+        Assert.Equal(s0Png!.Length, s0Best!.Length);
+        Assert.Equal(s1Png!.Length, s1Best!.Length);
+        Assert.Equal(s2Png!.Length, s2Best!.Length);
+
+        // Assert sheets have distinct previews
+        Assert.NotEqual(s0Best.Length, s1Best.Length);
+        Assert.NotEqual(s1Best.Length, s2Best.Length);
+
+        // Assert DrawingSheetInfo exposes its own isolated preview
+        Assert.Equal(s0Png.Length, sheets[0].BestPreview!.Length);
+        Assert.Equal(s1Png.Length, sheets[1].BestPreview!.Length);
+        Assert.Equal(s2Png.Length, sheets[2].BestPreview!.Length);
     }
 
     [Fact]

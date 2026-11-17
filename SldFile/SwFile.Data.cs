@@ -541,7 +541,15 @@ public abstract partial class SwFile
     public byte[]? GetBestSheetPreviewImage(int sheetIndex)
     {
         var sheetPng = GetSheetPreviewPng(sheetIndex);
-        if (sheetIndex == 0)
+        bool isMultiSheet = (DrawingSheetNames != null && DrawingSheetNames.Count > 1)
+            || RawStreams.ContainsKey("Images/Sheet_1")
+            || RawStreams.ContainsKey("SheetPreviews/Sheet_1");
+
+        // Only for single-sheet drawings does the document-level Preview bitmap
+        // (which is a snapshot of whichever sheet was active on save) guaranteed to be sheet 0.
+        // For multi-sheet drawings, using the document root preview causes
+        // the active sheet at save time to be mistakenly shown on all sheets or on sheet 0.
+        if (sheetIndex == 0 && !isMultiSheet)
         {
             var highResBmp = GetPreviewBitmap(0);
             if (highResBmp != null)
@@ -552,18 +560,7 @@ public abstract partial class SwFile
                 if (bw * (long)bh >= pw * (long)ph) return highResBmp;
             }
         }
-        else
-        {
-            var cfgBmp = GetPreviewBitmap(sheetIndex);
-            if (cfgBmp != null)
-            {
-                if (sheetPng == null) return cfgBmp;
-                var (bw, bh) = GetImageDimensions(cfgBmp);
-                var (pw, ph) = GetImageDimensions(sheetPng);
-                if (bw * (long)bh >= pw * (long)ph) return cfgBmp;
-            }
-        }
-        return sheetPng;
+        return sheetPng ?? (sheetIndex == 0 ? GetPreviewBitmap(0) : null);
     }
 
     /// <summary>
