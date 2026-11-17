@@ -158,7 +158,8 @@ public class DrawingDeepeningTests
         Assert.Contains("id=\"views\"", svg);
         Assert.Contains("id=\"dimensions\"", svg);
         Assert.Contains("id=\"notes\"", svg);
-        Assert.Contains("ABCD", svg);
+        Assert.Contains(System.Xml.Linq.XDocument.Parse(svg).Descendants(),
+            e => e.Name.LocalName == "text" && e.Value.Contains("ABCD"));
     }
 
     [Fact]

@@ -113,7 +113,8 @@ public class DrawingVectorAndBomTests
         Assert.Contains("id=\"dimensions\"", svg);
         Assert.Contains("id=\"balloons\"", svg);
         Assert.Contains("id=\"notes\"", svg);
-        Assert.Contains("ABCD", svg);
+        Assert.Contains(System.Xml.Linq.XDocument.Parse(svg).Descendants(),
+            e => e.Name.LocalName == "text" && e.Value.Contains("ABCD"));
         Assert.Contains(System.Xml.Linq.XDocument.Parse(svg).Descendants(), e => e.Name.LocalName == "line");
         Assert.Contains("</svg>", svg);
     }
