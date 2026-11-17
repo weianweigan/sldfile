@@ -21,16 +21,11 @@ public class EmpiricalChallengerP02Tests
     [Fact]
     public void Test_Models_AssemblySldasm_MatesList_Inspection()
     {
-        string modelsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../models/assembly.SLDASM"));
-        if (!File.Exists(modelsPath))
-        {
-            modelsPath = @"d:\weigan\repos\sldfile\models\assembly.SLDASM";
-        }
-        Assert.True(File.Exists(modelsPath), $"File not found at {modelsPath}");
+        string modelsPath = TestFileProvider.Assembly;
 
         using var assembly = new SldAssembly(modelsPath, readOnly: true);
         var matesList = assembly.MatesList;
-        _output.WriteLine($"models/assembly.SLDASM: StreamVersion=0x{matesList.StreamVersion:X4}, Mates.Count={matesList.Mates.Count}");
+        _output.WriteLine($"{modelsPath}: StreamVersion=0x{matesList.StreamVersion:X4}, Mates.Count={matesList.Mates.Count}");
 
         foreach (var mate in matesList.Mates)
         {
@@ -41,9 +36,7 @@ public class EmpiricalChallengerP02Tests
     [Fact]
     public void Test_Existing_Models_AssemblySldasm_Resave_Integrity()
     {
-        string modelsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../models/assembly.SLDASM"));
-        if (!File.Exists(modelsPath))
-            modelsPath = @"d:\weigan\repos\sldfile\models\assembly.SLDASM";
+        string modelsPath = TestFileProvider.Assembly;
 
         string tempFile = Path.Combine(Path.GetTempPath(), $"emp_resave_{Guid.NewGuid():N}.SLDASM");
         File.Copy(modelsPath, tempFile, true);
@@ -138,12 +131,7 @@ public class EmpiricalChallengerP02Tests
     [Fact]
     public void Test_MotionPathTutorial_MatesList_Inspection()
     {
-        string path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../SldFileTests/TestFiles/Mates2026/Path/motion_path_tutorial.SLDASM"));
-        if (!File.Exists(path))
-        {
-            path = @"d:\weigan\repos\sldfile\SldFileTests\TestFiles\Mates2026\Path\motion_path_tutorial.SLDASM";
-        }
-        Assert.True(File.Exists(path), $"File not found: {path}");
+        string path = TestFileProvider.Resolve("Mates2026/Path", "motion_path_tutorial.SLDASM");
 
         using var assembly = new SldAssembly(path, readOnly: true);
         var matesList = assembly.MatesList;
@@ -168,9 +156,7 @@ public class EmpiricalChallengerP02Tests
     [Fact]
     public void Test_SldAssembly_AddMate_Coincident_GeneratesValidStream_AndReopens()
     {
-        string sourceBase = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../SldFileTests/TestFiles/Mates2026/NoMate/assembly_nomate_base.SLDASM"));
-        if (!File.Exists(sourceBase))
-            sourceBase = @"d:\weigan\repos\sldfile\SldFileTests\TestFiles\Mates2026\NoMate\assembly_nomate_base.SLDASM";
+        string sourceBase = TestFileProvider.Resolve("Mates2026/NoMate", "assembly_nomate_base.SLDASM");
 
         string tempFile = Path.Combine(Path.GetTempPath(), $"emp_add_mate_{Guid.NewGuid():N}.SLDASM");
         File.Copy(sourceBase, tempFile, true);
@@ -226,9 +212,7 @@ public class EmpiricalChallengerP02Tests
     [Fact]
     public void Test_SldAssembly_AddWidthMate_GeneratesValidStream_AndReopens()
     {
-        string sourceBase = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../SldFileTests/TestFiles/Mates2026/NoMate/assembly_nomate_base.SLDASM"));
-        if (!File.Exists(sourceBase))
-            sourceBase = @"d:\weigan\repos\sldfile\SldFileTests\TestFiles\Mates2026\NoMate\assembly_nomate_base.SLDASM";
+        string sourceBase = TestFileProvider.Resolve("Mates2026/NoMate", "assembly_nomate_base.SLDASM");
 
         string tempFile = Path.Combine(Path.GetTempPath(), $"emp_add_width_{Guid.NewGuid():N}.SLDASM");
         File.Copy(sourceBase, tempFile, true);
@@ -270,9 +254,7 @@ public class EmpiricalChallengerP02Tests
     [Fact]
     public void Test_SldAssembly_AddProfileCenterMate_GeneratesValidStream_AndReopens()
     {
-        string sourceBase = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../SldFileTests/TestFiles/Mates2026/NoMate/assembly_nomate_base.SLDASM"));
-        if (!File.Exists(sourceBase))
-            sourceBase = @"d:\weigan\repos\sldfile\SldFileTests\TestFiles\Mates2026\NoMate\assembly_nomate_base.SLDASM";
+        string sourceBase = TestFileProvider.Resolve("Mates2026/NoMate", "assembly_nomate_base.SLDASM");
 
         string tempFile = Path.Combine(Path.GetTempPath(), $"emp_add_pc_{Guid.NewGuid():N}.SLDASM");
         File.Copy(sourceBase, tempFile, true);
@@ -311,9 +293,7 @@ public class EmpiricalChallengerP02Tests
     [Fact]
     public void Test_SldAssembly_AddCamFollowerMate_GeneratesValidStream_AndReopens()
     {
-        string sourceBase = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../SldFileTests/TestFiles/Mates2026/NoMate/assembly_nomate_base.SLDASM"));
-        if (!File.Exists(sourceBase))
-            sourceBase = @"d:\weigan\repos\sldfile\SldFileTests\TestFiles\Mates2026\NoMate\assembly_nomate_base.SLDASM";
+        string sourceBase = TestFileProvider.Resolve("Mates2026/NoMate", "assembly_nomate_base.SLDASM");
 
         string tempFile = Path.Combine(Path.GetTempPath(), $"emp_add_cam_{Guid.NewGuid():N}.SLDASM");
         File.Copy(sourceBase, tempFile, true);
@@ -350,9 +330,7 @@ public class EmpiricalChallengerP02Tests
     [Fact]
     public void Test_SldAssembly_AddDistanceMate_GeneratesValidStream_AndReopens()
     {
-        string sourceBase = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../SldFileTests/TestFiles/Mates2026/NoMate/assembly_nomate_base.SLDASM"));
-        if (!File.Exists(sourceBase))
-            sourceBase = @"d:\weigan\repos\sldfile\SldFileTests\TestFiles\Mates2026\NoMate\assembly_nomate_base.SLDASM";
+        string sourceBase = TestFileProvider.Resolve("Mates2026/NoMate", "assembly_nomate_base.SLDASM");
 
         string tempFile = Path.Combine(Path.GetTempPath(), $"emp_add_dist_{Guid.NewGuid():N}.SLDASM");
         File.Copy(sourceBase, tempFile, true);
@@ -397,9 +375,7 @@ public class EmpiricalChallengerP02Tests
     [Fact]
     public void Test_SldAssembly_AddCoincidentAndDistanceMates_Together_GeneratesValidStream_AndReopens()
     {
-        string sourceBase = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../SldFileTests/TestFiles/Mates2026/NoMate/assembly_nomate_base.SLDASM"));
-        if (!File.Exists(sourceBase))
-            sourceBase = @"d:\weigan\repos\sldfile\SldFileTests\TestFiles\Mates2026\NoMate\assembly_nomate_base.SLDASM";
+        string sourceBase = TestFileProvider.Resolve("Mates2026/NoMate", "assembly_nomate_base.SLDASM");
 
         string tempFile = Path.Combine(Path.GetTempPath(), $"emp_add_dual_{Guid.NewGuid():N}.SLDASM");
         File.Copy(sourceBase, tempFile, true);
@@ -459,9 +435,7 @@ public class EmpiricalChallengerP02Tests
     [Fact]
     public void Test_SldAssembly_AddWidthMate_FreeConstraint_ReopensAsFree()
     {
-        string sourceBase = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../SldFileTests/TestFiles/Mates2026/NoMate/assembly_nomate_base.SLDASM"));
-        if (!File.Exists(sourceBase))
-            sourceBase = @"d:\weigan\repos\sldfile\SldFileTests\TestFiles\Mates2026\NoMate\assembly_nomate_base.SLDASM";
+        string sourceBase = TestFileProvider.Resolve("Mates2026/NoMate", "assembly_nomate_base.SLDASM");
 
         string tempFile = Path.Combine(Path.GetTempPath(), $"emp_add_width_free_{Guid.NewGuid():N}.SLDASM");
         File.Copy(sourceBase, tempFile, true);
@@ -498,9 +472,7 @@ public class EmpiricalChallengerP02Tests
     [Fact]
     public void Test_SldAssembly_AddRackPinionMate_NegativeTravel_ReopensNegative()
     {
-        string sourceBase = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../SldFileTests/TestFiles/Mates2026/NoMate/assembly_nomate_base.SLDASM"));
-        if (!File.Exists(sourceBase))
-            sourceBase = @"d:\weigan\repos\sldfile\SldFileTests\TestFiles\Mates2026\NoMate\assembly_nomate_base.SLDASM";
+        string sourceBase = TestFileProvider.Resolve("Mates2026/NoMate", "assembly_nomate_base.SLDASM");
 
         string tempFile = Path.Combine(Path.GetTempPath(), $"emp_add_rp_neg_{Guid.NewGuid():N}.SLDASM");
         File.Copy(sourceBase, tempFile, true);

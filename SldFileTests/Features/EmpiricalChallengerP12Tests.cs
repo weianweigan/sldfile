@@ -13,7 +13,7 @@ namespace SldFileTests.Features;
 
 /// <summary>
 /// Empirical challenge suite authored by Challenger P1.2 (Solid Features Native Specimen Challenger).
-/// Rigorously tests real SolidWorks native specimens across models/, SweepOptions, LoftOptions,
+/// Rigorously tests real SolidWorks native specimens across Solidworks2012, SweepOptions, LoftOptions,
 /// ShellOptions, DraftOptions, CombineSplitOptions, and LegacyTutorialSamples in both
 /// read-only and read-write modes, verifying feature deserialization, attribute accuracy,
 /// and round-trip resave/reopen consistency.
@@ -25,15 +25,6 @@ public class EmpiricalChallengerP12Tests
     public EmpiricalChallengerP12Tests(ITestOutputHelper output)
     {
         _output = output;
-    }
-
-    private static string ResolveModels(string fileName)
-    {
-        string candidate = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "models", fileName));
-        if (File.Exists(candidate)) return candidate;
-        candidate = Path.Combine(@"d:\weigan\repos\sldfile\models", fileName);
-        if (File.Exists(candidate)) return candidate;
-        throw new FileNotFoundException($"Model specimen not found: {fileName}");
     }
 
     private static string ResolveOption(string folder, string fileName)
@@ -66,7 +57,7 @@ public class EmpiricalChallengerP12Tests
     }
 
     // =========================================================================
-    // Category 1: Real Native Models in models/
+    // Category 1: Real Native Models in TestFiles/Solidworks2012
     // =========================================================================
 
     [Theory]
@@ -76,7 +67,7 @@ public class EmpiricalChallengerP12Tests
     [InlineData("cube_red.SLDPRT")]
     public void Models_NativeParts_OpenReadOnlyAndReadWrite_AndResaveConsistently(string fileName)
     {
-        string path = ResolveModels(fileName);
+        string path = TestFileProvider.Resolve("Solidworks2012", fileName);
         _output.WriteLine($"Testing native model: {path}");
 
         // 1. Read-only open via SwFile.Open and SldPart
