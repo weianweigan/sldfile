@@ -28,6 +28,12 @@ public partial class DocumentTreeViewModel : ObservableObject
     public ObservableCollection<TreeNodeModel> RootNodes { get; } = new();
 
     public event Action<TreeNodeModel>? NodeSelected;
+public event Action<AssemblyComponentNode, ComponentTreeAction>? ComponentActionRequested;
+
+public void RequestComponentAction(AssemblyComponentNode comp, ComponentTreeAction action)
+{
+    ComponentActionRequested?.Invoke(comp, action);
+}
 
     public DocumentTreeViewModel(ISwDocumentService docService)
     {
@@ -93,14 +99,7 @@ public partial class DocumentTreeViewModel : ObservableObject
     {
         var features = _docService.GetFeatures();
         var sketches = _docService.GetSketches(configIndex);
-        var sketchDict = new Dictionary<string, SketchFeatureModel>(StringComparer.OrdinalIgnoreCase);
-        foreach (var s in sketches)
-        {
-            if (!sketchDict.TryGetValue(s.Name, out var existing) || (existing.Segments.Count == 0 && s.Segments.Count > 0))
-            {
-                sketchDict[s.Name] = s;
-            }
-        }
+        var sketchDict = CreateSketchDictionary(sketches);
 
         // FeatureManager Tree Branch
         var featTree = CreateNode("特征管理器 (FeatureManager)", TreeNodeKind.FeatureFolder, null, $"{features.Count} 个特征");
@@ -306,14 +305,7 @@ public partial class DocumentTreeViewModel : ObservableObject
     {
         if (_featTreeFolder == null || _currentSwFile == null) return;
         var sketches = _docService.GetSketches(configIndex);
-        var sketchDict = new Dictionary<string, SketchFeatureModel>(StringComparer.OrdinalIgnoreCase);
-        foreach (var s in sketches)
-        {
-            if (!sketchDict.TryGetValue(s.Name, out var existing) || (existing.Segments.Count == 0 && s.Segments.Count > 0))
-            {
-                sketchDict[s.Name] = s;
-            }
-        }
+        var sketchDict = CreateSketchDictionary(sketches);
 
         void UpdateSketchTags(TreeNodeModel node)
         {
@@ -377,6 +369,20 @@ public partial class DocumentTreeViewModel : ObservableObject
         {
             NodeSelected?.Invoke(value);
         }
+    }
+
+    private static Dictionary<string, SketchFeatureModel> CreateSketchDictionary(IReadOnlyList<SketchFeatureModel> sketches)
+    {
+        var dict = new Dictionary<string, SketchFeatureModel>(StringComparer.OrdinalIgnoreCase);
+        foreach (var sk in sketches)
+        {
+            if (!string.IsNullOrEmpty(sk.Name) &&
+                (!dict.TryGetValue(sk.Name, out var existing) || (existing.Segments.Count == 0 && sk.Segments.Count > 0)))
+            {
+                dict[sk.Name] = sk;
+            }
+        }
+        return dict;
     }
 }
 

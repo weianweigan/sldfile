@@ -663,8 +663,11 @@ public sealed class SketchDimensionModel : DimensionModel
 /// <summary>
 /// Unified strongly-typed model for moProfileFeature_c / mo3DProfileFeature_c sketch features.
 /// Implements <see cref="IMfcFeatureModel"/> to serialize sketch geometry, points, segments, relations, and dimensions.
+/// Default serialization preserves the existing aggregate roundtrip format;
+/// an internal native mode handles the actual moProfileFeature_c payload.
+/// Native entity handles are references, distinct from coordinate-bearing points.
 /// </summary>
-public sealed class SketchFeatureModel : IMfcFeatureModel
+public sealed partial class SketchFeatureModel : IMfcFeatureModel
 {
     public const string ClassName2D = "moProfileFeature_c";
     public const string ClassName3D = "mo3DProfileFeature_c";
@@ -949,6 +952,7 @@ public sealed class SketchFeatureModel : IMfcFeatureModel
 
     public void Serialize(MfcArchive ar)
     {
+        if (NativeProfile != null) { NativeProfile.Serialize(ar); return; }
         if (ar.IsStoring)
         {
             ushort refTag = 0;

@@ -1,10 +1,14 @@
 using System;
 using System.IO;
+using System.Linq;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using SldFile.Drawing;
 using SldFile;
 using SldFileViewer.Services;
+using SldFileViewer.Views.Controls;
 
 namespace SldFileViewer.ViewModels;
 
@@ -15,7 +19,12 @@ public partial class ImagePreviewViewModel : ObservableObject
     private readonly IDialogService? _dialogService;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasRasterImage))]
+    [NotifyPropertyChangedFor(nameof(IsRasterImageVisible))]
     private BitmapImage? _imageSource;
+
+    [ObservableProperty]
+    private byte[]? _rawImageBytes;
 
     [ObservableProperty]
     private string _imageInfo = string.Empty;
@@ -29,25 +38,243 @@ public partial class ImagePreviewViewModel : ObservableObject
     [ObservableProperty]
     private int _currentSheetIndex;
 
-    public ImagePreviewViewModel(
-        ISwDocumentService docService,
-        IExportService? exportService = null,
-        IDialogService? dialogService = null)
+    [ObservableProperty]
+    private double _zoom = 1.0;
+
+    [ObservableProperty]
+    private string _zoomText = "100%";
+
+    [ObservableProperty]
+    private int _pixelWidth;
+
+    [ObservableProperty]
+    private int _pixelHeight;
+
+    [ObservableProperty]
+    private bool _isHighDefinition;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ScalingMode))]
+    [NotifyPropertyChangedFor(nameof(FilterModeText))]
+    private bool _isSmoothFilter = true;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasVectorData))]
+    [NotifyPropertyChangedFor(nameof(VectorStatusText))]
+    [NotifyPropertyChangedFor(nameof(VectorDiagnosticText))]
+    [NotifyPropertyChangedFor(nameof(IsRasterImageVisible))]
+    private DrawingPreviewDefinition? _preview;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(VectorOverlayButtonText))]
+    [NotifyPropertyChangedFor(nameof(VectorStatusText))]
+    [NotifyPropertyChangedFor(nameof(IsVectorOverlayEnabled))]
+    [NotifyPropertyChangedFor(nameof(IsRasterImageVisible))]
+    private DrawingOverlayMode _overlayMode = DrawingOverlayMode.SheetNotesOnly;
+
+    public bool HasRasterImage => ImageSource != null;
+
+    public bool IsRasterImageVisible => HasRasterImage && (
+        OverlayMode != DrawingOverlayMode.PureVectorCad ||
+        !HasVectorData);
+
+    public bool IsVectorOverlayEnabled
+    {
+        get => OverlayMode != DrawingOverlayMode.Off;
+        set
+        {
+            if (value && OverlayMode == DrawingOverlayMode.Off)
+            {
+                OverlayMode = DrawingOverlayMode.SheetNotesOnly;
+            }
+            else if (!value)
+            {
+                OverlayMode = DrawingOverlayMode.Off;
+            }
+        }
+    }
+
+    public bool HasVectorData => Preview?.Primitives.Count > 0;
+
+    public string VectorDiagnosticText => Preview == null ? string.Empty : string.Join(Environment.NewLine,
+        Preview.Issues.Select(i => $"{i.Code}: {i.Source}" +
+            (i.FirstOffset is int offset ? $" @0x{offset:X8}" : string.Empty) + $" — {i.Message} ×{i.Occurrences}"));
+
+    public string VectorStatusText
+    {
+        get
+        {
+            if (!HasVectorData) return "无矢量数据";
+            if (Preview is { IsResolved: false } preview)
+                return $"原生矢量预览: {preview.Primitives.Count} 图元（部分解析，{preview.Issues.Count} 类缺失）";
+            int lineCount = Preview!.Primitives.Count(p => p.Kind != DrawingPreviewPrimitiveKind.Text);
+            int textCount = Preview.Primitives.Count(p => p.Kind == DrawingPreviewPrimitiveKind.Text);
+            return OverlayMode switch
+            {
+                DrawingOverlayMode.PureVectorCad => $"纯矢量 CAD ({lineCount} 线条 + {textCount} 注释)",
+                DrawingOverlayMode.SheetNotesOnly => $"矢量注释 ({Preview.Primitives.Count(p => p.Kind == DrawingPreviewPrimitiveKind.Text && p.IsSheetLevelNote)} 项图纸文字)",
+                DrawingOverlayMode.AllAnnotations => $"全图 CAD ({textCount} 图元)",
+                _ => "矢量增强: 关"
+            };
+        }
+    }
+
+    public string VectorOverlayButtonText => OverlayMode switch
+    {
+        DrawingOverlayMode.PureVectorCad => "🎨 纯矢量 CAD",
+        DrawingOverlayMode.SheetNotesOnly => "🔤 矢量增强: 图纸注释",
+        DrawingOverlayMode.AllAnnotations => "📐 矢量增强: 全图 CAD",
+        _ => "🖼️ 矢量增强: 关"
+    };
+
+    public BitmapScalingMode ScalingMode => IsSmoothFilter ? BitmapScalingMode.Fant : BitmapScalingMode.NearestNeighbor;
+
+    public string FilterModeText => IsSmoothFilter ? "高清抗锯齿 (Fant)" : "锐利像素 (Nearest)";
+
+    public event Action? RequestFitToWindow;
+    public event Action? RequestResetTo100;
+    public event Action<double>? RequestZoomDelta;
+
+    public ImagePreviewViewModel(ISwDocumentService docService) : this(docService, null, null)
+    {
+    }
+
+    public ImagePreviewViewModel(ISwDocumentService docService, IDialogService? dialogService)
+        : this(docService, null, dialogService)
+    {
+    }
+
+    public ImagePreviewViewModel(ISwDocumentService docService, IExportService? exportService, IDialogService? dialogService)
     {
         _docService = docService;
         _exportService = exportService;
         _dialogService = dialogService;
     }
 
-    public void LoadImage(byte[]? imageBytes, string description = "", int sheetIndex = -1)
+    [RelayCommand]
+    public void FitToWindow()
     {
+        RequestFitToWindow?.Invoke();
+    }
+
+    [RelayCommand]
+    public void ResetTo100()
+    {
+        RequestResetTo100?.Invoke();
+    }
+
+    [RelayCommand]
+    public void ZoomIn()
+    {
+        RequestZoomDelta?.Invoke(1.25);
+    }
+
+    [RelayCommand]
+    public void ZoomOut()
+    {
+        RequestZoomDelta?.Invoke(0.8);
+    }
+
+    [RelayCommand]
+    public void ToggleFilterMode()
+    {
+        IsSmoothFilter = !IsSmoothFilter;
+    }
+
+    [RelayCommand]
+    public void ToggleVectorOverlay()
+    {
+        if (OverlayMode == DrawingOverlayMode.Off)
+        {
+            OverlayMode = DrawingOverlayMode.SheetNotesOnly;
+        }
+        else
+        {
+            OverlayMode = DrawingOverlayMode.Off;
+        }
+    }
+
+    [RelayCommand]
+    public void CycleOverlayMode()
+    {
+        OverlayMode = OverlayMode switch
+        {
+            DrawingOverlayMode.SheetNotesOnly => DrawingOverlayMode.PureVectorCad,
+            DrawingOverlayMode.PureVectorCad => DrawingOverlayMode.AllAnnotations,
+            DrawingOverlayMode.AllAnnotations => DrawingOverlayMode.Off,
+            _ => DrawingOverlayMode.SheetNotesOnly
+        };
+    }
+
+    [RelayCommand]
+    public void SetPureVectorCadMode() => OverlayMode = DrawingOverlayMode.PureVectorCad;
+
+    [RelayCommand]
+    public void SetSheetNotesOnlyMode() => OverlayMode = DrawingOverlayMode.SheetNotesOnly;
+
+    [RelayCommand]
+    public void SetAllAnnotationsMode() => OverlayMode = DrawingOverlayMode.AllAnnotations;
+
+    [RelayCommand]
+    public void SetOverlayOffMode() => OverlayMode = DrawingOverlayMode.Off;
+
+    [RelayCommand]
+    public void ExportImage()
+    {
+        if (RawImageBytes == null || RawImageBytes.Length == 0 || _dialogService == null)
+            return;
+
+        bool isBmp = RawImageBytes.Length >= 2 && RawImageBytes[0] == 0x42 && RawImageBytes[1] == 0x4D;
+        string defaultExt = isBmp ? ".bmp" : ".png";
+        string filter = isBmp ? "BMP 位图 (*.bmp)|*.bmp|所有文件 (*.*)|*.*" : "PNG 图像 (*.png)|*.png|所有文件 (*.*)|*.*";
+        string defaultName = $"Preview_{DateTime.Now:yyyyMMdd_HHmmss}{defaultExt}";
+
+        if (_dialogService.ShowSaveFileDialog(defaultName, filter, out var savePath))
+        {
+            try
+            {
+                File.WriteAllBytes(savePath, RawImageBytes);
+                _dialogService.ShowInformation("导出成功", $"预览图像已成功保存至:\n{savePath}");
+            }
+            catch (Exception ex)
+            {
+                _dialogService.ShowError("导出失败", $"保存图像失败:\n{ex.Message}");
+            }
+        }
+    }
+
+    public void UpdateZoom(double zoomRatio)
+    {
+        Zoom = zoomRatio;
+        ZoomText = $"{Math.Round(zoomRatio * 100):0}%";
+    }
+
+    public void LoadImage(byte[]? imageBytes, string description = "", DrawingPreviewDefinition? preview = null, int sheetIndex = -1)
+    {
+        Preview = preview;
         CurrentSheetIndex = sheetIndex;
-        IsDrawingSheet = (_docService.CurrentFile is SldDrawing) && sheetIndex >= 0;
+        IsDrawingSheet = _docService.CurrentFile is SldDrawing && sheetIndex >= 0;
+        OverlayMode = preview?.Views.Count > 0 ? DrawingOverlayMode.PureVectorCad : DrawingOverlayMode.SheetNotesOnly;
 
         if (imageBytes == null || imageBytes.Length == 0)
         {
             ImageSource = null;
+            RawImageBytes = null;
+            if (HasVectorData)
+            {
+                HasImage = true;
+                PixelWidth = Math.Max(1, (int)Math.Ceiling(Preview!.PaperWidth * 96 / 0.0254));
+                PixelHeight = Math.Max(1, (int)Math.Ceiling(Preview.PaperHeight * 96 / 0.0254));
+                IsHighDefinition = false;
+                OverlayMode = Preview.Views.Count > 0 ? DrawingOverlayMode.PureVectorCad : DrawingOverlayMode.AllAnnotations;
+                ImageInfo = $"{description} - 原生矢量预览";
+                RequestFitToWindow?.Invoke();
+                return;
+            }
             HasImage = false;
+            PixelWidth = 0;
+            PixelHeight = 0;
+            IsHighDefinition = false;
             ImageInfo = "无可用预览图像";
             return;
         }
@@ -63,13 +290,29 @@ public partial class ImagePreviewViewModel : ObservableObject
             bmp.Freeze();
 
             ImageSource = bmp;
+            RawImageBytes = imageBytes;
             HasImage = true;
-            ImageInfo = $"{description} - 分辨率: {bmp.PixelWidth} x {bmp.PixelHeight} px ({imageBytes.Length / 1024} KB)";
+            PixelWidth = bmp.PixelWidth;
+            PixelHeight = bmp.PixelHeight;
+            IsHighDefinition = bmp.PixelWidth >= 1920 || bmp.PixelHeight >= 1080;
+
+            string hdTag = IsHighDefinition ? " [高清]" : "";
+            string vectorTag = HasVectorData
+                ? $" [矢量 CAD: {Preview!.Primitives.Count} 图元]"
+                : "";
+            ImageInfo = $"{description}{hdTag}{vectorTag} - 分辨率: {bmp.PixelWidth} x {bmp.PixelHeight} px ({(imageBytes.Length + 1023) / 1024} KB)";
+
+            // 图像更新后请求视口自适应
+            RequestFitToWindow?.Invoke();
         }
         catch (Exception ex)
         {
             ImageSource = null;
+            RawImageBytes = null;
             HasImage = false;
+            PixelWidth = 0;
+            PixelHeight = 0;
+            IsHighDefinition = false;
             ImageInfo = $"加载图像失败: {ex.Message}";
         }
     }

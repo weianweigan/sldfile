@@ -1,0 +1,36 @@
+{
+  "source": "C:\\Program Files\\SOLIDWORKS Corp\\SOLIDWORKS\\sldBenchmarking\\Macro",
+  "copiedOn": "2026-11-09",
+  "scope": "Recursive .slddrw only; original bytes and hierarchy preserved; all referenced models intentionally excluded",
+  "files": [
+    {
+      "path": "carrier.slddrw",
+      "bytes": 2899538,
+      "sha256": "573fc3dd41c175818e4bd074bffd9adf92e26780e3f983c13a29e5d9f1daf4dc"
+    },
+    {
+      "path": "cavity.slddrw",
+      "bytes": 340847,
+      "sha256": "183fa7a56bc9f04e316762c2c6119f54d1bc77420fa804a4fd74892c2d19ed2b"
+    },
+    {
+      "path": "punch_holder.slddrw",
+      "bytes": 11715230,
+      "sha256": "935eaf3d06e28c6f371dd932a790883f1cff81694443f592b53282f9d26233fb"
+    },
+    {
+      "path": "Mold/bezel moldbase.slddrw",
+      "bytes": 3939078,
+      "sha256": "fbed1fdf7b1b489679f592886a334880e1ba9772c77ee02f9dfd316fbb61ecdc"
+    }
+  ],
+  "excludedAssemblies": [
+    "pipingassembly.sldasm",
+    "Mold/bezel moldbase.sldasm",
+    "Mold/Moldbase/bezel moldbase ejector set.sldasm",
+    "Mold/Moldbase/bezel moldbase fixed half.sldasm",
+    "Mold/Moldbase/bezel moldbase lifter.sldasm",
+    "Mold/Moldbase/bezel moldbase moving half.sldasm",
+    "Mold/Moldbase/bezel moldbase side core slide.sldasm"
+  ]
+}

@@ -37,3 +37,22 @@ public enum ModelDisplayStyle
     /// <summary>消除隐藏线白模 (Technical Illustration) - 哑光纯白工程纸感，高对比黑线</summary>
     TechnicalWhite
 }
+
+/// <summary>
+/// 装配体零部件操作动作
+/// </summary>
+public enum ComponentTreeAction
+{
+    /// <summary>隔离此零部件 (Isolate)</summary>
+    Isolate,
+    /// <summary>切换显示/隐藏状态</summary>
+    ToggleVisibility,
+    /// <summary>隐藏此零部件 (Hide)</summary>
+    Hide,
+    /// <summary>显示此零部件 (Show)</summary>
+    Show,
+    /// <summary>全部显示 (Show All)</summary>
+    ShowAll,
+    /// <summary>聚焦定位 (Zoom to)</summary>
+    ZoomTo
+}

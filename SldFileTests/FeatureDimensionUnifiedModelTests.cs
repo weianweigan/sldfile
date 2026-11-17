@@ -9,19 +9,7 @@ namespace SldFileTests;
 
 public sealed class FeatureDimensionUnifiedModelTests
 {
-    private static string GetSamplePath(string fileName)
-    {
-        var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../"));
-        var candidate1 = Path.Combine(repoRoot, "models", fileName);
-        if (File.Exists(candidate1)) return candidate1;
-        var candidate2 = Path.Combine(repoRoot, "SldFileTests", "TestFiles", "Controlled", fileName);
-        if (File.Exists(candidate2)) return candidate2;
-        var candidate3 = Path.Combine(repoRoot, "SldFileTests", "TestFiles", fileName);
-        if (File.Exists(candidate3)) return candidate3;
-        var match = Directory.GetFiles(Path.Combine(repoRoot, "SldFileTests", "TestFiles"), fileName, SearchOption.AllDirectories).FirstOrDefault();
-        if (match != null) return match;
-        throw new FileNotFoundException($"Test sample not found: {fileName}");
-    }
+    private static string GetSamplePath(string fileName) => TestFileProvider.Resolve("Features2026", fileName);
 
     [Fact]
     public void FeatureDimension_ConstructedFromParameterAndDisplayDim_ShouldPopulateTypedObjects()

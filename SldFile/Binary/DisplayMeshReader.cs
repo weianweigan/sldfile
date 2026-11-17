@@ -129,6 +129,86 @@ internal static class DisplayMeshReader
         return PackMesh(faces, appearances);
     }
 
+    /// <summary>
+    /// Decodes 3D display mesh tessellations from modern FaceTessellations streams.
+    /// </summary>
+    public static DisplayMesh? ReadMeshFromFaceTessellations(
+        IReadOnlyDictionary<string, byte[]> rawStreams,
+        IReadOnlyDictionary<string, ZlbData>? zlbStreams = null)
+    {
+        if (rawStreams == null && zlbStreams == null) return null;
+
+        var faces = new List<RawFace>();
+
+        void ProcessPayload(byte[] ft)
+        {
+            if (ft == null || ft.Length < 64) return;
+            int cursor = 0;
+            while (cursor + ChannelHeaderLen <= ft.Length)
+            {
+                uint itemSize = BitConverter.ToUInt32(ft, cursor);
+                uint kind = BitConverter.ToUInt32(ft, cursor + 4);
+                uint flags = BitConverter.ToUInt32(ft, cursor + 8);
+
+                if (itemSize == 4 && kind == 8 && flags == 2)
+                {
+                    var tableResult = ParseTable(ft, cursor);
+                    if (tableResult != null)
+                    {
+                        var (table, nextCursor) = tableResult.Value;
+                        faces.Add(new RawFace
+                        {
+                            Table = table,
+                            Start = cursor,
+                            End = nextCursor,
+                            MetadataStart = nextCursor,
+                            MetadataEnd = nextCursor
+                        });
+                        cursor = nextCursor;
+                        continue;
+                    }
+                }
+                cursor += 4;
+            }
+        }
+
+        if (rawStreams != null)
+        {
+            foreach (var kvp in rawStreams)
+            {
+                if (kvp.Key.IndexOf("FaceTessellations/", StringComparison.OrdinalIgnoreCase) >= 0 &&
+                    !kvp.Key.EndsWith("Directory", StringComparison.OrdinalIgnoreCase))
+                {
+                    ProcessPayload(kvp.Value);
+                }
+            }
+        }
+
+        if (zlbStreams != null)
+        {
+            foreach (var kvp in zlbStreams)
+            {
+                if (kvp.Key.IndexOf("FaceTessellations/", StringComparison.OrdinalIgnoreCase) >= 0 &&
+                    !kvp.Key.EndsWith("Directory", StringComparison.OrdinalIgnoreCase) &&
+                    kvp.Value.RawData != null)
+                {
+                    ProcessPayload(kvp.Value.RawData);
+                }
+            }
+        }
+
+        if (faces.Count == 0)
+            return null;
+
+        var appearances = new List<(string? Name, uint? Color, string? Source)>(faces.Count);
+        for (int i = 0; i < faces.Count; i++)
+        {
+            appearances.Add(("FaceTessPart", null, "Default"));
+        }
+
+        return PackMesh(faces, appearances);
+    }
+
     private static List<ClassInterval> ReadClassIntervals(byte[] payload)
     {
         var decls = new List<(int Offset, string Name)>();

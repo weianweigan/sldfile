@@ -8,6 +8,8 @@ using System.Text;
 using SldFile;
 using SldFile.Binary;
 
+using SldFile.Mfc.Base;
+
 namespace SldFile.Mfc;
 
 

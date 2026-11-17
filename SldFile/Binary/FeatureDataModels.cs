@@ -62,7 +62,7 @@ internal sealed class DefaultRefPlaneData : IFeatureData
 /// Component reference plane — references a plane by GUID.
 /// Child of moOriginProfileFeature_ct/_cM, moProfileFeature_ct/_cM, moMateGroup_cM.
 /// </summary>
-internal sealed class CompRefPlaneData : IFeatureData
+internal sealed partial class CompRefPlaneData : IFeatureData
 {
     public string ClassName => "moCompRefPlane_c";
     public uint TypeId => 0;
@@ -82,7 +82,7 @@ internal sealed class CompRefPlaneData : IFeatureData
 /// <summary>
 /// Sketch container holding entity count, flags, and sketch transform data.
 /// </summary>
-internal sealed class SketchData : IFeatureData
+internal sealed partial class SketchData : IFeatureData
 {
     public string ClassName => "sgSketch";
     public uint TypeId => 0;
@@ -97,38 +97,32 @@ internal sealed class SketchData : IFeatureData
 }
 
 /// <summary>Sketch point handle.</summary>
-internal sealed class PointHandleData : IFeatureData
+internal sealed class PointHandleData : EntHandleData
 {
-    public string ClassName => "sgPointHandle";
-    public uint TypeId => 0;
+    public override string ClassName => "sgPointHandle";
 
     public uint RefId { get; set; }
 
-    internal byte[] RawData = Array.Empty<byte>();
     internal byte[] HandleData = Array.Empty<byte>();
 }
 
 /// <summary>Sketch line handle.</summary>
-internal sealed class LineHandleData : IFeatureData
+internal sealed class LineHandleData : EntHandleData
 {
-    public string ClassName => "sgLineHandle";
-    public uint TypeId => 0;
+    public override string ClassName => "sgLineHandle";
 
     public uint Index { get; set; }
 
-    internal byte[] RawData = Array.Empty<byte>();
     internal byte[] HandleData = Array.Empty<byte>();
 }
 
 /// <summary>Sketch arc handle.</summary>
-internal sealed class ArcHandleData : IFeatureData
+internal sealed class ArcHandleData : EntHandleData
 {
-    public string ClassName => "sgArcHandle";
-    public uint TypeId => 0;
+    public override string ClassName => "sgArcHandle";
 
     public uint Index { get; set; }
 
-    internal byte[] RawData = Array.Empty<byte>();
     internal byte[] HandleData = Array.Empty<byte>();
 }
 
@@ -142,7 +136,7 @@ internal sealed class CircleDimData : IFeatureData
 }
 
 /// <summary>Point-to-point distance constraint in a sketch.</summary>
-internal sealed class PntPntDistData : IFeatureData
+internal sealed partial class PntPntDistData : IFeatureData
 {
     public string ClassName => "sgPntPntDist";
     public uint TypeId => 0;
@@ -151,7 +145,7 @@ internal sealed class PntPntDistData : IFeatureData
 }
 
 /// <summary>External sketch entity reference (empty container).</summary>
-internal sealed class ExtEntData : IFeatureData
+internal sealed partial class ExtEntData : IFeatureData
 {
     public string ClassName => "sgExtEnt_c";
     public uint TypeId => 0;
@@ -160,7 +154,7 @@ internal sealed class ExtEntData : IFeatureData
 }
 
 /// <summary>Sketch external reference wrapper (empty container).</summary>
-internal sealed class SketchExtRefData : IFeatureData
+internal sealed partial class SketchExtRefData : IFeatureData
 {
     public string ClassName => "moSketchExtRef_w";
     public uint TypeId => 0;
@@ -169,9 +163,10 @@ internal sealed class SketchExtRefData : IFeatureData
 }
 
 /// <summary>Component sketch entity handle with face and topology references.</summary>
-internal sealed class CompSketchEntHandleData : IFeatureData
+internal sealed partial class CompSketchEntHandleData : IFeatureData
 {
-    public string ClassName => "moCompSketchEntHandle_c";
+    internal bool NativeCenterMark;
+    public string ClassName => NativeCenterMark ? "moCompCmarkSketchEntHandle_c" : "moCompSketchEntHandle_c";
     public uint TypeId => 0;
 
     public uint EntityIndex { get; set; }
@@ -182,12 +177,33 @@ internal sealed class CompSketchEntHandleData : IFeatureData
 }
 
 /// <summary>Generic sketch entity handle.</summary>
-internal sealed class EntHandleData : IFeatureData
+internal class EntHandleData : IFeatureData, IMfcSerializable
 {
-    public string ClassName => "sgEntHandle";
+    private readonly string _nativeClassName;
+    internal EntHandleData() : this("sgEntHandle") { }
+    internal EntHandleData(string nativeClassName) => _nativeClassName = nativeClassName;
+    public virtual string ClassName => _nativeClassName;
     public uint TypeId => 0;
 
     internal byte[] RawData = Array.Empty<byte>();
+    // Native sgEntHandle::Serialize 0x4C5B0AB0. These payload fields are
+    // distinct from the legacy scanner's RefId/Index projection. The archive
+    // owns class/object tags; an entity handle does not contain coordinates.
+    internal int EntityIndex, State1C, State08;
+    internal bool ExtendedIndex;
+
+    public void Serialize(MfcArchive ar)
+    {
+        if (ar.DocumentVersion < 5000)
+            throw new NotSupportedException("Unverified legacy sketch entity-handle layout.");
+        ushort tag = ExtendedIndex || unchecked((uint)EntityIndex) >= 0x777F ? (ushort)0x777F : (ushort)EntityIndex;
+        ar.U16(ref tag);
+        if (ar.IsLoading) ExtendedIndex = tag == 0x777F;
+        if (tag == 0x777F) ar.I32(ref EntityIndex);
+        else if (ar.IsLoading) EntityIndex = tag;
+        ar.I32(ref State1C);
+        if (ar.DocumentVersion >= 0x17D7) ar.I32(ref State08);
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -279,8 +295,8 @@ internal sealed class ParallelPlaneDistanceDimData : IFeatureData
     internal byte[] RawData = Array.Empty<byte>();
 }
 
-/// <summary>Favorite handle — small 6-byte attachment used by dimensions and features.</summary>
-internal sealed class FavoriteHandleData : IFeatureData
+/// <summary>Favorite handle used by dimensions and features; native fields have their own serializer.</summary>
+internal sealed partial class FavoriteHandleData : IFeatureData
 {
     public string ClassName => "moFavoriteHandle_c";
     public uint TypeId => 0;
@@ -319,9 +335,10 @@ internal sealed class FaceRefData : IFeatureData
 }
 
 /// <summary>End face surface ID representation (small container, 2 bytes).</summary>
-internal sealed class EndFaceSurfIdRepData : IFeatureData
+internal sealed partial class EndFaceSurfIdRepData : IFeatureData
 {
-    public string ClassName => "moEndFaceSurfIdRep_c";
+    internal string NativeClassName = "moEndFaceSurfIdRep_c";
+    public string ClassName => NativeClassName;
     public uint TypeId => 0;
 
     public string SurfaceName { get; set; } = string.Empty;
@@ -342,9 +359,10 @@ internal sealed class FrData : IFeatureData
 }
 
 /// <summary>From-sketch-entity surface ID representation.</summary>
-internal sealed class FromSktEntSurfIdRepData : IFeatureData
+internal sealed partial class FromSktEntSurfIdRepData : IFeatureData
 {
-    public string ClassName => "moFromSktEntSurfIdRep_c";
+    internal string NativeClassName = "moFromSktEntSurfIdRep_c";
+    public string ClassName => NativeClassName;
     public uint TypeId => 0;
 
     public uint FeatureTypeId { get; set; }

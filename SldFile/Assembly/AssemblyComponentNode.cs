@@ -15,7 +15,14 @@ public sealed class AssemblyComponentNode
     public int ReferenceNumber { get; internal set; }
     public string FilePath { get; internal set; } = string.Empty;
     public string ConfigurationName { get; internal set; } = string.Empty;
+    /// <summary>
+    /// Accumulated world transform matrix in top-level assembly coordinates.
+    /// </summary>
     public Matrix4x4 Transform { get; internal set; } = Matrix4x4.Identity;
+    /// <summary>
+    /// Local transform matrix relative to its immediate parent assembly.
+    /// </summary>
+    public Matrix4x4 LocalTransform { get; internal set; } = Matrix4x4.Identity;
     public bool IsSuppressed { get; internal set; }
     public bool IsHidden { get; internal set; }
     public bool IsVirtual { get; internal set; }

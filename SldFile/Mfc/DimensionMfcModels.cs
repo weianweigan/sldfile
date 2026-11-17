@@ -11,7 +11,7 @@ namespace SldFile.Mfc;
 /// 基础参数驱动抽象类 (对齐 SolidWorks moParameter_c).
 /// 存储参数名称与物理驱动数值.
 /// </summary>
-public abstract class MoParameterModel : IMfcSerializable
+public abstract partial class MoParameterModel : IMfcSerializable
 {
     public abstract string ClassName { get; }
 
@@ -24,6 +24,7 @@ public abstract class MoParameterModel : IMfcSerializable
 
     public virtual void Serialize(MfcArchive ar)
     {
+        if (NativeWire) { SerializeNative(ar); return; }
         if (ar.IsStoring)
         {
             ushort refTag = 0;
@@ -121,7 +122,7 @@ public sealed class MoAngleParameterModel : MoParameterModel
 /// 尺寸显示几何布局抽象基类 (对齐 SolidWorks moDisplayDim_c).
 /// 存储尺寸在 2D/3D 空间中的文字位置、引线测量点、尺寸线方向与法向向量.
 /// </summary>
-public abstract class MoDisplayDimModel : IMfcSerializable
+public abstract partial class MoDisplayDimModel : IMfcSerializable
 {
     public const string BaseClassName = "moDisplayDim_c";
     public virtual string ClassName => BaseClassName;
@@ -199,6 +200,7 @@ public abstract class MoDisplayDimModel : IMfcSerializable
 
     public virtual void Serialize(MfcArchive ar)
     {
+        if (NativeDimension != null) { NativeDimension.Serialize(ar); return; }
         if (ar.IsStoring)
         {
             ushort refTag = 0;

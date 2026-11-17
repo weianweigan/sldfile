@@ -19,31 +19,7 @@ namespace SldFileTests;
 /// </summary>
 public class ExtrudePhase2RoundtripTests
 {
-    private static string GetSamplePath(string fileName)
-    {
-        var testFilesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TestFiles", "Features2026", fileName);
-        if (File.Exists(testFilesPath))
-            return testFilesPath;
-
-        var dir = AppDomain.CurrentDomain.BaseDirectory;
-        while (!string.IsNullOrEmpty(dir))
-        {
-            var candidate = Path.Combine(dir, "SldFileTests", "TestFiles", "Features2026", fileName);
-            if (File.Exists(candidate))
-                return candidate;
-
-            var parent = Path.GetDirectoryName(dir);
-            if (parent == null || parent == dir) break;
-            dir = parent;
-        }
-
-        // Fallback to @models
-        string modelsPath = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "models", fileName));
-        if (File.Exists(modelsPath))
-            return modelsPath;
-
-        throw new FileNotFoundException($"Sample file '{fileName}' not found.");
-    }
+    private static string GetSamplePath(string fileName) => TestFileProvider.Resolve("Features2026", fileName);
 
     // =========================================================================
     // Part 1: CArchive Wire Format Protocol Verification

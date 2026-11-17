@@ -1,6 +1,8 @@
 ﻿using OpenMcdf;
 using SldFile.Binary;
 using SldFile.Diagnostics;
+using SldFile.Mfc.Configs;
+using SldFile.Mfc.General;
 using SldFile.Ole;
 using System;
 using System.Collections.Generic;
@@ -82,10 +84,10 @@ public abstract partial class SwFile : IDisposable
     internal SldFile.Mfc.SheetNamesModel SheetNames { get; } = new();
 
     /// <summary>CMgrHdr2 stream data: configuration manager header.</summary>
-    internal SldFile.Mfc.CmgrHdr2Model CmgrHdr2 { get; } = new();
+    internal CmgrHdr2Model CmgrHdr2 { get; } = new();
 
     /// <summary>Biography stream data: file access path history.</summary>
-    internal SldFile.Mfc.BiographyModel Biography { get; } = new();
+    internal BiographyModel Biography { get; } = new();
 
     /// <summary>History stream data: version history with date-code stamps.</summary>
     internal SldFile.Mfc.HistoryModel History { get; } = new();
@@ -94,16 +96,16 @@ public abstract partial class SwFile : IDisposable
     internal SldFile.Mfc.LwDataModel LwData { get; } = new();
 
     /// <summary>CMgr stream data: configuration manager.</summary>
-    internal SldFile.Mfc.CmgrModel Cmgr { get; } = new();
+    internal CmgrModel Cmgr { get; } = new();
 
     /// <summary>MatesList stream data: assembly mate constraints.</summary>
     internal SldFile.Mfc.MatesListModel MatesList { get; } = new();
 
     /// <summary>Definition stream data: document-wide settings.</summary>
-    internal SldFile.Mfc.DefinitionModel Definition { get; } = new();
+    internal DefinitionModel Definition { get; } = new();
 
     /// <summary>Config-0 stream data: per-config document data with Header2-like front-end.</summary>
-    internal SldFile.Mfc.Config0Model Config0 { get; } = new();
+    internal Config0Model Config0 { get; } = new();
 
     /// <summary>DisplayLists stream data: display settings, lights, materials (ZLB-compressed MFC).</summary>
     internal SldFile.Mfc.DisplayListsModel DisplayLists { get; } = new();

@@ -10,7 +10,7 @@ namespace SldFileTests;
 
 public class FullCorpusRoundTripTests
 {
-    private static readonly string TestFilesDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "TestFiles");
+    private static readonly string TestFilesDir = TestFileProvider.RootDirectory;
 
     [Fact]
     public void MfcArchive_DefinitionStreams_RoundTrip_ByteAccurately()

@@ -7,6 +7,7 @@ using System.Security.Cryptography;
 using System.Text;
 using SldFile;
 using SldFile.Binary;
+using SldFile.Mfc.Features;
 
 namespace SldFile.Mfc;
 

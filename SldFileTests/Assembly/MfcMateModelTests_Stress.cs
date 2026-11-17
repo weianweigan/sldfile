@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using SldFile;
+using SldFile.Assembly.Mate;
 using SldFile.Binary;
 using SldFile.Mfc;
 using Xunit;

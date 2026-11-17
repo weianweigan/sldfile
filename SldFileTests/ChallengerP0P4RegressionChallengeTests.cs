@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using SldFile;
+using SldFile.Assembly.Mate;
 using SldFile.Binary;
-using SldFile.Mfc;
+using SldFile.Mfc.Configs;
 using Xunit;
 
 namespace SldFileTests;
@@ -369,15 +369,9 @@ public class ChallengerP0P4RegressionChallengeTests
     [Fact]
     public void CrossMilestone_NativeModels_LoadAndVerifyIntegrity()
     {
-        string modelsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../models"));
-        if (!Directory.Exists(modelsDir))
-            modelsDir = @"d:\weigan\repos\sldfile\models";
-
         // 1. assembly.SLDASM (P0)
-        string asmPath = Path.Combine(modelsDir, "assembly.SLDASM");
-        if (File.Exists(asmPath))
+        using (var asm = new SldAssembly(TestFileProvider.Assembly, readOnly: true))
         {
-            using var asm = new SldAssembly(asmPath, readOnly: true);
             Assert.NotNull(asm.MatesList);
             Assert.True(asm.MatesList.Mates.Count >= 0);
             foreach (var mate in asm.MatesList.Mates)
@@ -388,28 +382,22 @@ public class ChallengerP0P4RegressionChallengeTests
         }
 
         // 2. cube.SLDPRT (P1/P4)
-        string cubePath = Path.Combine(modelsDir, "cube.SLDPRT");
-        if (File.Exists(cubePath))
+        using (var part = new SldPart(TestFileProvider.CubePart, readOnly: true))
         {
-            using var part = new SldPart(cubePath, readOnly: true);
             Assert.NotEmpty(part.Features);
             Assert.NotNull(part.UserUnitsTable);
             Assert.NotNull(part.DocumentSummary);
         }
 
         // 3. cylinder.SLDPRT (P1)
-        string cylPath = Path.Combine(modelsDir, "cylinder.SLDPRT");
-        if (File.Exists(cylPath))
+        using (var part = new SldPart(TestFileProvider.CylinderPart, readOnly: true))
         {
-            using var part = new SldPart(cylPath, readOnly: true);
             Assert.NotEmpty(part.Features);
         }
 
         // 4. cube.SLDDRW (P4)
-        string drwPath = Path.Combine(modelsDir, "cube.SLDDRW");
-        if (File.Exists(drwPath))
+        using (var drw = new SldDrawing(TestFileProvider.CubeDrawing, readOnly: true))
         {
-            using var drw = new SldDrawing(drwPath, readOnly: true);
             Assert.NotNull(drw.Sheets);
             Assert.NotNull(drw.DocumentSummary);
         }

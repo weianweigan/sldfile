@@ -7,6 +7,17 @@ namespace SldFileTests;
 
 public class PreviewParsingTests
 {
+    [Fact]
+    public void LaterSheetPreview_DoesNotUseDocumentOrConfigurationPreview()
+    {
+        using var file = SwFile.Open(TestFileProvider.CubeDrawing2026);
+        var first = file.GetSheetPreviewPng(0)!;
+        file.RawStreams["Images/Sheet_1"] = first;
+        Assert.Equal(first, file.GetBestSheetPreviewImage(1));
+        file.RawStreams.Remove("Images/Sheet_1");
+        Assert.Null(file.GetBestSheetPreviewImage(1));
+    }
+
     [Theory]
     [InlineData(nameof(TestFileProvider.CubePart))]
     [InlineData(nameof(TestFileProvider.CylinderPart))]

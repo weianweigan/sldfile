@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using SldFile;
+using SldFile.Assembly.Mate;
 using SldFile.Binary;
 using SldFile.Mfc;
 using Xunit;
@@ -562,11 +562,7 @@ public class ChallengerP02MateStressTests
     [Fact]
     public void NativeAssembly_SLDASM_FullResaveAndReopen_Fidelity()
     {
-        string modelsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../models/assembly.SLDASM"));
-        if (!File.Exists(modelsPath))
-            modelsPath = @"d:\weigan\repos\sldfile\models\assembly.SLDASM";
-
-        Assert.True(File.Exists(modelsPath), $"File not found at {modelsPath}");
+        string modelsPath = TestFileProvider.Assembly;
 
         string tempFile = Path.Combine(Path.GetTempPath(), $"challenger_p02_{Guid.NewGuid():N}.SLDASM");
         File.Copy(modelsPath, tempFile, true);

@@ -165,6 +165,16 @@ internal sealed class MetadataStore
     private string? ReadXmlText(string path, string name) => _streams.TryGetValue(path, out var bytes) ? new PropertySource(bytes, true).GetText(name) : null;
     private object? ReadNamedValue(string path, string name) => _streams.TryGetValue(path, out var bytes) ? new PropertySource(bytes, IsXml(path)).GetNamed(name) : null;
 
+    internal string? ReadSheetFormatData()
+    {
+        string? raw = (ReadNamedValue(SwOle, "SW-All Sheet Format Data") ?? ReadNamedValue(SwXml, "SW-All Sheet Format Data")) as string;
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        string trimmed = raw!.Trim();
+        if (trimmed.StartsWith("&gt;", StringComparison.OrdinalIgnoreCase)) trimmed = trimmed.Substring(4).TrimStart();
+        if (trimmed.StartsWith(">", StringComparison.Ordinal)) trimmed = trimmed.Substring(1).TrimStart();
+        return trimmed;
+    }
+
     private DocumentUnits? ReadUnits()
     {
         object? sysVal = ReadNamedValue(SwOle, "SW_UnitSystem") ?? ReadNamedValue(SwXml, "SW_UnitSystem");

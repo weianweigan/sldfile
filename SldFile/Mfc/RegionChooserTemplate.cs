@@ -2,7 +2,8 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using SldFile.Mfc;
+
+using SldFile.Mfc.Base;
 
 namespace SldFile.Mfc;
 

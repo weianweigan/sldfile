@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using SldFile.Binary;
+using SldFile.Mfc.Features;
 
 namespace SldFile;
 
@@ -23,6 +24,7 @@ public partial class SldPart : SwFile
     /// <summary>
     /// Exports the geometry of this part to a standard ISO-10303-21 STEP AP214 file.
     /// Prefers genuine Parasolid B-Rep geometry if present; falls back to faceted mesh representations.
+    /// Experimental implementation; may not work for all parts.
     /// </summary>
     public void ExportStep(string filePath, string? configurationName = null)
     {
@@ -32,7 +34,8 @@ public partial class SldPart : SwFile
     }
 
     /// <summary>
-    /// Exports the geometry of this part to a standard ISO-10303-21 STEP AP214 stream.
+    /// Exports the geometry of this part to a standard ISO-10303-21 STEP AP214 stream. 
+    /// Experimental implementation; may not work for all parts.
     /// </summary>
     public void ExportStep(Stream outputStream, string? configurationName = null)
     {

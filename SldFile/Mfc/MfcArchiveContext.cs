@@ -37,6 +37,14 @@ public sealed class MfcArchiveContext
     /// <summary>SolidWorks document version threshold context.</summary>
     public int DocumentVersion { get; set; }
 
+    // Native drawing payloads share the same class/object table with their parent.
+    internal NativeDrawingObjectGraph? NativeDrawingObjects { get; set; }
+    internal bool? NativeSketchOwnerIs3D { get; set; }
+    internal bool? NativeSketchIncludesOwnerProfile { get; set; }
+    internal bool? NativeAnnotationReferenceIsExternal { get; set; }
+    internal uint NativeDrawingArchiveConditions { get; set; }
+    internal bool? NativeDrawingOwnerIsDrawing { get; set; }
+
     /// <summary>Indicates whether native explicit tag words (0x8006, 0x804D) or 2-byte secondary prefixes were encountered.</summary>
     public bool HasNativeExplicitTags { get; set; }
 

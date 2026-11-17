@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using SldFile.Assembly.Bom;
+using SldFile.Assembly.Mate;
 using SldFile.Binary;
 using SldFile.Mfc;
 
@@ -237,7 +239,7 @@ public partial class SldAssembly : SwFile
     /// <summary>
     /// Builds a structured hierarchical and flat Bill of Materials using the specified options and path resolver.
     /// </summary>
-    public SldFile.Assembly.BomResult BuildBom(SldFile.Assembly.BomOptions? options = null) => SldFile.Assembly.BomTransformer.Transform(this, options);
+    public BomResult BuildBom(BomOptions? options = null) => BomTransformer.Transform(this, options);
 
     /// <summary>
     /// Adds a strongly-typed mate to the assembly using structured MFC serialization.

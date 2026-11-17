@@ -20,8 +20,8 @@ namespace SldFileTests;
 /// </summary>
 internal static class TestFileProvider
 {
-    /// <summary>Root of the TestFiles tree, relative to the test runner's working directory.</summary>
-    private static readonly string TestFilesRoot =
+    /// <summary>TestFiles copied alongside the test assembly, independent of the working directory and checkout location.</summary>
+    public static readonly string RootDirectory =
         Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TestFiles");
 
     // ── Solidworks 2012 ────────────────────────────────────────────
@@ -45,7 +45,7 @@ internal static class TestFileProvider
     /// </summary>
     public static string Resolve(string versionFolder, string fileName)
     {
-        var path = Path.Combine(TestFilesRoot, versionFolder, fileName);
+        var path = Path.Combine(RootDirectory, versionFolder, fileName);
         if (!File.Exists(path))
             throw new FileNotFoundException(
                 $"Test file not found at '{path}'. " +

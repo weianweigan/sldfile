@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
-using SldFile;
+using SldFile.Assembly.Mate;
 using Xunit;
 
 namespace SldFileTests;
