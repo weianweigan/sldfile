@@ -268,10 +268,35 @@ public abstract partial class SwFile
         var cachedPartMeshes = new Dictionary<string, DisplayMesh>(StringComparer.OrdinalIgnoreCase);
         string? asmDir = !string.IsNullOrEmpty(FilePath) ? Path.GetDirectoryName(FilePath) : null;
 
+        // 优先从装配体自身的 DisplayLists 中提取各组件烘焙的最新原型网格
+        // 彻底解决 SolidWorks 多实体派生零件 (SavedExtBody / 焊接件切断) 在装配体中已更新但外部零件文件未单独保存导致的几何错位与断裂断口问题
+        Dictionary<string, DisplayMesh>? embeddedPrototypeMeshes = null;
+        if (RawStreams.TryGetValue("Contents/DisplayLists", out var dlBytes) && dlBytes.Length > 0)
+        {
+            try
+            {
+                var nativeMesh = GetDisplayMesh();
+                if (nativeMesh != null && nativeMesh.Parts != null && nativeMesh.Parts.Count > 0)
+                {
+                    embeddedPrototypeMeshes = ExtractEmbeddedPrototypeMeshes(dlBytes, nativeMesh);
+                }
+            }
+            catch { }
+        }
+
         // 收集所有去重后的外部子零件路径，利用多核 CPU 进行异步并行预解码，显著提升装配体首次拼装速度
         var uniquePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var comp in leafComponents)
         {
+            string compFileName = Path.GetFileNameWithoutExtension(comp.FilePath);
+            if (embeddedPrototypeMeshes != null &&
+                (embeddedPrototypeMeshes.ContainsKey(comp.InstanceName) ||
+                 embeddedPrototypeMeshes.ContainsKey(compFileName) ||
+                 embeddedPrototypeMeshes.ContainsKey(comp.Name)))
+            {
+                continue; // 已在内嵌原型网格中命中，无需重复从磁盘加载外部零件文件
+            }
+
             string actualPath = comp.FilePath;
             if (!File.Exists(actualPath) && !string.IsNullOrEmpty(asmDir))
             {
@@ -306,28 +331,47 @@ public abstract partial class SwFile
 
         foreach (var comp in leafComponents)
         {
-            string actualPath = comp.FilePath;
-            if (!File.Exists(actualPath) && !string.IsNullOrEmpty(asmDir))
-            {
-                string candidate = Path.Combine(asmDir, Path.GetFileName(comp.FilePath));
-                if (File.Exists(candidate)) actualPath = candidate;
-            }
+            DisplayMesh? childMesh = null;
+            string compFileName = Path.GetFileNameWithoutExtension(comp.FilePath);
 
-            if (string.IsNullOrEmpty(actualPath) || !File.Exists(actualPath))
-                continue;
-
-            if (!cachedPartMeshes.TryGetValue(actualPath, out var childMesh))
+            // 1. 优先尝试从装配体内嵌烘焙的最新网格字典中获取原型几何
+            if (embeddedPrototypeMeshes != null)
             {
-                try
+                if (!embeddedPrototypeMeshes.TryGetValue(comp.InstanceName, out childMesh))
                 {
-                    using var psw = SwFile.Open(actualPath, readOnly: true);
-                    childMesh = psw.GetDisplayMesh();
-                    if (childMesh != null)
+                    if (!embeddedPrototypeMeshes.TryGetValue(compFileName, out childMesh))
                     {
-                        cachedPartMeshes[actualPath] = childMesh;
+                        embeddedPrototypeMeshes.TryGetValue(comp.Name, out childMesh);
                     }
                 }
-                catch { }
+            }
+
+            // 2. 若内嵌网格未命中，则回退到读取外部 .SLDPRT 零件文件
+            if (childMesh == null)
+            {
+                string actualPath = comp.FilePath;
+                if (!File.Exists(actualPath) && !string.IsNullOrEmpty(asmDir))
+                {
+                    string candidate = Path.Combine(asmDir, Path.GetFileName(comp.FilePath));
+                    if (File.Exists(candidate)) actualPath = candidate;
+                }
+
+                if (!string.IsNullOrEmpty(actualPath) && File.Exists(actualPath))
+                {
+                    if (!cachedPartMeshes.TryGetValue(actualPath, out childMesh))
+                    {
+                        try
+                        {
+                            using var psw = SwFile.Open(actualPath, readOnly: true);
+                            childMesh = psw.GetDisplayMesh();
+                            if (childMesh != null)
+                            {
+                                cachedPartMeshes[actualPath] = childMesh;
+                            }
+                        }
+                        catch { }
+                    }
+                }
             }
 
             if (childMesh == null || childMesh.Positions.Count == 0) continue;
@@ -395,7 +439,7 @@ public abstract partial class SwFile
                         NormalsDerived = cp.NormalsDerived,
                         Color = cp.Color,
                         ColorSource = cp.ColorSource,
-                        AppearanceName = !string.IsNullOrEmpty(cp.AppearanceName) ? cp.AppearanceName : comp.InstanceName,
+                        AppearanceName = !string.IsNullOrEmpty(comp.InstanceName) ? comp.InstanceName : cp.AppearanceName,
                         SurfaceReferences = surfRef
                     });
                 }
@@ -434,6 +478,133 @@ public abstract partial class SwFile
             Min = min,
             Max = max
         };
+    }
+
+    /// <summary>
+    /// 从装配体 DisplayLists 数据流中按组件 UTF-16 标记（&lt;InstanceName&gt;@&lt;AssemblyName&gt;）切分并提取内嵌的原型几何网格。
+    /// 当装配体由多实体保存实体（SavedExtBody）派生且外部子零件在磁盘上未单独保存时，此处包含 SolidWorks 保存时刻各组件的最新物理真实几何。
+    /// </summary>
+    private static Dictionary<string, DisplayMesh> ExtractEmbeddedPrototypeMeshes(byte[] dlBytes, DisplayMesh nativeMesh)
+    {
+        var prototypeMeshes = new Dictionary<string, DisplayMesh>(StringComparer.OrdinalIgnoreCase);
+        if (dlBytes == null || dlBytes.Length < 8 || nativeMesh == null || nativeMesh.Parts == null || nativeMesh.Parts.Count == 0)
+            return prototypeMeshes;
+
+        var instances = new List<(int Offset, string Name)>();
+        for (int i = 0; i <= dlBytes.Length - 5; i++)
+        {
+            if (dlBytes[i] == 0xFF && dlBytes[i + 1] == 0xFE && dlBytes[i + 2] == 0xFF)
+            {
+                int len = dlBytes[i + 3];
+                int textOffset = i + 4;
+                if (len == 0xFF && i + 5 < dlBytes.Length)
+                {
+                    len = BitConverter.ToUInt16(dlBytes, i + 4);
+                    textOffset = i + 6;
+                }
+                if (len > 0 && textOffset + len * 2 <= dlBytes.Length)
+                {
+                    string s = Encoding.Unicode.GetString(dlBytes, textOffset, len * 2);
+                    if (s.Contains("@") && !s.EndsWith("_COMPPATEND", StringComparison.OrdinalIgnoreCase))
+                    {
+                        instances.Add((i, s));
+                    }
+                }
+            }
+        }
+
+        if (instances.Count == 0) return prototypeMeshes;
+
+        for (int i = 0; i < instances.Count; i++)
+        {
+            int startOff = instances[i].Offset;
+            int endOff = (i + 1 < instances.Count) ? instances[i + 1].Offset : dlBytes.Length;
+
+            string s = instances[i].Name;
+            int atIdx = s.IndexOf('@');
+            string compPart = atIdx > 0 ? s.Substring(0, atIdx) : s;
+            int slashIdx = compPart.LastIndexOf('/');
+            if (slashIdx >= 0) compPart = compPart.Substring(slashIdx + 1);
+
+            string fullName = compPart;
+            string baseName = fullName;
+            int dashIdx = fullName.LastIndexOf('-');
+            if (dashIdx > 0 && int.TryParse(fullName.Substring(dashIdx + 1), out _))
+            {
+                baseName = fullName.Substring(0, dashIdx);
+            }
+
+            if (prototypeMeshes.ContainsKey(baseName) && prototypeMeshes.ContainsKey(fullName))
+                continue;
+
+            var matchedParts = nativeMesh.Parts.Where(p => p.TableOffset >= startOff && p.TableOffset < endOff).ToList();
+            if (matchedParts.Count > 0)
+            {
+                var subPositions = new List<System.Numerics.Vector3>();
+                var subNormals = new List<System.Numerics.Vector3>();
+                var subIndices = new List<int>();
+                var subEdges = new List<(int, int)>();
+                var subParts = new List<DisplayMeshPart>();
+                foreach (var p in matchedParts)
+                {
+                    int pVStart = subPositions.Count;
+                    int pTStart = subIndices.Count / 3;
+                    int pEStart = subEdges.Count;
+
+                    for (int vIdx = 0; vIdx < p.VertexCount; vIdx++)
+                    {
+                        subPositions.Add(nativeMesh.Positions[p.VertexStart + vIdx]);
+                        if (p.VertexStart + vIdx < nativeMesh.Normals.Count)
+                            subNormals.Add(nativeMesh.Normals[p.VertexStart + vIdx]);
+                    }
+                    for (int tIdx = 0; tIdx < p.TriangleCount * 3; tIdx++)
+                    {
+                        subIndices.Add(nativeMesh.TriangleIndices[p.TriangleStart * 3 + tIdx] - p.VertexStart + pVStart);
+                    }
+                    for (int eIdx = 0; eIdx < p.EdgeCount; eIdx++)
+                    {
+                        if (p.EdgeStart + eIdx < nativeMesh.OutlineEdges.Count)
+                        {
+                            var (e0, e1) = nativeMesh.OutlineEdges[p.EdgeStart + eIdx];
+                            subEdges.Add((e0 - p.VertexStart + pVStart, e1 - p.VertexStart + pVStart));
+                        }
+                    }
+                    subParts.Add(new DisplayMeshPart
+                    {
+                        Id = p.Id,
+                        TableOffset = p.TableOffset,
+                        VertexStart = pVStart,
+                        VertexCount = p.VertexCount,
+                        TriangleStart = pTStart,
+                        TriangleCount = p.TriangleCount,
+                        EdgeStart = pEStart,
+                        EdgeCount = p.EdgeCount,
+                        StripCount = p.StripCount,
+                        NormalsDerived = p.NormalsDerived,
+                        Color = p.Color,
+                        ColorSource = p.ColorSource,
+                        AppearanceName = p.AppearanceName,
+                        SurfaceReferences = p.SurfaceReferences
+                    });
+                }
+                var protoMesh = new DisplayMesh
+                {
+                    Positions = subPositions.AsReadOnly(),
+                    Normals = subNormals.AsReadOnly(),
+                    TriangleIndices = subIndices.AsReadOnly(),
+                    OutlineEdges = subEdges.AsReadOnly(),
+                    Parts = subParts.AsReadOnly(),
+                    Min = new System.Numerics.Vector3(subPositions.Min(v => v.X), subPositions.Min(v => v.Y), subPositions.Min(v => v.Z)),
+                    Max = new System.Numerics.Vector3(subPositions.Max(v => v.X), subPositions.Max(v => v.Y), subPositions.Max(v => v.Z))
+                };
+                if (!prototypeMeshes.ContainsKey(baseName))
+                    prototypeMeshes[baseName] = protoMesh;
+                if (!prototypeMeshes.ContainsKey(fullName))
+                    prototypeMeshes[fullName] = protoMesh;
+            }
+        }
+
+        return prototypeMeshes;
     }
 
     /// <summary>

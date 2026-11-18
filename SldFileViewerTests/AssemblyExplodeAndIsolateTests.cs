@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Numerics;
 using System.Threading.Tasks;
 using SldFile;
@@ -9,11 +11,18 @@ using SldFileViewer.Models;
 using SldFileViewer.Services;
 using SldFileViewer.ViewModels;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace SldFileViewerTests;
 
 public class AssemblyExplodeAndIsolateTests
 {
+    private readonly ITestOutputHelper? _output;
+
+    public AssemblyExplodeAndIsolateTests(ITestOutputHelper? output = null)
+    {
+        _output = output;
+    }
     private class DummyDialogService : IDialogService
     {
         public bool ShowOpenFileDialog(string filter, out string selectedPath) { selectedPath = string.Empty; return false; }
@@ -380,5 +389,81 @@ public class AssemblyExplodeAndIsolateTests
         vm.SetExplodePercentCommand.Execute(parameter);
 
         Assert.Equal(expected, vm.ExplodePercent, 1);
+    }
+
+    [Fact]
+    public void StitchAssemblyMeshFromComponents_WithDerivedWeldment_UsesEmbeddedPrototypesWithoutGaps()
+    {
+        string asmPath = @"C:\Users\HP\Downloads\YX-SCJJ-1157 打磨送料台\YX-SCJJ-1157 打磨送料台.SLDASM";
+        if (!File.Exists(asmPath)) return;
+
+        using var asm = SwFile.Open(asmPath, readOnly: true);
+        var stitched = asm.StitchAssemblyMeshFromComponents();
+        Assert.NotNull(stitched);
+        Assert.True(stitched.Positions.Count > 0);
+        Assert.True(stitched.Parts.Count >= 36);
+
+        // 验证方管3 (YX-SCJJ-1157-04方管3) 延伸至 Z = -175，无 200mm 断裂空隙 (由 950mm 恢复至完整的 1150mm)
+        var tube3_1 = stitched.Parts.First(p => p.AppearanceName == "YX-SCJJ-1157-04方管3");
+        var tube3_1_verts = stitched.Positions.Skip(tube3_1.VertexStart).Take(tube3_1.VertexCount).ToList();
+        Assert.True(tube3_1_verts.Max(v => v.Z) >= -180f, $"Tube3-1 Z max was {tube3_1_verts.Max(v => v.Z):F1}, expected >= -180 (no gap)");
+
+        // 验证脚轮安装板 (YX-SCJJ-1157-07 脚轮安装板) 位于 Z=[-290, -175]，中心紧密贴合前轮 Z=-232.5
+        var plate1 = stitched.Parts.First(p => p.AppearanceName == "YX-SCJJ-1157-07 脚轮安装板");
+        var plate1_verts = stitched.Positions.Skip(plate1.VertexStart).Take(plate1.VertexCount).ToList();
+        float p1CenterZ = (plate1_verts.Min(v => v.Z) + plate1_verts.Max(v => v.Z)) / 2f;
+        Assert.True(Math.Abs(p1CenterZ - (-232.5f)) < 5f, $"Plate 1 center Z was {p1CenterZ:F1}, expected around -232.5");
+        Assert.True(plate1_verts.Min(v => v.Y) <= -325f && plate1_verts.Max(v => v.Y) >= -325f, "Plate 1 Y should attach right under frame tube");
+
+        // 验证 4 个轮子位置与 4 个安装板贴合
+        var frontWheel = stitched.Parts.First(p => p.AppearanceName.Contains("6寸定向轮-9"));
+        var fWheelVerts = stitched.Positions.Skip(frontWheel.VertexStart).Take(frontWheel.VertexCount).ToList();
+        float fWheelCenterZ = (fWheelVerts.Min(v => v.Z) + fWheelVerts.Max(v => v.Z)) / 2f;
+        Assert.True(Math.Abs(fWheelCenterZ - (-232.5f)) < 15f, "Front wheel center should align with front castor plate");
+
+        // 验证所有组件拥有唯一的 stitched Id，支持模型树高亮与爆炸图隔离
+        foreach (var p in stitched.Parts)
+        {
+            Assert.StartsWith("stitched:", p.Id);
+        }
+    }
+
+    [Fact]
+    public async Task MeshViewerViewModel_WithRealAssembly_SupportsExplodeAndIsolate()
+    {
+        string asmPath = @"C:\Users\HP\Downloads\YX-SCJJ-1157 打磨送料台\YX-SCJJ-1157 打磨送料台.SLDASM";
+        if (!File.Exists(asmPath)) return;
+
+        var docService = new SwDocumentService();
+        await docService.OpenAsync(asmPath);
+        var exportService = new ExportService();
+        var dialogService = new DummyDialogService();
+        var vm = new MeshViewerViewModel(docService, exportService, dialogService);
+
+        vm.LoadMesh();
+        Assert.True(vm.HasAssemblyComponents);
+        Assert.True(vm.AssemblyComponentCount >= 36);
+
+        // 验证孤立构件 (Isolate)
+        var comp = docService.GetAssemblyTree().First(c => c.InstanceName.Contains("YX-SCJJ-1157-04方管3"));
+        vm.IsolateComponentCommand.Execute(comp);
+        Assert.True(vm.IsIsolated);
+        Assert.NotNull(vm.IsolatedComponent);
+        Assert.Contains("YX-SCJJ-1157-04方管3", vm.IsolatedComponentName);
+
+        // 取消孤立
+        vm.ExitIsolateCommand.Execute(null);
+        Assert.False(vm.IsIsolated);
+        Assert.Null(vm.IsolatedComponent);
+
+        // 验证爆炸图模式 (Explode)
+        vm.IsExplodeModeEnabled = true;
+        vm.SetExplodePercentCommand.Execute(100.0);
+        Assert.Equal(100.0, vm.ExplodePercent);
+        var (offsets, compOffsets) = vm.CalculateExplodeOffsets();
+        Assert.NotNull(offsets);
+        Assert.True(compOffsets.Count > 0);
+
+        docService.Close();
     }
 }
