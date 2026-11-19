@@ -152,13 +152,19 @@ public abstract partial class SwFile
             }
             var mesh = DisplayMeshReader.ReadMesh(dlBytes, vsBytes);
             if (mesh != null && mesh.VertexCount > 0)
+            {
+                ApplyDocumentLevelColor(mesh);
                 return mesh;
+            }
         }
 
         // 尝试从现代 FaceTessellations 分块流中读取 3D 网格
         var ftMesh = DisplayMeshReader.ReadMeshFromFaceTessellations(RawStreams, ZlbContents);
         if (ftMesh != null && ftMesh.VertexCount > 0)
+        {
+            ApplyDocumentLevelColor(ftMesh);
             return ftMesh;
+        }
 
         // 若是零件文件且无本地网格，尝试检查外部引用实体 (如 MirrorStock / 镜像零件)
         if (Kind == DocumentKind.Part)
@@ -171,7 +177,10 @@ public abstract partial class SwFile
                     using var baseSw = SwFile.Open(derivedBasePath!, readOnly: true);
                     var baseMesh = baseSw.GetDisplayMesh();
                     if (baseMesh != null && baseMesh.VertexCount > 0)
+                    {
+                        ApplyDocumentLevelColor(baseMesh);
                         return baseMesh;
+                    }
                 }
                 catch { }
             }
@@ -284,6 +293,9 @@ public abstract partial class SwFile
             catch { }
         }
 
+        // 提取所有内嵌与外部构件的真实 SolidWorks 材质颜色 (CMgr)
+        var assemblyComponentColors = ExtractAssemblyComponentColors(components, asmDir);
+
         // 收集所有去重后的外部子零件路径，利用多核 CPU 进行异步并行预解码，显著提升装配体首次拼装速度
         var uniquePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var comp in leafComponents)
@@ -324,6 +336,14 @@ public abstract partial class SwFile
                             cachedPartMeshes[path] = m;
                         }
                     }
+                    if (psw.Cmgr?.VisualProperties?.ColorRgb is uint c && c != 0)
+                    {
+                        lock (assemblyComponentColors)
+                        {
+                            assemblyComponentColors[path] = c;
+                            assemblyComponentColors[Path.GetFileNameWithoutExtension(path)] = c;
+                        }
+                    }
                 }
                 catch { }
             });
@@ -332,22 +352,22 @@ public abstract partial class SwFile
         foreach (var comp in leafComponents)
         {
             DisplayMesh? childMesh = null;
-            string compFileName = Path.GetFileNameWithoutExtension(comp.FilePath);
+            string compFileName = !string.IsNullOrEmpty(comp.FilePath) ? Path.GetFileNameWithoutExtension(comp.FilePath) : string.Empty;
+            uint? compColor = ResolveComponentColor(comp, assemblyComponentColors);
 
             // 1. 优先尝试从装配体内嵌烘焙的最新网格字典中获取原型几何
             if (embeddedPrototypeMeshes != null)
             {
-                if (!embeddedPrototypeMeshes.TryGetValue(comp.InstanceName, out childMesh))
+                if ((string.IsNullOrEmpty(comp.InstanceName) || !embeddedPrototypeMeshes.TryGetValue(comp.InstanceName, out childMesh)) &&
+                    (string.IsNullOrEmpty(compFileName) || !embeddedPrototypeMeshes.TryGetValue(compFileName, out childMesh)) &&
+                    (string.IsNullOrEmpty(comp.Name) || !embeddedPrototypeMeshes.TryGetValue(comp.Name, out childMesh)))
                 {
-                    if (!embeddedPrototypeMeshes.TryGetValue(compFileName, out childMesh))
+                    if (!string.IsNullOrEmpty(comp.Name))
                     {
-                        if (!embeddedPrototypeMeshes.TryGetValue(comp.Name, out childMesh))
+                        int caretIdx = comp.Name.IndexOf('^');
+                        if (caretIdx > 0)
                         {
-                            int caretIdx = comp.Name.IndexOf('^');
-                            if (caretIdx > 0)
-                            {
-                                embeddedPrototypeMeshes.TryGetValue(comp.Name.Substring(0, caretIdx), out childMesh);
-                            }
+                            embeddedPrototypeMeshes.TryGetValue(comp.Name.Substring(0, caretIdx), out childMesh);
                         }
                     }
                 }
@@ -356,8 +376,8 @@ public abstract partial class SwFile
             // 2. 若内嵌网格未命中，则回退到读取外部 .SLDPRT 零件文件或 VirtualComp 内嵌流
             if (childMesh == null)
             {
-                string actualPath = comp.FilePath;
-                if (!File.Exists(actualPath) && !string.IsNullOrEmpty(asmDir))
+                string actualPath = comp.FilePath ?? string.Empty;
+                if (!File.Exists(actualPath) && !string.IsNullOrEmpty(asmDir) && !string.IsNullOrEmpty(comp.FilePath))
                 {
                     string candidate = Path.Combine(asmDir, Path.GetFileName(comp.FilePath));
                     if (File.Exists(candidate)) actualPath = candidate;
@@ -379,7 +399,7 @@ public abstract partial class SwFile
                         catch { }
                     }
                 }
-                else if (comp.IsVirtual || !File.Exists(actualPath))
+                else if ((comp.IsVirtual || !File.Exists(actualPath)) && !string.IsNullOrEmpty(comp.Name))
                 {
                     // 虚拟组件回退：尝试从装配体自身内嵌的 VirtualComp/ 文档流中提取几何
                     string vName = comp.Name;
@@ -392,7 +412,7 @@ public abstract partial class SwFile
                     }
                     if (vBytes != null && vBytes.Length > 0)
                     {
-                        string tempExt = comp.FilePath.EndsWith(".sldasm", StringComparison.OrdinalIgnoreCase) ? ".sldasm" : ".sldprt";
+                        string tempExt = (comp.FilePath ?? string.Empty).EndsWith(".sldasm", StringComparison.OrdinalIgnoreCase) ? ".sldasm" : ".sldprt";
                         string tempFile = Path.Combine(Path.GetTempPath(), $"SldVirtual_{Guid.NewGuid():N}{tempExt}");
                         try
                         {
@@ -465,6 +485,11 @@ public abstract partial class SwFile
             {
                 foreach (var cp in childMesh.Parts)
                 {
+                    uint? finalColor = cp.Color ?? compColor ?? childMesh.DefaultColor;
+                    if (!finalColor.HasValue)
+                    {
+                        finalColor = CadComponentPalette[Math.Abs((comp.Name ?? comp.InstanceName ?? string.Empty).GetHashCode()) % CadComponentPalette.Length];
+                    }
                     parts.Add(new DisplayMeshPart
                     {
                         Id = $"stitched:{comp.ComponentId}:{parts.Count}",
@@ -479,8 +504,8 @@ public abstract partial class SwFile
                         EdgeCount = cp.EdgeCount,
                         StripCount = cp.StripCount,
                         NormalsDerived = cp.NormalsDerived,
-                        Color = cp.Color,
-                        ColorSource = cp.ColorSource,
+                        Color = finalColor,
+                        ColorSource = cp.ColorSource ?? "Component",
                         AppearanceName = !string.IsNullOrEmpty(comp.InstanceName) ? comp.InstanceName : cp.AppearanceName,
                         SurfaceReferences = surfRef
                     });
@@ -488,6 +513,11 @@ public abstract partial class SwFile
             }
             else
             {
+                uint? finalColor = compColor ?? childMesh.DefaultColor;
+                if (!finalColor.HasValue)
+                {
+                    finalColor = CadComponentPalette[Math.Abs((comp.Name ?? comp.InstanceName ?? string.Empty).GetHashCode()) % CadComponentPalette.Length];
+                }
                 parts.Add(new DisplayMeshPart
                 {
                     Id = $"stitched:{comp.ComponentId}:{parts.Count}",
@@ -502,6 +532,8 @@ public abstract partial class SwFile
                     EdgeCount = childMesh.OutlineEdges.Count,
                     StripCount = 0,
                     NormalsDerived = false,
+                    Color = finalColor,
+                    ColorSource = "Component",
                     AppearanceName = comp.InstanceName,
                     SurfaceReferences = surfRef
                 });
@@ -520,6 +552,161 @@ public abstract partial class SwFile
             Min = min,
             Max = max
         };
+    }
+
+    private static readonly uint[] CadComponentPalette = new uint[]
+    {
+        0x00E5C94F, // 金黄
+        0x0038BDF8, // 天蓝
+        0x00E11D48, // 猩红
+        0x0010B981, // 翠绿
+        0x008B5CF6, // 亮紫
+        0x00F59E0B, // 琥珀橙
+        0x0014B8A6, // 青绿
+        0x006366F1, // 靛蓝
+        0x0064748B, // 钢灰
+        0x00F43F5E, // 玫瑰红
+        0x0006B6D4, // 青色
+        0x00A855F7, // 浅紫
+        0x0084CC16, // 黄绿
+        0x00EC4899  // 浅粉
+    };
+
+    private void ApplyDocumentLevelColor(DisplayMesh mesh)
+    {
+        uint? docColor = Cmgr?.VisualProperties?.ColorRgb;
+        if (docColor.HasValue && docColor.Value != 0)
+        {
+            mesh.DefaultColor = docColor.Value;
+            if (mesh.Parts != null)
+            {
+                foreach (var p in mesh.Parts)
+                {
+                    if (!p.Color.HasValue)
+                    {
+                        p.Color = docColor.Value;
+                    }
+                }
+            }
+        }
+    }
+
+    private static uint? ResolveComponentColor(AssemblyComponentNode comp, Dictionary<string, uint> colors)
+    {
+        string fn = !string.IsNullOrEmpty(comp.FilePath) ? Path.GetFileNameWithoutExtension(comp.FilePath) : string.Empty;
+        string[] candidates = new[]
+        {
+            comp.Name,
+            comp.InstanceName,
+            fn,
+            comp.Name.Split('^')[0],
+            comp.Name.Split(' ')[0],
+            comp.Name.Split(new[] { "____" }, StringSplitOptions.None)[0],
+            fn.Split('^')[0],
+            fn.Split(' ')[0],
+            fn.Split(new[] { "____" }, StringSplitOptions.None)[0]
+        };
+        foreach (var k in candidates)
+        {
+            if (!string.IsNullOrEmpty(k) && colors.TryGetValue(k, out var c) && c != 0)
+                return c;
+        }
+        return null;
+    }
+
+    private Dictionary<string, uint> ExtractAssemblyComponentColors(
+        IReadOnlyList<AssemblyComponentNode> components,
+        string? asmDir)
+    {
+        var colors = new Dictionary<string, uint>(StringComparer.OrdinalIgnoreCase);
+
+        void RegisterColor(string key, uint color)
+        {
+            if (color == 0) return;
+            colors[key] = color;
+            int caretIdx = key.IndexOf('^');
+            if (caretIdx > 0) colors[key.Substring(0, caretIdx)] = color;
+            int uIdx = key.IndexOf("____");
+            if (uIdx > 0) colors[key.Substring(0, uIdx)] = color;
+            int sIdx = key.IndexOf(' ');
+            if (sIdx > 0) colors[key.Substring(0, sIdx)] = color;
+        }
+
+        void ExtractVirtualCompColors(SwFile sw)
+        {
+            foreach (var kvp in sw.RawStreams)
+            {
+                if (!kvp.Key.StartsWith("VirtualComp/")) continue;
+                string vName = kvp.Key.Substring("VirtualComp/".Length);
+                bool looksLikeAsm = kvp.Key.EndsWith("(2)") || kvp.Key.IndexOf("asm", StringComparison.OrdinalIgnoreCase) >= 0;
+                string tempExt = looksLikeAsm ? ".sldasm" : ".sldprt";
+                string tempFile = Path.Combine(Path.GetTempPath(), $"SldVC_{Guid.NewGuid():N}{tempExt}");
+                try
+                {
+                    File.WriteAllBytes(tempFile, kvp.Value);
+                    using var vSw = Open(tempFile, readOnly: true);
+                    uint? c = vSw.Cmgr?.VisualProperties?.ColorRgb;
+                    if (c.HasValue && c.Value != 0)
+                    {
+                        RegisterColor(vName, c.Value);
+                    }
+                    if (vSw.Kind == DocumentKind.Assembly)
+                    {
+                        ExtractVirtualCompColors(vSw);
+                    }
+                }
+                catch { }
+                finally
+                {
+                    try { if (File.Exists(tempFile)) File.Delete(tempFile); } catch { }
+                }
+            }
+        }
+
+        ExtractVirtualCompColors(this);
+
+        void CollectExternalCompColors(IEnumerable<AssemblyComponentNode> nodes)
+        {
+            foreach (var node in nodes)
+            {
+                if (!node.IsVirtual && !string.IsNullOrEmpty(node.FilePath))
+                {
+                    string actualPath = node.FilePath;
+                    if (!File.Exists(actualPath) && !string.IsNullOrEmpty(asmDir))
+                    {
+                        string candidate = Path.Combine(asmDir, Path.GetFileName(node.FilePath));
+                        if (File.Exists(candidate)) actualPath = candidate;
+                    }
+                    if (File.Exists(actualPath))
+                    {
+                        string fn = Path.GetFileNameWithoutExtension(actualPath);
+                        if (!colors.ContainsKey(fn))
+                        {
+                            try
+                            {
+                                using var psw = Open(actualPath, readOnly: true);
+                                uint? c = psw.Cmgr?.VisualProperties?.ColorRgb;
+                                if (c.HasValue && c.Value != 0)
+                                {
+                                    RegisterColor(fn, c.Value);
+                                    RegisterColor(actualPath, c.Value);
+                                }
+                            }
+                            catch { }
+                        }
+                    }
+                }
+
+                if (node.Children != null && node.Children.Count > 0)
+                {
+                    CollectExternalCompColors(node.Children);
+                }
+            }
+        }
+
+        CollectExternalCompColors(components);
+
+        return colors;
     }
 
     /// <summary>

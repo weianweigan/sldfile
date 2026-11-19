@@ -18,6 +18,7 @@ public sealed class DisplayMesh
     public IReadOnlyList<int> TriangleIndices { get; internal set; } = Array.Empty<int>();
     public IReadOnlyList<(int Start, int End)> OutlineEdges { get; internal set; } = Array.Empty<(int, int)>();
     public IReadOnlyList<DisplayMeshPart> Parts { get; internal set; } = Array.Empty<DisplayMeshPart>();
+    public uint? DefaultColor { get; internal set; }
 
     public Vector3 Min { get; internal set; } = new(float.PositiveInfinity, float.PositiveInfinity, float.PositiveInfinity);
     public Vector3 Max { get; internal set; } = new(float.NegativeInfinity, float.NegativeInfinity, float.NegativeInfinity);

@@ -169,9 +169,10 @@ public partial class Mesh3DView : UserControl
         {
             UpdateMesh(resetCamera: true);
         }
-        else if (e.PropertyName == nameof(MeshViewerViewModel.WpfMesh))
+        else if (e.PropertyName == nameof(MeshViewerViewModel.WpfMesh) ||
+                 e.PropertyName == nameof(MeshViewerViewModel.WpfColoredMeshes))
         {
-            // 剖切重新裁剪网格时不重置相机视角，保持视角稳定连续
+            // 剖切重新裁剪网格或更新构件颜色时不重置相机视角，保持视角稳定连续
             UpdateMesh(resetCamera: false);
         }
         else if (e.PropertyName == nameof(MeshViewerViewModel.ShowEdges) ||
@@ -236,34 +237,60 @@ public partial class Mesh3DView : UserControl
         // 仅在非线框模式下渲染实体表面
         if (VM.DisplayStyle != ModelDisplayStyle.Wireframe)
         {
-            Material material;
-            Material backMaterial;
-
             if (VM.DisplayStyle == ModelDisplayStyle.TechnicalWhite)
             {
                 // 消除隐藏线白模 / 纯白工程纸感
                 var whiteMat = new DiffuseMaterial(new SolidColorBrush(Color.FromRgb(245, 247, 250)));
-                material = whiteMat;
-                backMaterial = new DiffuseMaterial(new SolidColorBrush(Color.FromRgb(225, 228, 233)));
+                var surfaceModel = new GeometryModel3D
+                {
+                    Geometry = VM.WpfMesh,
+                    Material = whiteMat,
+                    BackMaterial = new DiffuseMaterial(new SolidColorBrush(Color.FromRgb(225, 228, 233)))
+                };
+                group.Children.Add(surfaceModel);
+            }
+            else if (VM.WpfColoredMeshes != null && VM.WpfColoredMeshes.Count > 0)
+            {
+                // 多颜色 / 原生 SolidWorks 零件与装配体组件彩色着色渲染
+                foreach (var coloredPart in VM.WpfColoredMeshes)
+                {
+                    var partColor = coloredPart.Color;
+                    var matGroup = new MaterialGroup();
+                    matGroup.Children.Add(new DiffuseMaterial(new SolidColorBrush(partColor)));
+                    // 真实 CAD 表面高光质感 (SolidWorks 经典的 Phong Specular 高光)
+                    matGroup.Children.Add(new SpecularMaterial(new SolidColorBrush(Color.FromArgb(90, 255, 255, 255)), 40.0));
+
+                    byte backR = (byte)Math.Max(0, (int)(partColor.R * 0.75));
+                    byte backG = (byte)Math.Max(0, (int)(partColor.G * 0.75));
+                    byte backB = (byte)Math.Max(0, (int)(partColor.B * 0.75));
+                    var backMat = new DiffuseMaterial(new SolidColorBrush(Color.FromRgb(backR, backG, backB)));
+
+                    var partModel = new GeometryModel3D
+                    {
+                        Geometry = coloredPart.Geometry,
+                        Material = matGroup,
+                        BackMaterial = backMat
+                    };
+                    group.Children.Add(partModel);
+                }
             }
             else
             {
-                // CAD 金属漆面着色材质
+                // CAD 金属漆面着色材质 (单色回退)
                 var materialGroup = new MaterialGroup();
                 materialGroup.Children.Add(new DiffuseMaterial(new SolidColorBrush(Color.FromRgb(145, 158, 172))));
                 materialGroup.Children.Add(new SpecularMaterial(new SolidColorBrush(Color.FromRgb(105, 115, 125)), 35.0));
-                material = materialGroup;
-                backMaterial = new DiffuseMaterial(new SolidColorBrush(Color.FromRgb(125, 135, 148)));
+                var backMaterial = new DiffuseMaterial(new SolidColorBrush(Color.FromRgb(125, 135, 148)));
+
+                var surfaceModel = new GeometryModel3D
+                {
+                    Geometry = VM.WpfMesh,
+                    Material = materialGroup,
+                    BackMaterial = backMaterial
+                };
+
+                group.Children.Add(surfaceModel);
             }
-
-            var surfaceModel = new GeometryModel3D
-            {
-                Geometry = VM.WpfMesh,
-                Material = material,
-                BackMaterial = backMaterial
-            };
-
-            group.Children.Add(surfaceModel);
         }
 
         ModelVisual.Content = group;

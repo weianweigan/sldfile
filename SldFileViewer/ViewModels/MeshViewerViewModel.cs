@@ -60,8 +60,10 @@ private int _currentConfigIndex;
 private string _dimensionsText = string.Empty;
 
 [ObservableProperty]
-
 private MeshGeometry3D? _wpfMesh;
+
+[ObservableProperty]
+private IReadOnlyList<WpfColoredMeshPart>? _wpfColoredMeshes;
 
 [ObservableProperty]
 
@@ -986,39 +988,28 @@ private void RebuildWpfMeshes()
 
 {
 
-if (Mesh == null || Mesh.Positions.Count == 0)
+        if (Mesh == null || Mesh.Positions.Count == 0)
+        {
+            WpfMesh = null;
+            WpfEdgeMesh = null;
+            WpfColoredMeshes = null;
+            return;
+        }
 
-{
+        var center = (Mesh.Min + Mesh.Max) * 0.5f;
 
-WpfMesh = null;
+        if (!IsSectionViewEnabled)
+        {
+            BuildWpfMesh(Mesh, center);
+            BuildEdgeMesh(Mesh, center);
+            WpfSectionPlaneMesh = null;
+            WpfSectionPlaneBorderMesh = null;
+            WpfSectionCutMesh = null;
+            WpfSectionManipulatorMesh = null;
+            return;
+        }
 
-WpfEdgeMesh = null;
-
-return;
-
-}
-
-var center = (Mesh.Min + Mesh.Max) * 0.5f;
-
-if (!IsSectionViewEnabled)
-
-{
-
-BuildWpfMesh(Mesh, center);
-
-BuildEdgeMesh(Mesh, center);
-
-WpfSectionPlaneMesh = null;
-
-WpfSectionPlaneBorderMesh = null;
-
-WpfSectionCutMesh = null;
-
-WpfSectionManipulatorMesh = null;
-
-return;
-
-}
+        WpfColoredMeshes = null;
 
 // 计算剖切平面轴向与距离
 
@@ -1483,6 +1474,7 @@ BuildSectionPlaneMeshes(size, axisDir, offset);
         var partMap = BuildPartComponentMap();
         var triangleIndices = new Int32Collection(mesh.TriangleIndices.Count);
         Int32Collection? ghostIndices = IsIsolated ? new Int32Collection() : null;
+        var coloredTriangleMap = new Dictionary<uint, Int32Collection>();
 
         if (mesh.Parts != null && mesh.Parts.Count > 0)
         {
@@ -1500,6 +1492,17 @@ BuildSectionPlaneMeshes(size, axisDir, offset);
                 bool isGhost = IsIsolated && (comp == null || IsolatedComponent == null || !IsComponentOrChild(comp, IsolatedComponent));
                 var targetIndices = (isGhost && ghostIndices != null) ? ghostIndices : triangleIndices;
 
+                uint colorKey = part.Color ?? (mesh.DefaultColor ?? 0xFF919EAC);
+                Int32Collection? cIndices = null;
+                if (!isGhost)
+                {
+                    if (!coloredTriangleMap.TryGetValue(colorKey, out cIndices))
+                    {
+                        cIndices = new Int32Collection();
+                        coloredTriangleMap[colorKey] = cIndices;
+                    }
+                }
+
                 int tStart = part.TriangleStart * 3;
                 int tEnd = Math.Min(tStart + part.TriangleCount * 3, mesh.TriangleIndices.Count);
                 for (int i = tStart; i + 2 < tEnd; i += 3)
@@ -1512,6 +1515,12 @@ BuildSectionPlaneMeshes(size, axisDir, offset);
                         targetIndices.Add(i0);
                         targetIndices.Add(i1);
                         targetIndices.Add(i2);
+                        if (!isGhost && cIndices != null)
+                        {
+                            cIndices.Add(i0);
+                            cIndices.Add(i1);
+                            cIndices.Add(i2);
+                        }
                     }
                 }
             }
@@ -1540,6 +1549,51 @@ BuildSectionPlaneMeshes(size, axisDir, offset);
         };
         geo.Freeze();
         WpfMesh = geo;
+
+        if (coloredTriangleMap.Count > 0)
+        {
+            var coloredList = new List<WpfColoredMeshPart>();
+            foreach (var kvp in coloredTriangleMap)
+            {
+                if (kvp.Value.Count == 0) continue;
+                uint cVal = kvp.Key;
+                byte r = (byte)((cVal >> 16) & 0xFF);
+                byte g = (byte)((cVal >> 8) & 0xFF);
+                byte b = (byte)(cVal & 0xFF);
+                var partGeo = new MeshGeometry3D
+                {
+                    Positions = positions,
+                    Normals = normals,
+                    TriangleIndices = kvp.Value
+                };
+                partGeo.Freeze();
+                coloredList.Add(new WpfColoredMeshPart
+                {
+                    Color = Color.FromRgb(r, g, b),
+                    Geometry = partGeo
+                });
+            }
+            WpfColoredMeshes = coloredList.Count > 0 ? coloredList.AsReadOnly() : null;
+        }
+        else if (mesh.DefaultColor.HasValue)
+        {
+            uint cVal = mesh.DefaultColor.Value;
+            byte r = (byte)((cVal >> 16) & 0xFF);
+            byte g = (byte)((cVal >> 8) & 0xFF);
+            byte b = (byte)(cVal & 0xFF);
+            WpfColoredMeshes = new List<WpfColoredMeshPart>
+            {
+                new WpfColoredMeshPart
+                {
+                    Color = Color.FromRgb(r, g, b),
+                    Geometry = geo
+                }
+            }.AsReadOnly();
+        }
+        else
+        {
+            WpfColoredMeshes = null;
+        }
 
         if (ghostIndices != null && ghostIndices.Count > 0)
         {

@@ -540,6 +540,13 @@ public class AssemblyExplodeAndIsolateTests
         Assert.True(mainVm.MeshViewer.VertexCount >= 100000);
         Assert.Equal(166580, mainVm.MeshViewer.VertexCount);
 
+        // 验证多颜色 / 彩色网格已成功提取并按构件颜色着色
+        Assert.NotNull(mainVm.MeshViewer.WpfColoredMeshes);
+        var hexColors = mainVm.MeshViewer.WpfColoredMeshes.Select(m => $"#{m.Color.R:X2}{m.Color.G:X2}{m.Color.B:X2} (triangles={m.Geometry.TriangleIndices.Count / 3})").ToList();
+        Assert.True(mainVm.MeshViewer.WpfColoredMeshes.Count >= 5);
+        // 输出所有颜色用于验证
+        System.Diagnostics.Trace.WriteLine($"WpfColoredMeshes count: {mainVm.MeshViewer.WpfColoredMeshes.Count}: {string.Join(", ", hexColors)}");
+
         docService.Close();
     }
 }

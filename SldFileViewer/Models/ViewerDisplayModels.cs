@@ -56,3 +56,12 @@ public enum ComponentTreeAction
     /// <summary>聚焦定位 (Zoom to)</summary>
     ZoomTo
 }
+
+/// <summary>
+/// 携带独立颜色/材质的 3D 网格构件
+/// </summary>
+public sealed class WpfColoredMeshPart
+{
+    public System.Windows.Media.Color Color { get; set; }
+    public System.Windows.Media.Media3D.MeshGeometry3D Geometry { get; set; } = null!;
+}
