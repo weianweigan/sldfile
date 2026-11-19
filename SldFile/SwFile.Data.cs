@@ -341,12 +341,19 @@ public abstract partial class SwFile
                 {
                     if (!embeddedPrototypeMeshes.TryGetValue(compFileName, out childMesh))
                     {
-                        embeddedPrototypeMeshes.TryGetValue(comp.Name, out childMesh);
+                        if (!embeddedPrototypeMeshes.TryGetValue(comp.Name, out childMesh))
+                        {
+                            int caretIdx = comp.Name.IndexOf('^');
+                            if (caretIdx > 0)
+                            {
+                                embeddedPrototypeMeshes.TryGetValue(comp.Name.Substring(0, caretIdx), out childMesh);
+                            }
+                        }
                     }
                 }
             }
 
-            // 2. 若内嵌网格未命中，则回退到读取外部 .SLDPRT 零件文件
+            // 2. 若内嵌网格未命中，则回退到读取外部 .SLDPRT 零件文件或 VirtualComp 内嵌流
             if (childMesh == null)
             {
                 string actualPath = comp.FilePath;
@@ -370,6 +377,41 @@ public abstract partial class SwFile
                             }
                         }
                         catch { }
+                    }
+                }
+                else if (comp.IsVirtual || !File.Exists(actualPath))
+                {
+                    // 虚拟组件回退：尝试从装配体自身内嵌的 VirtualComp/ 文档流中提取几何
+                    string vName = comp.Name;
+                    int caretIdx = vName.IndexOf('^');
+                    if (caretIdx > 0) vName = vName.Substring(0, caretIdx);
+                    byte[]? vBytes = GetVirtualComponentBytes(vName);
+                    if (vBytes == null && caretIdx > 0)
+                    {
+                        vBytes = GetVirtualComponentBytes(comp.Name);
+                    }
+                    if (vBytes != null && vBytes.Length > 0)
+                    {
+                        string tempExt = comp.FilePath.EndsWith(".sldasm", StringComparison.OrdinalIgnoreCase) ? ".sldasm" : ".sldprt";
+                        string tempFile = Path.Combine(Path.GetTempPath(), $"SldVirtual_{Guid.NewGuid():N}{tempExt}");
+                        try
+                        {
+                            File.WriteAllBytes(tempFile, vBytes);
+                            using var vSw = SwFile.Open(tempFile, readOnly: true);
+                            childMesh = vSw.GetDisplayMesh();
+                            if (childMesh != null)
+                            {
+                                lock (cachedPartMeshes)
+                                {
+                                    cachedPartMeshes[comp.Name] = childMesh;
+                                }
+                            }
+                        }
+                        catch { }
+                        finally
+                        {
+                            try { if (File.Exists(tempFile)) File.Delete(tempFile); } catch { }
+                        }
                     }
                 }
             }
@@ -521,10 +563,10 @@ public abstract partial class SwFile
             int endOff = (i + 1 < instances.Count) ? instances[i + 1].Offset : dlBytes.Length;
 
             string s = instances[i].Name;
-            int atIdx = s.IndexOf('@');
-            string compPart = atIdx > 0 ? s.Substring(0, atIdx) : s;
-            int slashIdx = compPart.LastIndexOf('/');
-            if (slashIdx >= 0) compPart = compPart.Substring(slashIdx + 1);
+            int slashIdx = s.LastIndexOf('/');
+            string leafSegment = slashIdx >= 0 ? s.Substring(slashIdx + 1) : s;
+            int atIdx = leafSegment.IndexOf('@');
+            string compPart = atIdx > 0 ? leafSegment.Substring(0, atIdx) : leafSegment;
 
             string fullName = compPart;
             string baseName = fullName;
@@ -534,7 +576,14 @@ public abstract partial class SwFile
                 baseName = fullName.Substring(0, dashIdx);
             }
 
-            if (prototypeMeshes.ContainsKey(baseName) && prototypeMeshes.ContainsKey(fullName))
+            string? shortName = null;
+            int caretIdx = baseName.IndexOf('^');
+            if (caretIdx > 0)
+            {
+                shortName = baseName.Substring(0, caretIdx);
+            }
+
+            if (prototypeMeshes.ContainsKey(baseName) && prototypeMeshes.ContainsKey(fullName) && (shortName == null || prototypeMeshes.ContainsKey(shortName)))
                 continue;
 
             var matchedParts = nativeMesh.Parts.Where(p => p.TableOffset >= startOff && p.TableOffset < endOff).ToList();
@@ -601,6 +650,8 @@ public abstract partial class SwFile
                     prototypeMeshes[baseName] = protoMesh;
                 if (!prototypeMeshes.ContainsKey(fullName))
                     prototypeMeshes[fullName] = protoMesh;
+                if (shortName != null && !prototypeMeshes.ContainsKey(shortName))
+                    prototypeMeshes[shortName] = protoMesh;
             }
         }
 

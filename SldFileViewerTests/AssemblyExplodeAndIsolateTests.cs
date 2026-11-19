@@ -466,4 +466,64 @@ public class AssemblyExplodeAndIsolateTests
 
         docService.Close();
     }
+
+    [Fact]
+    public void StitchAssemblyMeshFromComponents_WithVirtualComponents_ExtractsFullMeshWithoutMissingParts()
+    {
+        string path = @"C:\Users\HP\Downloads\YX-SCGZJJ-036-A 多晶收纳车.SLDASM";
+        if (!File.Exists(path)) return;
+
+        using var asm = SwFile.Open(path, readOnly: true);
+        var stitchedMesh = asm.StitchAssemblyMeshFromComponents();
+        Assert.NotNull(stitchedMesh);
+        Assert.True(stitchedMesh.Positions.Count >= 100000, $"Stitched mesh vertex count should be >= 100,000, but was {stitchedMesh.Positions.Count}");
+        Assert.True(stitchedMesh.Parts.Count >= 3000, $"Stitched mesh parts count should be >= 3000, but was {stitchedMesh.Parts.Count}");
+
+        // 验证整体尺寸符合多晶收纳小车实际物理尺寸 (长~1200mm, 宽~740mm, 高~820mm)
+        float dimX = stitchedMesh.Max.X - stitchedMesh.Min.X;
+        float dimY = stitchedMesh.Max.Y - stitchedMesh.Min.Y;
+        float dimZ = stitchedMesh.Max.Z - stitchedMesh.Min.Z;
+        Assert.True(Math.Abs(dimX - 1198f) < 50f, $"Length X should be ~1200mm, was {dimX:F1}");
+        Assert.True(Math.Abs(dimY - 741f) < 50f, $"Width Y should be ~740mm, was {dimY:F1}");
+        Assert.True(Math.Abs(dimZ - 820f) < 50f, $"Height Z should be ~820mm, was {dimZ:F1}");
+    }
+
+    [Fact]
+    public async Task MeshViewerViewModel_WithVirtualComponentsAssembly_LoadsFullMeshAndSupportsIsolate()
+    {
+        string path = @"C:\Users\HP\Downloads\YX-SCGZJJ-036-A 多晶收纳车.SLDASM";
+        if (!File.Exists(path)) return;
+
+        var docService = new SwDocumentService();
+        await docService.OpenAsync(path);
+        var exportService = new ExportService();
+        var dialogService = new DummyDialogService();
+        var vm = new MeshViewerViewModel(docService, exportService, dialogService);
+
+        vm.LoadMesh();
+        Assert.True(vm.HasAssemblyComponents);
+        Assert.True(vm.HasMesh);
+        Assert.True(vm.VertexCount >= 100000);
+
+        // 验证可孤立虚拟组件中的零件
+        var allComps = docService.GetAssemblyTree();
+        var virtualChild = allComps.SelectMany(c => c.Children.Count > 0 ? c.Children : new[] { c })
+                                   .FirstOrDefault(c => c.InstanceName.Contains("复件") || c.InstanceName.Contains("YX-SCGZJJ-036-A-01"));
+        Assert.NotNull(virtualChild);
+        vm.IsolateComponentCommand.Execute(virtualChild);
+        Assert.True(vm.IsIsolated);
+        Assert.NotNull(vm.IsolatedComponent);
+
+        vm.ExitIsolateCommand.Execute(null);
+        Assert.False(vm.IsIsolated);
+
+        // 验证爆炸图计算
+        vm.IsExplodeModeEnabled = true;
+        vm.SetExplodePercentCommand.Execute(100.0);
+        var (offsets, compOffsets) = vm.CalculateExplodeOffsets();
+        Assert.NotNull(offsets);
+        Assert.True(compOffsets.Count > 0);
+
+        docService.Close();
+    }
 }
