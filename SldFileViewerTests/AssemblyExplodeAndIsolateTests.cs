@@ -547,6 +547,15 @@ public class AssemblyExplodeAndIsolateTests
         // 输出所有颜色用于验证
         System.Diagnostics.Trace.WriteLine($"WpfColoredMeshes count: {mainVm.MeshViewer.WpfColoredMeshes.Count}: {string.Join(", ", hexColors)}");
 
+        // 导出离线单文件 3D HTML 交互式查看器供实际检验
+        string artifactDir = @"C:\Users\HP\.gemini\antigravity\brain\eed5a36f-5e8b-4a85-bde9-407779624be2";
+        if (Directory.Exists(artifactDir))
+        {
+            string htmlPath = Path.Combine(artifactDir, "多晶收纳车_3D_WebGL_Viewer.html");
+            mainVm.MeshViewer.Mesh!.ExportToHtml(htmlPath, "YX-SCGZJJ-036-A 多晶收纳车 (3D 交互式查看器)");
+            Assert.True(File.Exists(htmlPath));
+        }
+
         docService.Close();
     }
 }

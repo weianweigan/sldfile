@@ -103,8 +103,31 @@ public abstract partial class SwFile
     /// <summary>Returns a copy of the raw Preview stream bytes (4-byte length prefix + DIB), or null when none is present.</summary>
     public byte[]? GetRawPreviewDib() => PreviewImage == null ? null : (byte[])PreviewImage.Clone();
 
-    /// <summary>Decodes the 3D display tessellation mesh from the model's DisplayLists, or null if not present.</summary>
+    /// <summary>Decodes the 3D display tessellation mesh from the model, calculating assembly component transforms if applicable, or null if not present.</summary>
     public DisplayMesh? GetDisplayMesh()
+    {
+        if (Kind == DocumentKind.Assembly)
+        {
+            var raw = GetRawDisplayMesh();
+            var stitched = StitchAssemblyMeshFromComponents();
+            if (stitched != null && (raw == null || stitched.VertexCount >= raw.VertexCount))
+            {
+                return stitched;
+            }
+            if (raw != null && raw.VertexCount > 0)
+            {
+                return raw;
+            }
+            if (stitched != null && stitched.VertexCount > 0)
+            {
+                return stitched;
+            }
+        }
+        return GetRawDisplayMesh();
+    }
+
+    /// <summary>Decodes the raw 3D display tessellation mesh directly from DisplayLists or FaceTessellations streams without assembly stitching.</summary>
+    public DisplayMesh? GetRawDisplayMesh()
     {
         byte[]? dlBytes = DisplayLists.RawData;
         if (dlBytes == null || dlBytes.Length == 0)
@@ -284,7 +307,7 @@ public abstract partial class SwFile
         {
             try
             {
-                var nativeMesh = GetDisplayMesh();
+                var nativeMesh = GetRawDisplayMesh();
                 if (nativeMesh != null && nativeMesh.Parts != null && nativeMesh.Parts.Count > 0)
                 {
                     embeddedPrototypeMeshes = ExtractEmbeddedPrototypeMeshes(dlBytes, nativeMesh);
@@ -923,6 +946,14 @@ public abstract partial class SwFile
         if (string.IsNullOrEmpty(filePath)) throw new ArgumentNullException(nameof(filePath));
         using var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None);
         ExportParasolid(fs, configIndex);
+    }
+
+    /// <summary>
+    /// Exports the 3D model geometry to an offline, standalone single-file HTML/WebGL (Three.js) interactive viewer.
+    /// </summary>
+    public void ExportToHtml(string filePath, string? modelTitle = null, Geometry.Html3DExportOptions? options = null)
+    {
+        Geometry.Html3DWriter.Export(this, filePath, modelTitle, options);
     }
 
     /// <summary>

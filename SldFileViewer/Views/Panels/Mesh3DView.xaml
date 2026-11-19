@@ -246,6 +246,17 @@
                         </StackPanel>
                     </Button>
 
+                    <Button Command="{Binding ExportHtmlCommand}"
+                            Style="{StaticResource Style.Button.Secondary}"
+                            Padding="12,4"
+                            Margin="6,0,0,0"
+                            ToolTip="导出为离线单文件 3D HTML 交互式查看器（零依赖，双击浏览器即开，支持爆炸图/剖切/构件树）">
+                        <StackPanel Orientation="Horizontal">
+                            <iconPacks:PackIconMaterial Kind="Web" Foreground="{StaticResource Brush.Figma.Ink}" Width="12" Height="12" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="导出 3D HTML" FontSize="11" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </Button>
+
                     <Button Command="{Binding ExportParasolidCommand}"
                             Visibility="{Binding HasParasolid, Converter={StaticResource BoolToVisibilityConverter}}"
                             Style="{StaticResource Style.Button.Secondary}"

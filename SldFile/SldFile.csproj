@@ -48,6 +48,10 @@
     </ItemGroup>
 
     <ItemGroup>
+        <EmbeddedResource Include="Resources\three.min.js.gz" />
+    </ItemGroup>
+
+    <ItemGroup>
         <PackageReference Include="OpenMcdf" Version="3.1.4" />
         <PackageReference Include="System.Memory" Version="4.6.3" />
         <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />

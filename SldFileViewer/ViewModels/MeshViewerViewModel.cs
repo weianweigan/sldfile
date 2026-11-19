@@ -2486,6 +2486,44 @@ _dialogService.ShowError("导出失败", ex.Message);
 
 [RelayCommand]
 
+private void ExportHtml()
+
+{
+
+if (Mesh == null) return;
+
+if (_dialogService.ShowSaveFileDialog(GetDefaultFileName(".html"), "离线单文件 3D HTML 查看器 (*.html)|*.html|所有文件 (*.*)|*.*", out var savePath))
+
+{
+
+try
+
+{
+
+string title = !string.IsNullOrEmpty(_docService.CurrentFile?.FilePath) 
+    ? System.IO.Path.GetFileName(_docService.CurrentFile.FilePath) 
+    : "SolidWorks 3D 模型";
+
+_exportService.ExportMeshToHtml(Mesh, savePath, title);
+
+_dialogService.ShowInformation("导出成功", $"离线单文件 3D HTML 交互式查看器已成功导出至:\n{savePath}");
+
+}
+
+catch (Exception ex)
+
+{
+
+_dialogService.ShowError("导出失败", ex.Message);
+
+}
+
+}
+
+}
+
+[RelayCommand]
+
 private void ExportParasolid()
 
 {

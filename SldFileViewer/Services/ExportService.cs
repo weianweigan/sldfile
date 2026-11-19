@@ -26,6 +26,11 @@ public sealed class ExportService : IExportService
         mesh.WriteGlb(stream);
     }
 
+    public void ExportMeshToHtml(DisplayMesh mesh, string filePath, string? modelTitle = null)
+    {
+        mesh.ExportToHtml(filePath, modelTitle);
+    }
+
     public void ExportParasolid(SwFile file, string filePath, int configIndex = 0)
     {
         file.ExportParasolid(filePath, configIndex);

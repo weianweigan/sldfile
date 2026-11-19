@@ -83,19 +83,7 @@ public sealed class SwDocumentService : ISwDocumentService
 
     public DisplayMesh? GetDisplayMesh()
     {
-        DisplayMesh? mesh = null;
-        if (_currentFile != null && _currentFile.Kind == DocumentKind.Assembly)
-        {
-            // 对于装配体，若外部子零件文件存在，优先使用动态拼装网格，确保所有实例精确位于装配物理空间
-            mesh = _currentFile.StitchAssemblyMeshFromComponents();
-        }
-
-        if (mesh == null)
-        {
-            mesh = _currentFile?.GetDisplayMesh();
-        }
-
-        return mesh;
+        return _currentFile?.GetDisplayMesh();
     }
 
     public IReadOnlyList<AssemblyComponentNode> GetAssemblyTree(string? configName = null)

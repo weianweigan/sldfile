@@ -208,4 +208,71 @@ public class DisplayMeshTests
         Assert.Equal(0x004E4942u, binChunkType); // BIN\0
         Assert.True(binChunkLength > 0);
     }
+
+    [Fact]
+    public void DisplayMesh_ExportToHtml_GeneratesStandaloneInteractiveViewer()
+    {
+        using var file = SwFile.Open(TestFileProvider.CubePart, readOnly: true);
+        var mesh = file.GetDisplayMesh();
+        Assert.NotNull(mesh);
+
+        using var ms = new MemoryStream();
+        mesh!.WriteHtml(ms, "Cube Test Model");
+
+        string html = Encoding.UTF8.GetString(ms.ToArray());
+
+        // 1. 验证 HTML 基本结构与离线独立性
+        Assert.StartsWith("<!DOCTYPE html>", html);
+        Assert.Contains("<title>Cube Test Model - SldFile 3D Viewer</title>", html);
+        Assert.Contains("<canvas id=\"webglCanvas\"></canvas>", html);
+
+        // 2. 验证内联嵌入了 Three.js 与 OrbitControls 运行时脚本
+        Assert.Contains("Three.js & OrbitControls Inlined Runtime", html);
+        Assert.Contains("THREE.WebGLRenderer", html);
+        Assert.Contains("THREE.OrbitControls", html);
+
+        // 3. 验证内嵌了 Base64 模型数据与构件属性
+        Assert.Contains("RAW_POSITIONS_B64", html);
+        Assert.Contains("RAW_NORMALS_B64", html);
+        Assert.Contains("MODEL_PARTS", html);
+        Assert.Contains("MODEL_BOUNDS", html);
+
+        // 4. 验证交互控制与爆炸图/剖切/视角切换逻辑已嵌入
+        Assert.Contains("explodeSlider", html);
+        Assert.Contains("btnSectionToggle", html);
+        Assert.Contains("fitCamera", html);
+        Assert.Contains("btnScreenshot", html);
+    }
+
+    [Fact]
+    public void DisplayMesh_ExportToHtml_FromAssembly_ContainsStitchedPartsAndColors()
+    {
+        string asmPath = @"C:\Users\HP\Downloads\YX-SCGZJJ-036-A 多晶收纳车\YX-SCGZJJ-036-A 多晶收纳车.SLDASM";
+        if (!File.Exists(asmPath)) return;
+
+        using var file = SwFile.Open(asmPath, readOnly: true);
+        var mesh = file.GetDisplayMesh();
+        Assert.NotNull(mesh);
+        Assert.True(mesh!.VertexCount >= 100000);
+
+        string tempHtml = Path.Combine(Path.GetTempPath(), $"Sld3D_{System.Guid.NewGuid():N}.html");
+        try
+        {
+            file.ExportToHtml(tempHtml, "多晶收纳车整机 3D 查看器");
+            Assert.True(File.Exists(tempHtml));
+            var fileInfo = new FileInfo(tempHtml);
+            Assert.True(fileInfo.Length > 500000, $"File size was {fileInfo.Length} bytes");
+
+            string html = File.ReadAllText(tempHtml);
+            // 验证构件颜色与名称已序列化
+            Assert.Contains("#E5C94F", html); // 车斗金黄色
+            Assert.Contains("#D8293C", html); // 脚轮深红色
+            Assert.Contains("#2069BB", html); // 手把钢蓝色
+            Assert.Contains("YX-SCGZJJ-036-A", html);
+        }
+        finally
+        {
+            try { if (File.Exists(tempHtml)) File.Delete(tempHtml); } catch { }
+        }
+    }
 }

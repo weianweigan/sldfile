@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Numerics;
 using System.Text;
+using SldFile.Geometry;
 
 namespace SldFile;
 
@@ -130,6 +131,30 @@ public sealed class DisplayMesh
     public void WriteGlb(Stream stream, float scale = 0.001f)
     {
         Geometry.GlbWriter.Write(this, stream, scale);
+    }
+
+    /// <summary>
+    /// Writes this mesh as a standalone, offline single-file HTML/WebGL (Three.js) interactive viewer.
+    /// </summary>
+    public void WriteHtml(TextWriter writer, string? modelTitle = null, Html3DExportOptions? options = null)
+    {
+        Geometry.Html3DWriter.Write(this, writer, modelTitle, options);
+    }
+
+    /// <summary>
+    /// Writes this mesh as a standalone, offline single-file HTML/WebGL (Three.js) interactive viewer to the specified stream.
+    /// </summary>
+    public void WriteHtml(Stream stream, string? modelTitle = null, Html3DExportOptions? options = null)
+    {
+        Geometry.Html3DWriter.Write(this, stream, modelTitle, options);
+    }
+
+    /// <summary>
+    /// Exports this mesh as a standalone, offline single-file HTML/WebGL (Three.js) interactive viewer to the specified file path.
+    /// </summary>
+    public void ExportToHtml(string filePath, string? modelTitle = null, Html3DExportOptions? options = null)
+    {
+        Geometry.Html3DWriter.Export(this, filePath, modelTitle, options);
     }
 }
 
