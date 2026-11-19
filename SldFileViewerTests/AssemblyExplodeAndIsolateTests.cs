@@ -524,6 +524,22 @@ public class AssemblyExplodeAndIsolateTests
         Assert.NotNull(offsets);
         Assert.True(compOffsets.Count > 0);
 
+        // 验证通过 MainViewModel 整体加载同样完整联动 (VertexCount = 166,580)
+        var treeVm = new DocumentTreeViewModel(docService);
+        var sketchVm = new SketchCanvasViewModel();
+        var propsVm = new CustomPropsViewModel(docService, dialogService);
+        var eqVm = new EquationsViewModel(docService);
+        var bomVm = new BomViewModel(docService, exportService, dialogService);
+        var mainMeshVm = new MeshViewerViewModel(docService, exportService, dialogService);
+        var imgVm = new ImagePreviewViewModel(docService);
+        var featVm = new FeatureDetailViewModel();
+        var mainVm = new MainViewModel(docService, dialogService, treeVm, sketchVm, propsVm, eqVm, bomVm, mainMeshVm, imgVm, featVm);
+
+        await mainVm.LoadDocumentAsync(path);
+        Assert.True(mainVm.MeshViewer.HasMesh);
+        Assert.True(mainVm.MeshViewer.VertexCount >= 100000);
+        Assert.Equal(166580, mainVm.MeshViewer.VertexCount);
+
         docService.Close();
     }
 }
