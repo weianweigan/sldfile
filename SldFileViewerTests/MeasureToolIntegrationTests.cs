@@ -1,10 +1,7 @@
-﻿using System.Collections.Generic;
-
-using System;
-
-
-
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 
 
@@ -1278,5 +1275,134 @@ docService.Close();
 
         var elem = MeshGeometryHelper.DetectCircleFromOutlineEdges(mesh, 0, p => p);
         Assert.Null(elem);
+    }
+
+    [Fact]
+    public void TestViewportHitTestBehavior()
+    {
+        var t = new System.Threading.Thread(() =>
+        {
+            var viewport = new System.Windows.Controls.Viewport3D();
+            viewport.Width = 800;
+            viewport.Height = 600;
+            viewport.Measure(new System.Windows.Size(800, 600));
+            viewport.Arrange(new System.Windows.Rect(0, 0, 800, 600));
+
+            var cam = new System.Windows.Media.Media3D.OrthographicCamera(
+                new System.Windows.Media.Media3D.Point3D(0, 0, 100),
+                new System.Windows.Media.Media3D.Vector3D(0, 0, -100),
+                new System.Windows.Media.Media3D.Vector3D(0, 1, 0),
+                200);
+            viewport.Camera = cam;
+
+            var modelVisual = new System.Windows.Media.Media3D.ModelVisual3D();
+            var mesh = new System.Windows.Media.Media3D.MeshGeometry3D();
+            mesh.Positions.Add(new System.Windows.Media.Media3D.Point3D(-50, -50, 0));
+            mesh.Positions.Add(new System.Windows.Media.Media3D.Point3D(50, -50, 0));
+            mesh.Positions.Add(new System.Windows.Media.Media3D.Point3D(0, 50, 0));
+            mesh.TriangleIndices.Add(0);
+            mesh.TriangleIndices.Add(1);
+            mesh.TriangleIndices.Add(2);
+            modelVisual.Content = new System.Windows.Media.Media3D.GeometryModel3D(
+                mesh, new System.Windows.Media.Media3D.DiffuseMaterial(System.Windows.Media.Brushes.Red));
+            viewport.Children.Add(modelVisual);
+
+            var targets = new List<object>();
+            System.Windows.Media.Media3D.RayMeshGeometry3DHitTestResult? hitResult = null;
+
+            System.Windows.Media.VisualTreeHelper.HitTest(viewport, target =>
+            {
+                targets.Add(target);
+                if (target is System.Windows.Controls.Viewport3D || target == modelVisual)
+                    return System.Windows.Media.HitTestFilterBehavior.Continue;
+                return System.Windows.Media.HitTestFilterBehavior.ContinueSkipChildren;
+            }, res =>
+            {
+                if (res is System.Windows.Media.Media3D.RayMeshGeometry3DHitTestResult mHit)
+                {
+                    hitResult = mHit;
+                    return System.Windows.Media.HitTestResultBehavior.Stop;
+                }
+                return System.Windows.Media.HitTestResultBehavior.Continue;
+            }, new System.Windows.Media.PointHitTestParameters(new System.Windows.Point(400, 300)));
+
+            string targetList = string.Join(", ", targets.Select(t => t.GetType().Name + (t == modelVisual ? "[MODELVISUAL]" : "[OTHER]")));
+            if (hitResult == null)
+            {
+                throw new Exception($"HIT FAILED! Targets: {targetList}");
+            }
+            Assert.NotNull(hitResult);
+            Assert.Same(modelVisual, hitResult.VisualHit);
+        });
+        t.SetApartmentState(System.Threading.ApartmentState.STA);
+        t.Start();
+        t.Join();
+    }
+
+    [Fact]
+    public async Task Mesh3DView_HitTestMeshEntity_SuccessfullySelectsSurfaceAndMeasures()
+    {
+        var docService = new SldFileViewer.Services.SwDocumentService();
+        var exportService = new SldFileViewer.Services.ExportService();
+        var dialogService = new MockDialogService();
+        var meshVm = new MeshViewerViewModel(docService, exportService, dialogService);
+
+        string modelPath = ViewerIntegrationTests.ResolveModelPath("cube.SLDPRT");
+        await docService.OpenAsync(modelPath);
+        meshVm.LoadMesh(0);
+
+        Assert.True(meshVm.HasMesh);
+        Assert.NotNull(meshVm.Mesh);
+        meshVm.IsMeasureModeEnabled = true;
+
+        Exception? threadEx = null;
+        var t = new System.Threading.Thread(() =>
+        {
+            try
+            {
+                if (System.Windows.Application.Current == null)
+                {
+                    new System.Windows.Application();
+                    SldFileViewer.Theme.ThemeManager.ApplyTheme();
+                }
+
+                var view = new SldFileViewer.Views.Panels.Mesh3DView { DataContext = meshVm };
+                view.RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.FrameworkElement.LoadedEvent));
+                view.Measure(new System.Windows.Size(800, 600));
+                view.Arrange(new System.Windows.Rect(0, 0, 800, 600));
+                view.UpdateLayout();
+
+                // 在视口中心 (400, 300) 处进行光线投射拾取
+                bool hit = view.HitTestMeshEntity(new System.Windows.Point(400, 300), out var elem);
+                Assert.True(hit, "HitTestMeshEntity should successfully hit the cube mesh at center of viewport");
+                Assert.NotNull(elem);
+
+                // 验证点击拾取
+                meshVm.HandleSelectElement(elem);
+                Assert.Equal(1, meshVm.MeasureStep);
+                Assert.NotNull(meshVm.SelectedElement1);
+
+                // 验证悬停预览
+                meshVm.HandleHoverElement(elem);
+                Assert.NotNull(meshVm.WpfHoverHighlightMesh);
+
+                // 验证清空测量
+                meshVm.ClearMeasure();
+                Assert.Equal(0, meshVm.MeasureStep);
+                Assert.Null(meshVm.SelectedElement1);
+            }
+            catch (Exception ex)
+            {
+                threadEx = ex;
+            }
+        });
+        t.SetApartmentState(System.Threading.ApartmentState.STA);
+        t.Start();
+        t.Join();
+
+        if (threadEx != null)
+        {
+            throw new Exception("STA Thread Exception: " + threadEx.Message, threadEx);
+        }
     }
 }

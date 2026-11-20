@@ -43,6 +43,38 @@ public partial class Mesh3DView : UserControl
         InitializeComponent();
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
+        DataContextChanged += OnDataContextChanged;
+    }
+
+    private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (e.OldValue is MeshViewerViewModel oldVm)
+        {
+            UnsubscribeVm(oldVm);
+        }
+        if (e.NewValue is MeshViewerViewModel newVm)
+        {
+            SubscribeVm(newVm);
+            UpdateMesh(resetCamera: true);
+            UpdateSectionVisuals();
+        }
+    }
+
+    private void SubscribeVm(MeshViewerViewModel vm)
+    {
+        UnsubscribeVm(vm);
+        vm.PropertyChanged += OnViewModelPropertyChanged;
+        vm.RequestStandardView += OnRequestStandardView;
+        vm.RequestZoomToFit += OnRequestZoomToFit;
+        vm.RequestZoomToComponent += OnRequestZoomToComponent;
+    }
+
+    private void UnsubscribeVm(MeshViewerViewModel vm)
+    {
+        vm.PropertyChanged -= OnViewModelPropertyChanged;
+        vm.RequestStandardView -= OnRequestStandardView;
+        vm.RequestZoomToFit -= OnRequestZoomToFit;
+        vm.RequestZoomToComponent -= OnRequestZoomToComponent;
     }
 
     private MeshViewerViewModel? VM => DataContext as MeshViewerViewModel;
@@ -53,10 +85,7 @@ public partial class Mesh3DView : UserControl
     {
         if (VM != null)
         {
-            VM.PropertyChanged += OnViewModelPropertyChanged;
-            VM.RequestStandardView += OnRequestStandardView;
-            VM.RequestZoomToFit += OnRequestZoomToFit;
-            VM.RequestZoomToComponent += OnRequestZoomToComponent;
+            SubscribeVm(VM);
             UpdateMesh(resetCamera: true);
             UpdateSectionVisuals();
         }
@@ -64,6 +93,7 @@ public partial class Mesh3DView : UserControl
         _parentWindow = Window.GetWindow(this);
         if (_parentWindow != null)
         {
+            _parentWindow.PreviewKeyDown -= OnWindowPreviewKeyDown;
             _parentWindow.PreviewKeyDown += OnWindowPreviewKeyDown;
         }
     }
@@ -72,10 +102,7 @@ public partial class Mesh3DView : UserControl
     {
         if (VM != null)
         {
-            VM.PropertyChanged -= OnViewModelPropertyChanged;
-            VM.RequestStandardView -= OnRequestStandardView;
-            VM.RequestZoomToFit -= OnRequestZoomToFit;
-            VM.RequestZoomToComponent -= OnRequestZoomToComponent;
+            UnsubscribeVm(VM);
         }
         if (_parentWindow != null)
         {
@@ -833,7 +860,7 @@ public partial class Mesh3DView : UserControl
         }
     }
 
-    private bool HitTestMeshEntity(Point mousePos, out Models.MeasureElement? foundElement)
+    internal bool HitTestMeshEntity(Point mousePos, out Models.MeasureElement? foundElement)
     {
         foundElement = null;
         if (VM?.WpfMesh == null || VM.Mesh == null) return false;
@@ -843,7 +870,7 @@ public partial class Mesh3DView : UserControl
 
         VisualTreeHelper.HitTest(MainViewport, target =>
         {
-            if (target == ModelVisual)
+            if (target is Viewport3D || target == ModelVisual)
                 return HitTestFilterBehavior.Continue;
             return HitTestFilterBehavior.ContinueSkipChildren;
         }, result =>
@@ -1117,7 +1144,7 @@ public partial class Mesh3DView : UserControl
         }
     }
 
-    private bool HitTestSectionVisual(Point point)
+    internal bool HitTestSectionVisual(Point point)
     {
         if (VM == null || !VM.IsSectionViewEnabled) return false;
         if (SectionPlaneVisual.Content == null && SectionManipulatorVisual.Content == null) return false;
@@ -1126,7 +1153,10 @@ public partial class Mesh3DView : UserControl
         PointHitTestParameters hitParams = new(point);
         VisualTreeHelper.HitTest(MainViewport, target =>
         {
-            if (target == SectionPlaneVisual || target == SectionManipulatorVisual || target == SectionBorderVisual)
+            if (target is Viewport3D ||
+                target == SectionPlaneVisual ||
+                target == SectionManipulatorVisual ||
+                target == SectionBorderVisual)
                 return HitTestFilterBehavior.Continue;
             return HitTestFilterBehavior.ContinueSkipChildren;
         }, hitResult =>
