@@ -1405,4 +1405,71 @@ docService.Close();
             throw new Exception("STA Thread Exception: " + threadEx.Message, threadEx);
         }
     }
+
+    [Fact]
+    public async Task Mesh3DView_HitTest_OnAssembly_Test()
+    {
+        string asmPath = @"C:\Users\HP\Downloads\YX-SCGZJJ-036-A 多晶收纳车.SLDASM";
+        if (!File.Exists(asmPath)) return;
+
+        var docService = new SldFileViewer.Services.SwDocumentService();
+        var exportService = new SldFileViewer.Services.ExportService();
+        var dialogService = new MockDialogService();
+        var meshVm = new MeshViewerViewModel(docService, exportService, dialogService);
+
+        await docService.OpenAsync(asmPath);
+        meshVm.LoadMesh(0);
+
+        Assert.True(meshVm.HasMesh);
+        Assert.NotNull(meshVm.Mesh);
+        meshVm.IsMeasureModeEnabled = true;
+
+        Exception? threadEx = null;
+        var t = new System.Threading.Thread(() =>
+        {
+            try
+            {
+                if (System.Windows.Application.Current == null)
+                {
+                    new System.Windows.Application();
+                    SldFileViewer.Theme.ThemeManager.ApplyTheme();
+                }
+
+                var view = new SldFileViewer.Views.Panels.Mesh3DView { DataContext = meshVm };
+                view.RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.FrameworkElement.LoadedEvent));
+                view.Measure(new System.Windows.Size(800, 600));
+                view.Arrange(new System.Windows.Rect(0, 0, 800, 600));
+                view.UpdateLayout();
+
+                int totalChecks = 0;
+                int hits = 0;
+                // 在视口内多个位置测试
+                for (int x = 200; x <= 600; x += 50)
+                {
+                    for (int y = 150; y <= 450; y += 50)
+                    {
+                        totalChecks++;
+                        if (view.HitTestMeshEntity(new System.Windows.Point(x, y), out var elem))
+                        {
+                            hits++;
+                        }
+                    }
+                }
+
+                Assert.True(hits > 0, $"Assembly should have valid hits in viewport, actual hits: {hits}/{totalChecks}");
+            }
+            catch (Exception ex)
+            {
+                threadEx = ex;
+            }
+        });
+        t.SetApartmentState(System.Threading.ApartmentState.STA);
+        t.Start();
+        t.Join();
+
+        if (threadEx != null)
+        {
+            throw new Exception("STA Thread Exception: " + threadEx.Message, threadEx);
+        }
+    }
 }
